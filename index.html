@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fusionar Marcadores Refinados</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; margin: 40px; }
+    button { padding: 10px; margin: 10px; font-size: 16px; cursor: pointer; }
+    #resultado { text-align: left; max-width: 90%; margin: auto; white-space: pre-wrap; border: 1px solid #ccc; padding: 10px; background: #f4f4f4; }
+    .mensaje { font-weight: bold; margin-top: 10px; }
+    .positivo { color: green; }
+    .negativo { color: red; }
+  </style>
+</head>
+<body>
+  <h1>Fusionar Marcadores Refinados</h1>
+  <p>Carga dos archivos HTML refinados para fusionarlos ordenados por fecha o dominio (A–Z).</p>
+  
+  <button onclick="document.getElementById('archivo1').click()">Cargar Archivo 1</button>
+  <input type="file" id="archivo1" style="display: none;" accept=".html" onchange="procesarArchivo(this, 1)">
+  
+  <button onclick="document.getElementById('archivo2').click()">Cargar Archivo 2</button>
+  <input type="file" id="archivo2" style="display: none;" accept=".html" onchange="procesarArchivo(this, 2)">
+  
+  <div id="mensajeCarga1" class="mensaje"></div>
+  <div id="mensajeCarga2" class="mensaje"></div>
+  <div id="mensajeFusion" class="mensaje"></div>
+  
+  <button id="fusionarBtn" onclick="fusionarYOrdenar('fecha')" disabled>Fusionar y Ordenar por Fecha</button>
+  <button id="fusionarAZBtn" onclick="fusionarYOrdenar('az')" disabled>Fusionar y Ordenar por Dominio (A–Z)</button>
+  <button id="exportarBtn" onclick="exportarHTML()" disabled>Exportar HTML</button>
+  
+  <h2>Marcadores Fusionados:</h2>
+  <pre id="resultado"></pre>
+
+  <script>
+    function mostrarMensaje(texto, elementoId, tipo) {
+      const elemento = document.getElementById(elementoId);
+      if (elemento) {
+        elemento.innerHTML = texto;
+        elemento.className = tipo;
+      }
+    }
+
+    function mostrarResultado(arr) {
+      const html = arr.map(bm => {
+        return `<strong>${bm.domain}</strong><br>${bm.fechaTexto}<br>${bm.title}<br><a href="${bm.url}" target="_blank">${bm.url}</a><br>${bm.folder}<br><br>`;
+      }).join("");
+      document.getElementById("resultado").innerHTML = html;
+    }
+
+    let bookmarks1 = [];
+    let bookmarks2 = [];
+    let mergedBookmarks = [];
+
+    function procesarArchivo(input, numArchivo) {
+      const file = input.files[0];
+      if (!file) return;
+      
+      // Al cargar un nuevo archivo, se reinician los resultados de fusión y su visualización.
+      mergedBookmarks = [];
+      document.getElementById("mensajeFusion").innerHTML = "";
+      document.getElementById("resultado").innerHTML = "";
+      
+      if (!file.name.endsWith(".html")) {
+        mostrarMensaje(`Archivo ${numArchivo} incompatible (Debe ser HTML)`, "mensajeCarga" + numArchivo, "negativo");
+        if (numArchivo === 1) bookmarks1 = [];
+        if (numArchivo === 2) bookmarks2 = [];
+        actualizarEstadoBotones();
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const contenido = e.target.result;
+        const marks = extraerBookmarks(contenido);
+        if (numArchivo === 1) {
+          bookmarks1 = marks;
+        } else {
+          bookmarks2 = marks;
+        }
+        mostrarMensaje(`Archivo ${numArchivo} cargado (${marks.length} enlaces)`, "mensajeCarga" + numArchivo, "positivo");
+        mergedBookmarks = [];
+        actualizarEstadoBotones();
+      };
+      reader.readAsText(file);
+    }
+
+    function actualizarEstadoBotones() {
+      const fusionarBtn = document.getElementById("fusionarBtn");
+      const fusionarAZBtn = document.getElementById("fusionarAZBtn");
+      const exportarBtn = document.getElementById("exportarBtn");
+      const archivosValidos = (bookmarks1.length > 0 && bookmarks2.length > 0);
+      fusionarBtn.disabled = !archivosValidos;
+      fusionarAZBtn.disabled = !archivosValidos;
+      exportarBtn.disabled = mergedBookmarks.length === 0;
+    }
+
+    function extraerBookmarks(htmlContent) {
+      let bookmarks = [];
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlContent, "text/html");
+      const content = doc.body.innerHTML;
+      const blocks = content.split(/<br\s*\/?>\s*<br\s*\/?>/i);
+      blocks.forEach(block => {
+        block = block.trim();
+        if (block) {
+          const lines = block.split(/<br\s*\/?>/i).map(line => line.trim()).filter(line => line);
+          if (lines.length >= 4) {
+            const domain = lines[0].replace(/<\/?strong>/gi, "").trim();
+            const dateStr = lines[1].trim();
+            const parts = dateStr.split("-");
+            const dmy = parts[0].split("/");
+            let year = parseInt(dmy[2]);
+            year += (year < 70) ? 2000 : 1900;
+            const timeParts = parts[1].split(":").map(n => parseInt(n));
+            const dateObj = new Date(year, parseInt(dmy[1]) - 1, parseInt(dmy[0]), ...timeParts);
+            const title = lines[2].trim();
+            const urlMatch = lines[3].match(/href="([^"]+)"/i);
+            const url = urlMatch ? urlMatch[1] : lines[3];
+            const folder = (lines[4] && lines[4].startsWith("[#")) ? lines[4] : "";
+            bookmarks.push({ domain, fecha: dateObj, fechaTexto: dateStr, title, url, folder });
+          }
+        }
+      });
+      return bookmarks;
+    }
+
+    function fusionarYOrdenar(criterio) {
+      mergedBookmarks = bookmarks1.concat(bookmarks2);
+      if (criterio === "fecha") {
+        mergedBookmarks.sort((a, b) => a.fecha - b.fecha);
+      } else if (criterio === "az") {
+        mergedBookmarks.sort((a, b) => {
+          const cmpDomain = a.domain.localeCompare(b.domain, "es", { numeric: true });
+          if (cmpDomain === 0) {
+            // Si el dominio es el mismo, ordena por fecha de más antiguo a más nuevo.
+            return a.fecha - b.fecha;
+          }
+          return cmpDomain;
+        });
+      }
+      
+      mostrarResultado(mergedBookmarks);
+      mostrarMensaje(`Archivo 1 cargado (${bookmarks1.length} enlaces)`, "mensajeCarga1", "positivo");
+      mostrarMensaje(`Archivo 2 cargado (${bookmarks2.length} enlaces)`, "mensajeCarga2", "positivo");
+      mostrarMensaje(`Archivos fusionados (${mergedBookmarks.length} enlaces)`, "mensajeFusion", "positivo");
+
+      actualizarEstadoBotones();
+    }
+
+    function exportarHTML() {
+      if (mergedBookmarks.length === 0) return;
+      const resultado = document.getElementById("resultado").innerHTML;
+      const contenidoHTML = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Marcadores Fusionados</title></head><body>${resultado}</body></html>`;
+      const blob = new Blob([contenidoHTML], { type: "text/html;charset=utf-8" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "marcadores_fusionados.html";
+      link.click();
+    }
+  </script>
+</body>
+</html>
