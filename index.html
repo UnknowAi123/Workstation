@@ -19,18 +19,23 @@
       font-size: 16px; 
       cursor: pointer; 
     }
-    /* Se modificó el estilo de #resultado para un renderizado uniforme */
+    /* Modificaciones en #resultado:
+       - Se ajusta el font-size para que sea similar al de Firefox.
+       - Se usan propiedades que obligan a respetar la palabra completa en los saltos de línea. */
     #resultado {
       text-align: left;
-      width: 100%;                /* Ocupa el 100% del contenedor padre */
-      max-width: 1024px;          /* No excede de 1024px */
-      box-sizing: border-box;     /* Incluye padding y border en el width */
-      margin: 20px auto;          /* Centrado vertical y horizontal */
+      width: 100%;
+      max-width: 1024px;
+      box-sizing: border-box;
+      margin: 20px auto;
       white-space: pre-wrap;
       border: 1px solid #ccc;
       padding: 10px;
       background: #f4f4f4;
-      overflow-wrap: break-word;  /* Rompe palabras largas */
+      font-size: 0.9rem;       /* Ajusta el tamaño del texto */
+      word-break: normal;      /* Evita que se rompa la palabra a la mitad */
+      hyphens: auto;           /* Permite la separación con guiones si es necesario */
+      overflow-wrap: break-word;
     }
     #mensajeCargar, #mensajeExtraer, #mensajeExportar { 
       text-align: center; 
