@@ -5,11 +5,39 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Extraer Enlaces de HTML</title>
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; margin: 40px; }
-    input, button { width: 80%; padding: 10px; margin: 10px 0; }
-    button { font-size: 16px; cursor: pointer; }
-    #resultado { text-align: left; max-width: 90%; margin: auto; white-space: pre-wrap; border: 1px solid #ccc; padding: 10px; background: #f4f4f4; }
-    #mensajeCargar, #mensajeExtraer, #mensajeExportar { text-align: center; font-weight: bold; padding: 5px; margin-top: 10px; }
+    body { 
+      font-family: Arial, sans-serif; 
+      text-align: center; 
+      margin: 40px; 
+    }
+    input, button { 
+      width: 80%; 
+      padding: 10px; 
+      margin: 10px 0; 
+    }
+    button { 
+      font-size: 16px; 
+      cursor: pointer; 
+    }
+    /* Se modificó el estilo de #resultado para un renderizado uniforme */
+    #resultado {
+      text-align: left;
+      width: 100%;                /* Ocupa el 100% del contenedor padre */
+      max-width: 1024px;          /* No excede de 1024px */
+      box-sizing: border-box;     /* Incluye padding y border en el width */
+      margin: 20px auto;          /* Centrado vertical y horizontal */
+      white-space: pre-wrap;
+      border: 1px solid #ccc;
+      padding: 10px;
+      background: #f4f4f4;
+      overflow-wrap: break-word;  /* Rompe palabras largas */
+    }
+    #mensajeCargar, #mensajeExtraer, #mensajeExportar { 
+      text-align: center; 
+      font-weight: bold; 
+      padding: 5px; 
+      margin-top: 10px; 
+    }
     .positivo { color: green; }
     .negativo { color: red; }
   </style>
