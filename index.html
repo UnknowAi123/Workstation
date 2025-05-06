@@ -19,12 +19,12 @@
       font-size: 16px; 
       cursor: pointer; 
     }
-    /* Se modifica el estilo de #resultado:
-       - Se reduce el tamaño de la fuente a 14px para que sea menor.
-       - Se cambian las propiedades para que las palabras no se separen arbitrariamente,
-         emulando el comportamiento de Firefox.
-       - Se mantiene el padding, que genera márgenes laterales internos (aprox. 10px, similar a lo que ves en Firefox, 
-         si deseas ajustarlo a 2px puedes reducir el padding, pero aquí se conserva el 10px para uniformidad visual). */
+    /* Código original (fabuloso) modificado para abordar los problemas:
+       - Se reduce explicitamente el font-size en #resultado a 14px.
+       - Se establecen propiedades para que las palabras no se partan (word-break: keep-all)
+         y se habilita el scroll horizontal para textos que no puedan romperse naturalmente.
+       - Se ajusta el padding lateral a 2px para simular los márgenes internos (en Firefox se observan
+         unos 2px laterales). */
     #resultado {
       text-align: left;
       width: 100%;
@@ -33,12 +33,12 @@
       margin: 20px auto;
       white-space: pre-wrap;
       border: 1px solid #ccc;
-      padding: 10px;
+      padding: 10px 2px;  /* 10px vertical, 2px lateral */
       background: #f4f4f4;
-      font-size: 14px;       /* Fuente reducida para que no se vea tan grande en Chrome */
-      word-break: normal;    /* Evita romper las palabras */
-      overflow-wrap: normal; /* No fuerza el corte de palabra */
-      hyphens: none;         /* Desactiva la separación automática con guiones */
+      font-size: 14px;    /* Tamaño de fuente reducido */
+      word-break: keep-all;      /* Evita cortar palabras en medio */
+      overflow-wrap: normal;     /* No forzamos cortes internos */
+      overflow-x: auto;          /* Permite scroll horizontal para contenidos muy largos */
     }
     #mensajeCargar, #mensajeExtraer, #mensajeExportar { 
       text-align: center; 
@@ -107,7 +107,6 @@
 
         carpeta.nextElementSibling.querySelectorAll("DT > A").forEach(enlace => {
           const titulo = enlace.innerText.trim();
-          // Recuperamos el URL sin aplicar limpieza aún
           const rawUrl = enlace.getAttribute("HREF").trim();
           const addDate = enlace.getAttribute("ADD_DATE");
 
@@ -127,12 +126,10 @@
       mostrarMensaje("Procesado!", "mensajeExtraer", "positivo");
     }
 
-    // Función que extrae el dominio y quita prefijos (m., es.m., etc.) antes de limpiar la URL
     function formatearEnlace(addDate, url, titulo, carpeta) {
       const fecha = new Date(parseInt(addDate) * 1000);
       const fechaTexto = `${fecha.getDate().toString().padStart(2, "0")}/${(fecha.getMonth() + 1).toString().padStart(2, "0")}/${fecha.getFullYear().toString().slice(-2)}-${fecha.toLocaleTimeString("es-ES", { hour12: false })}`;
 
-      // Extraer el hostname del URL original
       let hostname;
       try {
         hostname = new URL(url).hostname.toLowerCase();
@@ -140,22 +137,19 @@
         hostname = "";
       }
 
-      // Quitar el prefijo "www." si existe
       if (hostname.startsWith("www.")) {
         hostname = hostname.substring(4);
       }
 
-      // Separar en partes para detectar subdominios como "m", "es", etc.
       let partes = hostname.split(".");
       let etiquetas = [];
-      const reconocidos = ["m", "es", "uk", "fr"]; // Puedes ajustar la lista según lo necesites
+      const reconocidos = ["m", "es", "uk", "fr"];
       while (partes.length > 2 && reconocidos.includes(partes[0])) {
         etiquetas.push(partes[0]);
         partes.shift();
       }
       const dominioPrincipal = partes.join(".");
       
-      // Procesar las etiquetas para mostrar, por ejemplo, "M-ES"
       let etiquetaFinal = "";
       if (etiquetas.length > 0) {
         const esMovil = etiquetas.includes("m");
@@ -170,7 +164,6 @@
       }
       const dominioConEtiquetas = dominioPrincipal.toUpperCase() + (etiquetaFinal ? " (" + etiquetaFinal + ")" : "");
 
-      // Ahora aplica la limpieza de URL (eliminación de parámetros de rastreo, reglas para Amazon, etc.)
       const urlLimpia = limpiarURL(url);
 
       return {
@@ -188,7 +181,6 @@
         const parsedUrl = new URL(url);
         const pathname = parsedUrl.pathname;
         
-        // Reglas para Amazon
         if (parsedUrl.hostname.includes("amazon.")) {
           if (pathname.includes("/dp/")) {
             return parsedUrl.origin + pathname.split("/dp/")[0] + "/dp/" + pathname.split("/dp/")[1].split("/")[0];
@@ -204,7 +196,6 @@
           }
         }
         
-        // Eliminación de más de 50 parámetros de rastreo
         const parametrosAEliminar = [
           "ref", "psc", "qid", "sr", "spLa", "tracking_id", "utm_source", "utm_medium",
           "utm_campaign", "bm-verify", "gclsrc", "gad_source", "gad_campaignid", "utm_term",
