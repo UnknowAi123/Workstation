@@ -3,162 +3,224 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fusionar Marcadores Refinados</title>
+  <title>Extraer Enlaces de HTML</title>
   <style>
     body { font-family: Arial, sans-serif; text-align: center; margin: 40px; }
-    button { padding: 10px; margin: 10px; font-size: 16px; cursor: pointer; }
+    input, button { width: 80%; padding: 10px; margin: 10px 0; }
+    button { font-size: 16px; cursor: pointer; }
     #resultado { text-align: left; max-width: 90%; margin: auto; white-space: pre-wrap; border: 1px solid #ccc; padding: 10px; background: #f4f4f4; }
-    .mensaje { font-weight: bold; margin-top: 10px; }
+    #mensajeCargar, #mensajeExtraer, #mensajeExportar { text-align: center; font-weight: bold; padding: 5px; margin-top: 10px; }
     .positivo { color: green; }
     .negativo { color: red; }
   </style>
 </head>
 <body>
-  <h1>Fusionar Marcadores Refinados</h1>
-  <p>Carga dos archivos HTML refinados para fusionarlos ordenados por fecha o dominio (A–Z).</p>
-  
-  <button onclick="document.getElementById('archivo1').click()">Cargar Archivo 1</button>
-  <input type="file" id="archivo1" style="display: none;" accept=".html" onchange="procesarArchivo(this, 1)">
-  
-  <button onclick="document.getElementById('archivo2').click()">Cargar Archivo 2</button>
-  <input type="file" id="archivo2" style="display: none;" accept=".html" onchange="procesarArchivo(this, 2)">
-  
-  <div id="mensajeCarga1" class="mensaje"></div>
-  <div id="mensajeCarga2" class="mensaje"></div>
-  <div id="mensajeFusion" class="mensaje"></div>
-  
-  <button id="fusionarBtn" onclick="fusionarYOrdenar('fecha')" disabled>Fusionar y Ordenar por Fecha</button>
-  <button id="fusionarAZBtn" onclick="fusionarYOrdenar('az')" disabled>Fusionar y Ordenar por Dominio (A–Z)</button>
-  <button id="exportarBtn" onclick="exportarHTML()" disabled>Exportar HTML</button>
-  
-  <h2>Marcadores Fusionados:</h2>
+  <h1>Extraer Enlaces de HTML</h1>
+  <p>Sube un archivo HTML de marcadores y visualiza solo los enlaces ordenados.</p>
+
+  <button onclick="document.getElementById('archivo').click()">CARGAR Y PROCESAR POR FECHA</button>
+  <button onclick="document.getElementById('archivoAZ').click()">CARGAR Y PROCESAR A-Z</button>
+  <input type="file" id="archivo" style="display: none;" onchange="validarYProcesarArchivo('fecha')">
+  <input type="file" id="archivoAZ" style="display: none;" onchange="validarYProcesarArchivo('az')">
+  <div id="mensajeCargar"></div>
+  <div id="mensajeExtraer"></div>
+
+  <button onclick="exportarHTML()">EXPORTAR HTML</button>
+  <div id="mensajeExportar"></div>
+
+  <h2>Marcadores:</h2>
   <pre id="resultado"></pre>
 
   <script>
-    function mostrarMensaje(texto, elementoId, tipo) {
-      const elemento = document.getElementById(elementoId);
-      if (elemento) {
-        elemento.innerHTML = texto;
-        elemento.className = tipo;
-      }
-    }
-
-    function mostrarResultado(arr) {
-      const html = arr.map(bm => {
-        return `<strong>${bm.domain}</strong><br>${bm.fechaTexto}<br>${bm.title}<br><a href="${bm.url}" target="_blank">${bm.url}</a><br>${bm.folder}<br><br>`;
-      }).join("");
-      document.getElementById("resultado").innerHTML = html;
-    }
-
-    let bookmarks1 = [];
-    let bookmarks2 = [];
-    let mergedBookmarks = [];
-
-    function procesarArchivo(input, numArchivo) {
-      const file = input.files[0];
-      if (!file) return;
+    function validarYProcesarArchivo(metodoOrden) {
+      const archivo = document.getElementById(metodoOrden === "fecha" ? "archivo" : "archivoAZ").files[0];
+      const mensajeCargar = document.getElementById("mensajeCargar");
       
-      // Al cargar un nuevo archivo, se reinician los resultados de fusión y su visualización.
-      mergedBookmarks = [];
-      document.getElementById("mensajeFusion").innerHTML = "";
-      document.getElementById("resultado").innerHTML = "";
-      
-      if (!file.name.endsWith(".html")) {
-        mostrarMensaje(`Archivo ${numArchivo} incompatible (Debe ser HTML)`, "mensajeCarga" + numArchivo, "negativo");
-        if (numArchivo === 1) bookmarks1 = [];
-        if (numArchivo === 2) bookmarks2 = [];
-        actualizarEstadoBotones();
+      if (!archivo) {
+        mostrarMensaje("Error (Ningún archivo cargado)", "mensajeCargar", "negativo");
         return;
       }
-
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const contenido = e.target.result;
-        const marks = extraerBookmarks(contenido);
-        if (numArchivo === 1) {
-          bookmarks1 = marks;
-        } else {
-          bookmarks2 = marks;
-        }
-        mostrarMensaje(`Archivo ${numArchivo} cargado (${marks.length} enlaces)`, "mensajeCarga" + numArchivo, "positivo");
-        mergedBookmarks = [];
-        actualizarEstadoBotones();
-      };
-      reader.readAsText(file);
-    }
-
-    function actualizarEstadoBotones() {
-      const fusionarBtn = document.getElementById("fusionarBtn");
-      const fusionarAZBtn = document.getElementById("fusionarAZBtn");
-      const exportarBtn = document.getElementById("exportarBtn");
-      const archivosValidos = (bookmarks1.length > 0 && bookmarks2.length > 0);
-      fusionarBtn.disabled = !archivosValidos;
-      fusionarAZBtn.disabled = !archivosValidos;
-      exportarBtn.disabled = mergedBookmarks.length === 0;
-    }
-
-    function extraerBookmarks(htmlContent) {
-      let bookmarks = [];
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(htmlContent, "text/html");
-      const content = doc.body.innerHTML;
-      const blocks = content.split(/<br\s*\/?>\s*<br\s*\/?>/i);
-      blocks.forEach(block => {
-        block = block.trim();
-        if (block) {
-          const lines = block.split(/<br\s*\/?>/i).map(line => line.trim()).filter(line => line);
-          if (lines.length >= 4) {
-            const domain = lines[0].replace(/<\/?strong>/gi, "").trim();
-            const dateStr = lines[1].trim();
-            const parts = dateStr.split("-");
-            const dmy = parts[0].split("/");
-            let year = parseInt(dmy[2]);
-            year += (year < 70) ? 2000 : 1900;
-            const timeParts = parts[1].split(":").map(n => parseInt(n));
-            const dateObj = new Date(year, parseInt(dmy[1]) - 1, parseInt(dmy[0]), ...timeParts);
-            const title = lines[2].trim();
-            const urlMatch = lines[3].match(/href="([^"]+)"/i);
-            const url = urlMatch ? urlMatch[1] : lines[3];
-            const folder = (lines[4] && lines[4].startsWith("[#")) ? lines[4] : "";
-            bookmarks.push({ domain, fecha: dateObj, fechaTexto: dateStr, title, url, folder });
-          }
-        }
-      });
-      return bookmarks;
-    }
-
-    function fusionarYOrdenar(criterio) {
-      mergedBookmarks = bookmarks1.concat(bookmarks2);
-      if (criterio === "fecha") {
-        mergedBookmarks.sort((a, b) => a.fecha - b.fecha);
-      } else if (criterio === "az") {
-        mergedBookmarks.sort((a, b) => {
-          const cmpDomain = a.domain.localeCompare(b.domain, "es", { numeric: true });
-          if (cmpDomain === 0) {
-            // Si el dominio es el mismo, ordena por fecha de más antiguo a más nuevo.
-            return a.fecha - b.fecha;
-          }
-          return cmpDomain;
-        });
+      
+      if (!archivo.name.endsWith(".html")) {
+        document.getElementById(metodoOrden === "fecha" ? "archivo" : "archivoAZ").value = "";
+        mostrarMensaje("Error (Formato incorrecto, debe ser HTML)", "mensajeCargar", "negativo");
+        return;
       }
       
-      mostrarResultado(mergedBookmarks);
-      mostrarMensaje(`Archivo 1 cargado (${bookmarks1.length} enlaces)`, "mensajeCarga1", "positivo");
-      mostrarMensaje(`Archivo 2 cargado (${bookmarks2.length} enlaces)`, "mensajeCarga2", "positivo");
-      mostrarMensaje(`Archivos fusionados (${mergedBookmarks.length} enlaces)`, "mensajeFusion", "positivo");
-
-      actualizarEstadoBotones();
+      mostrarMensaje("Cargado y procesando...", "mensajeCargar", "positivo");
+      procesarEnlaces(archivo, metodoOrden);
     }
-
+    
+    function procesarEnlaces(archivo, metodoOrden) {
+      const mensajeExtraer = document.getElementById("mensajeExtraer");
+      mensajeExtraer.innerHTML = "";
+      
+      const reader = new FileReader();
+      reader.onload = () => extraerEnlaces(reader.result, metodoOrden);
+      reader.onerror = () => mostrarMensaje("Error (Fallo de Lectura)", "mensajeExtraer", "negativo");
+      reader.readAsText(archivo);
+    }
+    
+    function extraerEnlaces(html, metodoOrden) {
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      let enlaces = [];
+      
+      doc.querySelectorAll("DL > DT > H3").forEach(carpeta => {
+        const nombreCarpeta = carpeta.innerText.trim();
+        if (nombreCarpeta === "Marcadores" || nombreCarpeta === "Marcadores de móvil") return;
+        
+        carpeta.nextElementSibling.querySelectorAll("DT > A").forEach(enlace => {
+          const titulo = enlace.innerText.trim();
+          const url = enlace.getAttribute("HREF").trim();
+          const addDate = enlace.getAttribute("ADD_DATE");
+          
+          if (addDate) {
+            enlaces.push(formatearEnlace(addDate, url, titulo, nombreCarpeta));
+          }
+        });
+      });
+      
+      // Ordenar por fecha o por dominio A-Z con suborden de fecha
+      if (metodoOrden === "fecha") {
+        enlaces.sort((a, b) => a.fecha - b.fecha);
+      } else {
+        enlaces.sort((a, b) => a.dominio.localeCompare(b.dominio, "es", { numeric: true }) || a.fecha - b.fecha);
+      }
+      
+      mostrarResultado(enlaces);
+      mostrarMensaje("Procesado!", "mensajeExtraer", "positivo");
+    }
+    
+    // Función para limpiar URLs. Se aplican reglas especiales para Amazon y, en otros dominios,
+    // se eliminan parámetros de rastreo usando una lista de 50 elementos.
+    function limpiarURL(url) {
+      try {
+        const parsedUrl = new URL(url);
+        const pathname = parsedUrl.pathname;
+    
+        // Reglas especiales para Amazon
+        if (parsedUrl.hostname.includes("amazon.")) {
+          // 1) Producto: extraer solo hasta el ASIN, es decir: /dp/[ASIN]
+          if (pathname.includes("/dp/")) {
+            const partes = pathname.split("/");
+            const dpIndex = partes.indexOf("dp");
+            if (dpIndex !== -1 && partes.length > dpIndex + 1) {
+              const asin = partes[dpIndex + 1];
+              return parsedUrl.origin + "/dp/" + asin;
+            }
+            return parsedUrl.origin + pathname;
+          }
+          
+          // 2) Página principal: si pathname es "/" o vacío, devolver solo la raíz.
+          if (pathname === "/" || pathname === "") {
+            return parsedUrl.origin + "/";
+          }
+          
+          // 3) Página de categoría/browse (ruta que empieza con "/b/")
+          if (pathname.startsWith("/b/")) {
+            // Solo se conservan _encoding y node
+            const allowedParams = ["_encoding", "node"];
+            const newSearchParams = new URLSearchParams();
+            allowedParams.forEach(param => {
+              const value = parsedUrl.searchParams.get(param);
+              if (value) {
+                newSearchParams.set(param, value);
+              }
+            });
+            const qs = newSearchParams.toString();
+            return parsedUrl.origin + pathname + (qs ? "?" + qs : "");
+          }
+          
+          // 4) Página de búsqueda (ruta que empieza con "/s")
+          if (pathname.startsWith("/s")) {
+            // Solo se conserva el parámetro "k"
+            const allowedParams = ["k"];
+            const newSearchParams = new URLSearchParams();
+            allowedParams.forEach(param => {
+              const value = parsedUrl.searchParams.get(param);
+              if (value) {
+                newSearchParams.set(param, value);
+              }
+            });
+            const qs = newSearchParams.toString();
+            return parsedUrl.origin + pathname + (qs ? "?" + qs : "");
+          }
+        }
+    
+        // Lista de 50 parámetros de rastreo a eliminar (para otros dominios y casos que no coinciden con las reglas anteriores)
+        const parametrosAEliminar = [
+          "ref", "psc", "qid", "sr", "spLa", "tracking_id",
+          "utm_source", "utm_medium", "utm_campaign", "bm-verify",
+          "gclsrc", "gad_source", "gad_campaignid", "utm_term", "utm_content",
+          "aff_id", "aff_sub", "afftrack", "cmpid", "cmp", "tracking", "cid",
+          "campaign_id", "source", "subid", "ad_id", "adgroup", "creative", "partner",
+          "affiliate", "affiliation", "tracker", "trkid", "fbclid", "mc_cid", "mc_eid",
+          "campaign", "ad", "partner_id", "aff", "sourceid", "clickid", "adslot", "mkt",
+          "mkt_campaign", "promocode", "promo", "campaigns", "adtype", "s_kwcid"
+        ];
+    
+        parametrosAEliminar.forEach(param => parsedUrl.searchParams.delete(param));
+    
+        return parsedUrl.origin + pathname + (parsedUrl.searchParams.toString() ? "?" + parsedUrl.searchParams.toString() : "");
+      } catch (error) {
+        return url;
+      }
+    }
+    
+    // Se modifica la función formatearEnlace para integrar la limpieza de URL.
+    function formatearEnlace(addDate, url, titulo, carpeta) {
+      const fecha = new Date(parseInt(addDate) * 1000);
+      const fechaTexto = `${fecha.getDate().toString().padStart(2,"0")}/${(fecha.getMonth()+1).toString().padStart(2,"0")}/${fecha.getFullYear().toString().slice(-2)}-${fecha.toLocaleTimeString("es-ES", { hour12: false })}`;
+      
+      // Se aplica la limpieza de URL, la cual contempla las reglas para Amazon y para otros
+      let urlLimpia = limpiarURL(url);
+      
+      // Se obtiene el hostname para mostrarlo en mayúsculas (sin "www." si estuviese presente)
+      let hostname = new URL(urlLimpia).hostname.toLowerCase();
+      if (hostname.startsWith("www.")) {
+        hostname = hostname.substring(4);
+      }
+    
+      return {
+        fecha,
+        fechaTexto,
+        dominio: hostname.toUpperCase(),
+        titulo,
+        url: `<a href="${urlLimpia}" target="_blank">${urlLimpia}</a>`,
+        carpeta
+      };
+    }
+    
+    function mostrarResultado(enlaces) {
+      const resultado = enlaces.map(enlace =>
+        `<strong>${enlace.dominio}</strong><br>${enlace.fechaTexto}<br>${enlace.titulo}<br>${enlace.url}<br>[#${enlace.carpeta}]<br><br>`
+      ).join("");
+      document.getElementById("resultado").innerHTML = resultado;
+    }
+    
     function exportarHTML() {
-      if (mergedBookmarks.length === 0) return;
       const resultado = document.getElementById("resultado").innerHTML;
-      const contenidoHTML = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Marcadores Fusionados</title></head><body>${resultado}</body></html>`;
+      if (!resultado.trim()) {
+        mostrarMensaje("Error (No hay datos para exportar)", "mensajeExportar", "negativo");
+        return;
+      }
+    
+      const contenidoHTML = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Marcadores Exportados</title></head><body>${resultado}</body></html>`;
       const blob = new Blob([contenidoHTML], { type: "text/html;charset=utf-8" });
+      descargarArchivo(blob, "marcadores.html");
+    }
+    
+    function descargarArchivo(blob, nombreArchivo) {
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.download = "marcadores_fusionados.html";
+      link.download = nombreArchivo;
       link.click();
+    }
+    
+    function mostrarMensaje(texto, elementoId, tipo) {
+      const elemento = document.getElementById(elementoId);
+      elemento.innerHTML = texto;
+      elemento.className = tipo;
     }
   </script>
 </body>
