@@ -32,9 +32,11 @@
       background: #f4f4f4;
       overflow-wrap: break-word;  /* Rompe palabras largas */
 
-#resultado {
-  zoom: 0.8 !important; /* Escala el contenido al 80% de su tamaño original */
+      #resultado {
+  transform: scale(0.8);
+  transform-origin: top left;
 }
+
     #mensajeCargar, #mensajeExtraer, #mensajeExportar { 
       text-align: center; 
       font-weight: bold; 
