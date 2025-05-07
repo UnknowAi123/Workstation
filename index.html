@@ -30,16 +30,13 @@
       padding: 10px;
       background: #f4f4f4;
       overflow-wrap: break-word;
-      font-size: 14px; /* Reducir el tamaño de la letra */
     }
-
-    @media (min-width: 1024px) { 
+    /* Ajuste para Chrome: reducir tamaño de letra */
+    @media screen and (-webkit-min-device-pixel-ratio:0) {
       #resultado {
-        padding-left: 15px;  /* Aumentar márgenes laterales en PC */
-        padding-right: 15px;
+        font-size: 12px;
       }
     }
-
     #mensajeCargar, #mensajeExtraer, #mensajeExportar { 
       text-align: center; 
       font-weight: bold; 
