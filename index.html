@@ -20,13 +20,12 @@
       margin: 10px 0;
     }
     button {
-      font-size: 16px;
+      font-size: 1rem;
       cursor: pointer;
     }
-    /* Estilo base para la caja de vista previa */
+    /* Estilo base para la caja */
     #resultado {
       text-align: left;
-      max-width: 98%;
       margin: 20px auto;
       border: 1px solid #ccc;
       padding: 10px;
@@ -34,37 +33,32 @@
       white-space: pre-wrap;
       word-wrap: break-word;
       box-sizing: border-box;
+      max-width: 95%;
     }
-    /* Fallback general (para navegadores que no sean Chrome o Firefox) */
+
+    /* Ajustes para PC */
     @media (min-width: 769px) {
-      #resultado { font-size: 13px; }
+      #resultado { font-size: 1rem; }
     }
+
+    /* Ajustes para phone (caja más ancha y texto más pequeño) */
     @media (max-width: 768px) {
-      #resultado { font-size: 12px; max-width: 100%; }
+      #resultado { font-size: 0.9rem; max-width: 98%; }
     }
-    /* --- Para Chrome --- */
+
+    /* Ajustes para Chrome */
     @media screen and (-webkit-min-device-pixel-ratio: 0) {
-      /* PC: Chrome: texto más pequeño */
-      @media (min-width: 769px) {
-        #resultado { font-size: 5px !important; }
-      }
-      /* Phone: Chrome: texto 10px y caja se fuerza a usar el 100% de ancho */
-      @media (max-width: 768px) {
-        #resultado { font-size: 10px !important; max-width: 110% !important; }
-      }
+      @media (min-width: 769px) { #resultado { font-size: 0.85rem; } }
+      @media (max-width: 768px) { #resultado { font-size: 0.8rem; max-width: 100%; } }
     }
-    /* --- Para Firefox --- */
+
+    /* Ajustes para Firefox */
     @-moz-document url-prefix() {
-      /* PC: Firefox: texto grande */
-      @media (min-width: 769px) {
-        #resultado { font-size: 17px !important; }
-      }
-      /* Phone: Firefox: texto 10px y caja de ancho total */
-      @media (max-width: 768px) {
-        #resultado { font-size: 10px !important; max-width: 140% !important; }
-      }
+      @media (min-width: 769px) { #resultado { font-size: 1.1rem; } }
+      @media (max-width: 768px) { #resultado { font-size: 0.85rem; max-width: 100%; } }
     }
-    /* Estilos para los mensajes */
+
+    /* Estilos para mensajes */
     #mensajeCargar, #mensajeExtraer, #mensajeExportar {
       text-align: center;
       font-weight: bold;
@@ -78,21 +72,21 @@
 <body>
   <h1>Extraer Enlaces de HTML</h1>
   <p>Sube un archivo HTML de marcadores y visualiza solo los enlaces ordenados.</p>
-  
+
   <button onclick="document.getElementById('archivo').click()">CARGAR Y PROCESAR POR FECHA</button>
   <button onclick="document.getElementById('archivoAZ').click()">CARGAR Y PROCESAR A-Z</button>
   <input type="file" id="archivo" style="display: none;" accept=".html" onchange="validarYProcesarArchivo('fecha')">
   <input type="file" id="archivoAZ" style="display: none;" accept=".html" onchange="validarYProcesarArchivo('az')">
-  
+
   <div id="mensajeCargar"></div>
   <div id="mensajeExtraer"></div>
-  
+
   <button onclick="exportarHTML()">EXPORTAR HTML</button>
   <div id="mensajeExportar"></div>
-  
+
   <h2>Marcadores:</h2>
   <pre id="resultado"></pre>
-  
+
   <script>
     function validarYProcesarArchivo(metodoOrden) {
       const archivo = document.getElementById(metodoOrden === "fecha" ? "archivo" : "archivoAZ").files[0];
@@ -104,14 +98,14 @@
       mostrarMensaje("Cargado y procesando...", "mensajeCargar", "positivo");
       procesarEnlaces(archivo, metodoOrden);
     }
-  
+
     function procesarEnlaces(archivo, metodoOrden) {
       const reader = new FileReader();
       reader.onload = () => extraerEnlaces(reader.result, metodoOrden);
       reader.onerror = () => mostrarMensaje("Error (Fallo de Lectura)", "mensajeExtraer", "negativo");
       reader.readAsText(archivo);
     }
-  
+
     function extraerEnlaces(html, metodoOrden) {
       const doc = new DOMParser().parseFromString(html, "text/html");
       let enlaces = [];
@@ -133,11 +127,10 @@
       mostrarResultado(enlaces);
       mostrarMensaje("Procesado!", "mensajeExtraer", "positivo");
     }
-  
+
     function formatearEnlace(addDate, url, titulo, carpeta) {
       const fecha = new Date(parseInt(addDate) * 1000);
-      const fechaTexto = `${fecha.getDate().toString().padStart(2, "0")}/${(fecha.getMonth() + 1)
-        .toString().padStart(2, "0")}/${fecha.getFullYear().toString().slice(-2)}-${fecha.toLocaleTimeString("es-ES", { hour12: false })}`;
+      const fechaTexto = `${fecha.getDate().toString().padStart(2, "0")}/${(fecha.getMonth() + 1).toString().padStart(2, "0")}/${fecha.getFullYear().toString().slice(-2)}-${fecha.toLocaleTimeString("es-ES", { hour12: false })}`;
       let hostname;
       try { hostname = new URL(url).hostname.toLowerCase(); } catch (e) { hostname = ""; }
       if (hostname.startsWith("www.")) hostname = hostname.substring(4);
@@ -151,7 +144,7 @@
         carpeta
       };
     }
-  
+
     function limpiarURL(url) {
       try {
         const parsedUrl = new URL(url);
@@ -161,30 +154,11 @@
         return url;
       }
     }
-  
+
     function mostrarResultado(enlaces) {
       document.getElementById("resultado").innerHTML = enlaces.map(enlace =>
         `<strong>${enlace.dominio}</strong><br>${enlace.fechaTexto}<br>${enlace.titulo}<br>${enlace.url}<br>[#${enlace.carpeta}]<br><br>`
       ).join("");
-    }
-  
-    function exportarHTML() {
-      const contenidoHTML = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Marcadores Exportados</title></head><body>${document.getElementById("resultado").innerHTML}</body></html>`;
-      const blob = new Blob([contenidoHTML], { type: "text/html;charset=utf-8" });
-      descargarArchivo(blob, "marcadores.html");
-    }
-  
-    function descargarArchivo(blob, nombreArchivo) {
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = nombreArchivo;
-      link.click();
-    }
-  
-    function mostrarMensaje(texto, elementoId, tipo) {
-      const elemento = document.getElementById(elementoId);
-      elemento.innerHTML = texto;
-      elemento.className = tipo;
     }
   </script>
 </body>
