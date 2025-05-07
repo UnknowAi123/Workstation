@@ -19,23 +19,25 @@
       font-size: 16px; 
       cursor: pointer; 
     }
+    /* Se modificó el estilo de #resultado para un renderizado uniforme */
     #resultado {
       text-align: left;
-      width: 100%;
-      max-width: 1024px;
-      box-sizing: border-box;
-      margin: 20px auto;
+      width: 100%;                /* Ocupa el 100% del contenedor padre */
+      max-width: 1024px;          /* No excede de 1024px */
+      box-sizing: border-box;     /* Incluye padding y border en el width */
+      margin: 20px auto;          /* Centrado vertical y horizontal */
       white-space: pre-wrap;
       border: 1px solid #ccc;
       padding: 10px;
       background: #f4f4f4;
-      overflow-wrap: break-word;
-    }
-    /* Ajuste para Chrome: reducir tamaño de letra */
-    @media screen and (-webkit-min-device-pixel-ratio:0) {
-      #resultado {
-        font-size: 12px;
-      }
+      overflow-wrap: break-word;  /* Rompe palabras largas */
+      
+/* Ajuste exclusivo para Chrome: reducción del tamaño de la letra */
+@media screen and (-webkit-min-device-pixel-ratio:0) {
+  #resultado {
+    font-size: 12px;
+  }
+}     
     }
     #mensajeCargar, #mensajeExtraer, #mensajeExportar { 
       text-align: center; 
@@ -104,6 +106,7 @@
 
         carpeta.nextElementSibling.querySelectorAll("DT > A").forEach(enlace => {
           const titulo = enlace.innerText.trim();
+          // Recuperamos el URL sin aplicar limpieza aún
           const rawUrl = enlace.getAttribute("HREF").trim();
           const addDate = enlace.getAttribute("ADD_DATE");
 
@@ -121,6 +124,101 @@
 
       mostrarResultado(enlaces);
       mostrarMensaje("Procesado!", "mensajeExtraer", "positivo");
+    }
+
+    // Función que extrae el dominio y quita prefijos (m., es.m., etc.) antes de limpiar la URL
+    function formatearEnlace(addDate, url, titulo, carpeta) {
+      const fecha = new Date(parseInt(addDate) * 1000);
+      const fechaTexto = `${fecha.getDate().toString().padStart(2, "0")}/${(fecha.getMonth() + 1).toString().padStart(2, "0")}/${fecha.getFullYear().toString().slice(-2)}-${fecha.toLocaleTimeString("es-ES", { hour12: false })}`;
+
+      // Extraer el hostname del URL original
+      let hostname;
+      try {
+        hostname = new URL(url).hostname.toLowerCase();
+      } catch (e) {
+        hostname = "";
+      }
+
+      // Quitar el prefijo "www." si existe
+      if (hostname.startsWith("www.")) {
+        hostname = hostname.substring(4);
+      }
+
+      // Separar en partes para detectar subdominios como "m", "es", etc.
+      let partes = hostname.split(".");
+      let etiquetas = [];
+      const reconocidos = ["m", "es", "uk", "fr"]; // Puedes ajustar la lista según lo necesites
+      while (partes.length > 2 && reconocidos.includes(partes[0])) {
+        etiquetas.push(partes[0]);
+        partes.shift();
+      }
+      const dominioPrincipal = partes.join(".");
+      
+      // Procesar las etiquetas para mostrar, por ejemplo, "M-ES"
+      let etiquetaFinal = "";
+      if (etiquetas.length > 0) {
+        const esMovil = etiquetas.includes("m");
+        const otros = etiquetas.filter(e => e !== "m");
+        if (esMovil && otros.length > 0) {
+          etiquetaFinal = "M-" + otros.join("-").toUpperCase();
+        } else if (esMovil) {
+          etiquetaFinal = "M";
+        } else {
+          etiquetaFinal = etiquetas.join("-").toUpperCase();
+        }
+      }
+      const dominioConEtiquetas = dominioPrincipal.toUpperCase() + (etiquetaFinal ? " (" + etiquetaFinal + ")" : "");
+
+      // Ahora aplica la limpieza de URL (eliminación de parámetros de rastreo, reglas para Amazon, etc.)
+      const urlLimpia = limpiarURL(url);
+
+      return {
+        fecha,
+        fechaTexto,
+        dominio: dominioConEtiquetas,
+        titulo,
+        url: `<a href="${urlLimpia}" target="_blank">${urlLimpia}</a>`,
+        carpeta
+      };
+    }
+
+    function limpiarURL(url) {
+      try {
+        const parsedUrl = new URL(url);
+        const pathname = parsedUrl.pathname;
+        
+        // Reglas para Amazon
+        if (parsedUrl.hostname.includes("amazon.")) {
+          if (pathname.includes("/dp/")) {
+            return parsedUrl.origin + pathname.split("/dp/")[0] + "/dp/" + pathname.split("/dp/")[1].split("/")[0];
+          }
+          if (pathname === "/" || pathname === "") {
+            return parsedUrl.origin + "/";
+          }
+          if (pathname.startsWith("/b/")) {
+            return parsedUrl.origin + pathname + "?node=" + parsedUrl.searchParams.get("node");
+          }
+          if (pathname.startsWith("/s")) {
+            return parsedUrl.origin + pathname + "?k=" + parsedUrl.searchParams.get("k");
+          }
+        }
+        
+        // Eliminación de más de 50 parámetros de rastreo
+        const parametrosAEliminar = [
+          "ref", "psc", "qid", "sr", "spLa", "tracking_id", "utm_source", "utm_medium",
+          "utm_campaign", "bm-verify", "gclsrc", "gad_source", "gad_campaignid", "utm_term",
+          "utm_content", "aff_id", "aff_sub", "afftrack", "cmpid", "cmp", "tracking", "cid",
+          "campaign_id", "source", "subid", "ad_id", "adgroup", "creative", "partner", "affiliate",
+          "affiliation", "tracker", "trkid", "fbclid", "mc_cid", "mc_eid", "campaign", "ad",
+          "partner_id", "aff", "sourceid", "clickid", "adslot", "mkt", "mkt_campaign", "promocode",
+          "promo", "campaigns", "adtype", "s_kwcid"
+        ];
+        parametrosAEliminar.forEach(param => parsedUrl.searchParams.delete(param));
+        
+        return parsedUrl.origin + pathname + (parsedUrl.searchParams.toString() ? "?" + parsedUrl.searchParams.toString() : "");
+      } catch (error) {
+        return url;
+      }
     }
 
     function mostrarResultado(enlaces) {
