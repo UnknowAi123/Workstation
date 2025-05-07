@@ -13,20 +13,20 @@
     @media screen and (-webkit-min-device-pixel-ratio:0) {
       #resultado {
         font-size: 11px !important; /* Letra más pequeña en modo PC */
-        font-family: Arial, sans-serif !important; 
+        font-family: Arial, sans-serif !important;
         zoom: 0.85;
         transform: scale(0.85);
         transform-origin: top left;
         word-break: break-word;
         margin: 20px auto !important; /* Centrado en todos los modos */
-        width: 95% !important; /* Caja más ancha */
+        max-width: 98% !important; /* Caja más ancha */
       }
     }
 
     /* ------------------- Ajuste General ------------------- */
     #resultado {
       text-align: left;
-      max-width: 95%; /* Hacer la caja más ancha */
+      max-width: 98%; /* Hacer la caja más ancha */
       margin: 20px auto;
       display: block;
       white-space: pre-wrap;
@@ -34,6 +34,13 @@
       padding: 10px;
       background: #f4f4f4;
       word-wrap: break-word;
+    }
+
+    /* Ajuste específico para Firefox */
+    @-moz-document url-prefix() {
+      #resultado {
+        font-size: 13px; /* Aumentar tamaño en Firefox */
+      }
     }
 
     /* Corrección del espacio blanco al final de la página */
