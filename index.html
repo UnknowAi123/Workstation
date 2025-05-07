@@ -10,22 +10,33 @@
     button { font-size: 16px; cursor: pointer; }
 
     /* ------------------- Ajuste optimizado para Chrome ------------------- */
+    @media screen and (-webkit-min-device-pixel-ratio:0) {
+      #resultado {
+        font-size: 12px !important; 
+        font-family: Arial, sans-serif !important; 
+        zoom: 0.85;
+        transform: scale(0.85);
+        transform-origin: top left;
+        word-break: break-word; /* Solución para enlaces largos */
+        margin: 20px auto !important; /* Mantiene la caja centrada */
+      }
+    }
+
+    /* ------------------- Ajuste General ------------------- */
     #resultado {
       text-align: left;
       max-width: 90%;
-      margin: auto;
+      margin: 20px auto;
+      display: block;
       white-space: pre-wrap;
       border: 1px solid #ccc;
       padding: 10px;
       background: #f4f4f4;
-
-      /* Solución para tamaño de fuente en Chrome */
-      font-size: 10px !important;
-      font-family: Arial, sans-serif !important;
-      zoom: 0.85; /* Escala optimizada para Chrome */
-      transform: scale(0.85);
-      transform-origin: top left;
+      word-wrap: break-word;
     }
+
+    /* Corrección de espacio en blanco innecesario */
+    body { overflow-x: hidden; }  
 
     #mensajeCargar, #mensajeExtraer, #mensajeExportar {
       text-align: center;
