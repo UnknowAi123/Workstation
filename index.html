@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Extraer Enlaces de HTML - Optimizado para Chrome</title>
+  <title>Extraer Enlaces de HTML - Optimizado para Chrome y Firefox</title>
   <style>
     body { font-family: Arial, sans-serif; text-align: center; margin: 40px; }
     input, button { width: 80%; padding: 10px; margin: 10px 0; }
@@ -23,10 +23,17 @@
       }
     }
 
+    /* ------------------- Ajuste específico para Firefox ------------------- */
+    @-moz-document url-prefix() {
+      #resultado {
+        font-size: 14px; /* Aumentar tamaño en Firefox modo PC */
+      }
+    }
+
     /* ------------------- Ajuste General ------------------- */
     #resultado {
       text-align: left;
-      max-width: 98%; /* Hacer la caja más ancha */
+      max-width: 98%;
       margin: 20px auto;
       display: block;
       white-space: pre-wrap;
@@ -36,10 +43,11 @@
       word-wrap: break-word;
     }
 
-    /* Ajuste específico para Firefox */
-    @-moz-document url-prefix() {
+    /* Ajuste para móviles: caja más ancha */
+    @media (max-width: 768px) {
       #resultado {
-        font-size: 13px; /* Aumentar tamaño en Firefox */
+        font-size: 13px; /* Aumento ligero en móviles */
+        max-width: 100%;
       }
     }
 
@@ -155,25 +163,6 @@
       document.getElementById("resultado").innerHTML = enlaces.map(enlace =>
         `<strong>${enlace.dominio}</strong><br>${enlace.fechaTexto}<br>${enlace.titulo}<br>${enlace.url}<br>[#${enlace.carpeta}]<br><br>`
       ).join("");
-    }
-
-    function exportarHTML() {
-      const contenidoHTML = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Marcadores Exportados</title></head><body>${document.getElementById("resultado").innerHTML}</body></html>`;
-      const blob = new Blob([contenidoHTML], { type: "text/html;charset=utf-8" });
-      descargarArchivo(blob, "marcadores.html");
-    }
-
-    function descargarArchivo(blob, nombreArchivo) {
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = nombreArchivo;
-      link.click();
-    }
-
-    function mostrarMensaje(texto, elementoId, tipo) {
-      const elemento = document.getElementById(elementoId);
-      elemento.innerHTML = texto;
-      elemento.className = tipo;
     }
   </script>
 </body>
