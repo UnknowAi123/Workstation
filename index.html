@@ -40,31 +40,31 @@
       #resultado { font-size: 13px; }
     }
     @media (max-width: 768px) {
-      #resultado { font-size: 12px; }
+      #resultado { font-size: 12px; max-width: 100%; }
     }
     /* --- Para Chrome --- */
     @media screen and (-webkit-min-device-pixel-ratio: 0) {
-      /* PC: Chrome */
+      /* PC: Chrome: texto más pequeño */
       @media (min-width: 769px) {
-        #resultado { font-size: 10px !important; }
+        #resultado { font-size: 9px !important; }
       }
-      /* Phone: Chrome */
+      /* Phone: Chrome: texto 10px y caja se fuerza a usar el 100% de ancho */
       @media (max-width: 768px) {
-        #resultado { font-size: 10px !important; }
+        #resultado { font-size: 10px !important; max-width: 100% !important; }
       }
     }
     /* --- Para Firefox --- */
     @-moz-document url-prefix() {
-      /* PC: Firefox */
+      /* PC: Firefox: texto grande */
       @media (min-width: 769px) {
         #resultado { font-size: 18px !important; }
       }
-      /* Phone: Firefox */
+      /* Phone: Firefox: texto 10px y caja de ancho total */
       @media (max-width: 768px) {
-        #resultado { font-size: 10px !important; }
+        #resultado { font-size: 10px !important; max-width: 100% !important; }
       }
     }
-    /* Estilos para mensajes */
+    /* Estilos para los mensajes */
     #mensajeCargar, #mensajeExtraer, #mensajeExportar {
       text-align: center;
       font-weight: bold;
@@ -136,7 +136,8 @@
   
     function formatearEnlace(addDate, url, titulo, carpeta) {
       const fecha = new Date(parseInt(addDate) * 1000);
-      const fechaTexto = `${fecha.getDate().toString().padStart(2, "0")}/${(fecha.getMonth() + 1).toString().padStart(2, "0")}/${fecha.getFullYear().toString().slice(-2)}-${fecha.toLocaleTimeString("es-ES", { hour12: false })}`;
+      const fechaTexto = `${fecha.getDate().toString().padStart(2, "0")}/${(fecha.getMonth() + 1)
+        .toString().padStart(2, "0")}/${fecha.getFullYear().toString().slice(-2)}-${fecha.toLocaleTimeString("es-ES", { hour12: false })}`;
       let hostname;
       try { hostname = new URL(url).hostname.toLowerCase(); } catch (e) { hostname = ""; }
       if (hostname.startsWith("www.")) hostname = hostname.substring(4);
