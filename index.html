@@ -12,20 +12,21 @@
     /* ------------------- Ajuste optimizado para Chrome ------------------- */
     @media screen and (-webkit-min-device-pixel-ratio:0) {
       #resultado {
-        font-size: 12px !important; 
+        font-size: 11px !important; /* Letra más pequeña en modo PC */
         font-family: Arial, sans-serif !important; 
         zoom: 0.85;
         transform: scale(0.85);
         transform-origin: top left;
-        word-break: break-word; /* Solución para enlaces largos */
-        margin: 20px auto !important; /* Mantiene la caja centrada */
+        word-break: break-word;
+        margin: 20px auto !important; /* Centrado en todos los modos */
+        width: 95% !important; /* Caja más ancha */
       }
     }
 
     /* ------------------- Ajuste General ------------------- */
     #resultado {
       text-align: left;
-      max-width: 90%;
+      max-width: 95%; /* Hacer la caja más ancha */
       margin: 20px auto;
       display: block;
       white-space: pre-wrap;
@@ -35,8 +36,8 @@
       word-wrap: break-word;
     }
 
-    /* Corrección de espacio en blanco innecesario */
-    body { overflow-x: hidden; }  
+    /* Corrección del espacio blanco al final de la página */
+    html, body { overflow-x: hidden; height: auto; }
 
     #mensajeCargar, #mensajeExtraer, #mensajeExportar {
       text-align: center;
