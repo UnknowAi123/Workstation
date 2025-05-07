@@ -144,22 +144,6 @@
         carpeta
       };
     }
-
-    function limpiarURL(url) {
-      try {
-        const parsedUrl = new URL(url);
-        parsedUrl.search = "";
-        return parsedUrl.href;
-      } catch (error) {
-        return url;
-      }
-    }
-
-    function mostrarResultado(enlaces) {
-      document.getElementById("resultado").innerHTML = enlaces.map(enlace =>
-        `<strong>${enlace.dominio}</strong><br>${enlace.fechaTexto}<br>${enlace.titulo}<br>${enlace.url}<br>[#${enlace.carpeta}]<br><br>`
-      ).join("");
-    }
   </script>
 </body>
 </html>
