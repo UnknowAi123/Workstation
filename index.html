@@ -3,15 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Extraer Enlaces de HTML - Enfoque Alternativo</title>
+  <title>Extraer Enlaces de HTML - Ajuste Final</title>
   <style>
-    /* Estilos generales para toda la web */
+    /* Estilos generales */
     body {
       font-family: Arial, sans-serif;
       text-align: center;
       margin: 40px;
       overflow-x: hidden;
-      /* Se elimina cualquier padding o margin extra en el final */
       margin-bottom: 0;
       padding-bottom: 0;
     }
@@ -24,11 +23,11 @@
       font-size: 16px;
       cursor: pointer;
     }
-
-    /* Estilos para la caja de vista previa */
+    /* Estilo base para la caja de vista previa */
     #resultado {
       text-align: left;
-      margin: 20px auto;   /* Centrado de la caja */
+      max-width: 98%;
+      margin: 20px auto;
       border: 1px solid #ccc;
       padding: 10px;
       background: #f4f4f4;
@@ -36,24 +35,36 @@
       word-wrap: break-word;
       box-sizing: border-box;
     }
-
-    /* Ajustes para pantallas de escritorio (modo PC) */
+    /* Fallback general (para navegadores que no sean Chrome o Firefox) */
     @media (min-width: 769px) {
-      #resultado {
-        max-width: 90%;    /* Caja más ancha, pero no ocupando todo el ancho */
-        font-size: 11px;   /* Fuente un poco más pequeña en PC */
-      }
+      #resultado { font-size: 13px; }
     }
-
-    /* Ajustes para dispositivos móviles */
     @media (max-width: 768px) {
-      #resultado {
-        max-width: 100%;   /* Caja que ocupa todo el ancho disponible */
-        font-size: 13px;   /* Fuente ligeramente mayor en phone para mejor legibilidad */
+      #resultado { font-size: 12px; }
+    }
+    /* --- Para Chrome --- */
+    @media screen and (-webkit-min-device-pixel-ratio: 0) {
+      /* PC: Chrome */
+      @media (min-width: 769px) {
+        #resultado { font-size: 10px !important; }
+      }
+      /* Phone: Chrome */
+      @media (max-width: 768px) {
+        #resultado { font-size: 10px !important; }
       }
     }
-
-    /* Estilos para los mensajes */
+    /* --- Para Firefox --- */
+    @-moz-document url-prefix() {
+      /* PC: Firefox */
+      @media (min-width: 769px) {
+        #resultado { font-size: 18px !important; }
+      }
+      /* Phone: Firefox */
+      @media (max-width: 768px) {
+        #resultado { font-size: 10px !important; }
+      }
+    }
+    /* Estilos para mensajes */
     #mensajeCargar, #mensajeExtraer, #mensajeExportar {
       text-align: center;
       font-weight: bold;
@@ -67,42 +78,40 @@
 <body>
   <h1>Extraer Enlaces de HTML</h1>
   <p>Sube un archivo HTML de marcadores y visualiza solo los enlaces ordenados.</p>
-
+  
   <button onclick="document.getElementById('archivo').click()">CARGAR Y PROCESAR POR FECHA</button>
   <button onclick="document.getElementById('archivoAZ').click()">CARGAR Y PROCESAR A-Z</button>
   <input type="file" id="archivo" style="display: none;" accept=".html" onchange="validarYProcesarArchivo('fecha')">
   <input type="file" id="archivoAZ" style="display: none;" accept=".html" onchange="validarYProcesarArchivo('az')">
-
+  
   <div id="mensajeCargar"></div>
   <div id="mensajeExtraer"></div>
-
+  
   <button onclick="exportarHTML()">EXPORTAR HTML</button>
   <div id="mensajeExportar"></div>
-
+  
   <h2>Marcadores:</h2>
   <pre id="resultado"></pre>
-
+  
   <script>
     function validarYProcesarArchivo(metodoOrden) {
       const archivo = document.getElementById(metodoOrden === "fecha" ? "archivo" : "archivoAZ").files[0];
       if (!archivo) return mostrarMensaje("Error (Ningún archivo cargado)", "mensajeCargar", "negativo");
-
       if (!archivo.name.endsWith(".html")) {
         document.getElementById(metodoOrden === "fecha" ? "archivo" : "archivoAZ").value = "";
         return mostrarMensaje("Error (Formato incorrecto, debe ser HTML)", "mensajeCargar", "negativo");
       }
-
       mostrarMensaje("Cargado y procesando...", "mensajeCargar", "positivo");
       procesarEnlaces(archivo, metodoOrden);
     }
-
+  
     function procesarEnlaces(archivo, metodoOrden) {
       const reader = new FileReader();
       reader.onload = () => extraerEnlaces(reader.result, metodoOrden);
       reader.onerror = () => mostrarMensaje("Error (Fallo de Lectura)", "mensajeExtraer", "negativo");
       reader.readAsText(archivo);
     }
-
+  
     function extraerEnlaces(html, metodoOrden) {
       const doc = new DOMParser().parseFromString(html, "text/html");
       let enlaces = [];
@@ -121,20 +130,15 @@
       enlaces.sort(metodoOrden === "fecha"
         ? (a, b) => a.fecha - b.fecha
         : (a, b) => a.dominio.localeCompare(b.dominio, "es", { numeric: true }) || a.fecha - b.fecha);
-
       mostrarResultado(enlaces);
       mostrarMensaje("Procesado!", "mensajeExtraer", "positivo");
     }
-
+  
     function formatearEnlace(addDate, url, titulo, carpeta) {
       const fecha = new Date(parseInt(addDate) * 1000);
-      const fechaTexto = `${fecha.getDate().toString().padStart(2, "0")}/${(fecha.getMonth()+1).toString().padStart(2, "0")}/${fecha.getFullYear().toString().slice(-2)}-${fecha.toLocaleTimeString("es-ES", { hour12: false })}`;
+      const fechaTexto = `${fecha.getDate().toString().padStart(2, "0")}/${(fecha.getMonth() + 1).toString().padStart(2, "0")}/${fecha.getFullYear().toString().slice(-2)}-${fecha.toLocaleTimeString("es-ES", { hour12: false })}`;
       let hostname;
-      try { 
-        hostname = new URL(url).hostname.toLowerCase(); 
-      } catch (e) { 
-        hostname = ""; 
-      }
+      try { hostname = new URL(url).hostname.toLowerCase(); } catch (e) { hostname = ""; }
       if (hostname.startsWith("www.")) hostname = hostname.substring(4);
       const dominioPrincipal = hostname.split(".").slice(-2).join(".").toUpperCase();
       return {
@@ -146,7 +150,7 @@
         carpeta
       };
     }
-
+  
     function limpiarURL(url) {
       try {
         const parsedUrl = new URL(url);
@@ -156,26 +160,26 @@
         return url;
       }
     }
-
+  
     function mostrarResultado(enlaces) {
       document.getElementById("resultado").innerHTML = enlaces.map(enlace =>
         `<strong>${enlace.dominio}</strong><br>${enlace.fechaTexto}<br>${enlace.titulo}<br>${enlace.url}<br>[#${enlace.carpeta}]<br><br>`
       ).join("");
     }
-
+  
     function exportarHTML() {
       const contenidoHTML = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Marcadores Exportados</title></head><body>${document.getElementById("resultado").innerHTML}</body></html>`;
       const blob = new Blob([contenidoHTML], { type: "text/html;charset=utf-8" });
       descargarArchivo(blob, "marcadores.html");
     }
-
+  
     function descargarArchivo(blob, nombreArchivo) {
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
       link.download = nombreArchivo;
       link.click();
     }
-
+  
     function mostrarMensaje(texto, elementoId, tipo) {
       const elemento = document.getElementById(elementoId);
       elemento.innerHTML = texto;
