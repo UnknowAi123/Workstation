@@ -20,64 +20,51 @@
       margin: 10px 0;
     }
     button {
-      font-size: 1rem;
+      font-size: 16px;
       cursor: pointer;
     }
     /* Estilo base para la caja de vista previa */
     #resultado {
       text-align: left;
-      margin: 1px auto;
+      max-width: 98%;
+      margin: 20px auto;
       border: 1px solid #ccc;
       padding: 10px;
       background: #f4f4f4;
       white-space: pre-wrap;
       word-wrap: break-word;
       box-sizing: border-box;
-      max-width: 100%;
     }
     /* Fallback general (para navegadores que no sean Chrome o Firefox) */
     @media (min-width: 769px) {
       #resultado { font-size: 13px; }
     }
-    @media (max-width: 769px) {
-      /* En modo phone: se fuerza que la caja ocupe el 100% del ancho disponible y se reduce el margen */
-      #resultado { 
-        font-size: 12px; 
-        width: 100%; 
-        margin: 10px auto; 
-      }
+    @media (max-width: 768px) {
+      #resultado { font-size: 12px; }
     }
     /* --- Para Chrome --- */
     @media screen and (-webkit-min-device-pixel-ratio: 0) {
-      /* PC: Chrome: texto más pequeño */
+      /* PC: Chrome */
       @media (min-width: 769px) {
-        #resultado { font-size: 9px !important; }
+        #resultado { font-size: 10px !important; }
       }
-      /* Phone: Chrome: texto 10px y caja a ancho completo */
+      /* Phone: Chrome */
       @media (max-width: 768px) {
-        #resultado { 
-          font-size: 10px !important; 
-          width: 100% !important; 
-          margin: 10px auto !important; 
-        }
+        #resultado { font-size: 10px !important; }
       }
     }
     /* --- Para Firefox --- */
     @-moz-document url-prefix() {
-      /* PC: Firefox: texto grande */
+      /* PC: Firefox */
       @media (min-width: 769px) {
         #resultado { font-size: 18px !important; }
       }
-      /* Phone: Firefox: texto 10px y caja a ancho completo */
+      /* Phone: Firefox */
       @media (max-width: 768px) {
-        #resultado { 
-          font-size: 10px !important; 
-          width: 100% !important; 
-          margin: 10px auto !important; 
-        }
+        #resultado { font-size: 10px !important; }
       }
     }
-    /* Estilos para los mensajes */
+    /* Estilos para mensajes */
     #mensajeCargar, #mensajeExtraer, #mensajeExportar {
       text-align: center;
       font-weight: bold;
