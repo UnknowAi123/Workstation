@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Editor HTML Online</title>
+    <title>Editor HTML Online - Alfa</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         body {
@@ -10,49 +10,71 @@
             margin: 0;
             padding: 20px;
         }
-
         h1 {
             text-align: center;
         }
-
         .container {
             max-width: 800px;
             margin: auto;
-            padding: 10px;
         }
-
+        /* Botón de carga: se muestra "Cargar" con el mismo estilo que en la web Extractor */
+        .boton-carga {
+            display: block;
+            margin: 20px auto 2px auto; /* 2px de separación inferior para el nombre del archivo */
+            padding: 10px;
+            font-size: 16px;
+            border: none;
+            background-color: #0078D7;
+            color: white;
+            border-radius: 5px;
+            text-align: center;
+            cursor: pointer;
+        }
+        /* Ocultar el input file real */
+        input[type="file"] {
+            display: none;
+        }
+        /* Nombre del archivo cargado debajo del botón */
+        #fileName {
+            text-align: center;
+            font-size: 14px;
+            color: #555;
+            margin-top: 2px;
+        }
+        /* Botón de guardar: se mantiene el estilo original */
+        button {
+            display: block;
+            margin: 20px auto;
+            padding: 10px;
+            font-size: 16px;
+            border: none;
+            background-color: #0078D7;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        /* Editor y vista previa con margen horizontal de 6px */
         #editor, #preview {
-            width: calc(100% - 20px);
+            width: calc(100% - 12px);
             margin: 10px auto;
             padding: 10px;
             border: 1px solid #ccc;
             border-radius: 5px;
         }
-
+        /* Altura de los elementos */
         #editor {
             height: 300px;
             font-family: monospace;
-            font-size: 16px;
         }
-
         #preview {
             height: 300px;
             background: #f9f9f9;
-            font-size: 16px;
         }
-
-        button, input {
-            display: block;
-            margin: 20px auto;
-            padding: 10px;
-        }
-
-        /* Estilos para dispositivos móviles */
+        /* Media queries para móviles y PC, asegurando compatibilidad en Firefox y Chrome */
         @media (max-width: 600px) {
             body {
                 font-size: 14px;
             }
-
             #editor, #preview {
                 font-size: 14px;
                 height: 250px;
@@ -62,26 +84,24 @@
 </head>
 <body>
     <div class="container">
-        <h1>Editor HTML Online</h1>
-
-        <!-- Cargar archivo -->
+        <h1>Editor HTML Online - Alfa</h1>
+        <!-- Botón de carga personalizado -->
+        <label for="fileInput" class="boton-carga">Cargar</label>
         <input type="file" id="fileInput" accept=".html">
-
+        <div id="fileName"></div> <!-- Nombre del archivo cargado debajo del botón de carga -->
         <!-- Editor de código -->
         <textarea id="editor"></textarea>
-
-        <!-- Guardar archivo editado -->
+        <!-- Botón para guardar archivo editado -->
         <button onclick="guardarHTML()">Guardar HTML</button>
-
         <!-- Previsualización -->
         <iframe id="preview"></iframe>
     </div>
-
     <script>
-        // Leer archivo HTML
+        // Leer el archivo HTML y mostrar el nombre debajo del botón de carga
         document.getElementById('fileInput').addEventListener('change', function(event) {
             const archivo = event.target.files[0];
             if (archivo) {
+                document.getElementById('fileName').textContent = archivo.name;
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     document.getElementById('editor').value = e.target.result;
@@ -91,7 +111,7 @@
             }
         });
 
-        // Guardar HTML editado
+        // Guardar el HTML editado
         function guardarHTML() {
             const contenido = document.getElementById('editor').value;
             const blob = new Blob([contenido], { type: "text/html" });
