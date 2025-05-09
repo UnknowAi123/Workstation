@@ -14,27 +14,15 @@
       padding-bottom: 0;
     }
     /* Para pantallas grandes (PC) */
-@media (min-width: 769px) {
-  body {
-    margin: 40px;
-  }
-}
-
-/* Para pantallas pequeñas (Phone) */
-@media (max-width: 768px) {
-  body {
-    margin: 20px;
-  }
-}
+    @media (min-width: 769px) { body { margin: 40px; } }
+    /* Para pantallas pequeñas (Phone) */
+    @media (max-width: 768px) { body { margin: 20px; } }
     input, button {
       width: 80%;
       padding: 10px;
       margin: 10px 0;
     }
-    button {
-      font-size: 16px;
-      cursor: pointer;
-    }
+    button { font-size: 16px; cursor: pointer; }
     /* Estilo base para la caja de vista previa */
     #resultado {
       text-align: left;
@@ -48,33 +36,17 @@
       box-sizing: border-box;
     }
     /* Fallback general (para navegadores que no sean Chrome o Firefox) */
-    @media (min-width: 769px) {
-      #resultado { font-size: 13px; }
-    }
-    @media (max-width: 768px) {
-      #resultado { font-size: 12px; }
-    }
+    @media (min-width: 769px) { #resultado { font-size: 13px; } }
+    @media (max-width: 768px) { #resultado { font-size: 12px; } }
     /* --- Para Chrome --- */
     @media screen and (-webkit-min-device-pixel-ratio: 0) {
-      /* PC: Chrome */
-      @media (min-width: 769px) {
-        #resultado { font-size: 10px !important; }
-      }
-      /* Phone: Chrome */
-      @media (max-width: 768px) {
-        #resultado { font-size: 10px !important; }
-      }
+      @media (min-width: 769px) { #resultado { font-size: 10px !important; } }
+      @media (max-width: 768px) { #resultado { font-size: 10px !important; } }
     }
     /* --- Para Firefox --- */
     @-moz-document url-prefix() {
-      /* PC: Firefox */
-      @media (min-width: 769px) {
-        #resultado { font-size: 18px !important; }
-      }
-      /* Phone: Firefox */
-      @media (max-width: 768px) {
-        #resultado { font-size: 10px !important; }
-      }
+      @media (min-width: 769px) { #resultado { font-size: 18px !important; } }
+      @media (max-width: 768px) { #resultado { font-size: 10px !important; } }
     }
     /* Estilos para mensajes */
     #mensajeCargar, #mensajeExtraer, #mensajeExportar {
@@ -148,15 +120,70 @@
   
     function formatearEnlace(addDate, url, titulo, carpeta) {
       const fecha = new Date(parseInt(addDate) * 1000);
-      const fechaTexto = `${fecha.getDate().toString().padStart(2, "0")}/${(fecha.getMonth() + 1).toString().padStart(2, "0")}/${fecha.getFullYear().toString().slice(-2)}-${fecha.toLocaleTimeString("es-ES", { hour12: false })}`;
+      const fechaTexto = `${fecha.getDate().toString().padStart(2, "0")}/${(fecha.getMonth()+1).toString().padStart(2, "0")}/${fecha.getFullYear().toString().slice(-2)}-${fecha.toLocaleTimeString("es-ES", { hour12: false })}`;
+      
       let hostname;
-      try { hostname = new URL(url).hostname.toLowerCase(); } catch (e) { hostname = ""; }
-      if (hostname.startsWith("www.")) hostname = hostname.substring(4);
-      const dominioPrincipal = hostname.split(".").slice(-2).join(".").toUpperCase();
+      try { 
+        hostname = new URL(url).hostname.toLowerCase(); 
+      } catch (e) { 
+        hostname = ""; 
+      }
+      if (hostname.startsWith("www.")) 
+        hostname = hostname.substring(4);
+      
+      /* --- Procesamiento del Dominio --- */
+      let mainDomain = "";
+      const parts = hostname.split(".");
+      
+      // Si es un dominio gubernamental: si la penúltima parte es "gob"
+      if (parts.length >= 2 && parts[parts.length - 2] === "gob") {
+        if (parts.length >= 3) {
+          let candidate = parts.slice(-3);
+          const unwantedGovPrefixes = ["sede", "sife", "fistro", "home", "help"];
+          if (unwantedGovPrefixes.includes(candidate[0])) {
+            candidate = candidate.slice(1);
+          }
+          mainDomain = candidate.join(".");
+        } else {
+          mainDomain = hostname;
+        }
+      } else {
+        // Para otros dominios: lógica original con TLDs especiales
+        const multiNivel = ["co.uk", "org.br", "com.au"];
+        if (parts.length >= 3) {
+          const ultimasDos = parts.slice(-2).join(".");
+          if (multiNivel.includes(ultimasDos)) {
+            mainDomain = parts.slice(-3).join(".");
+          } else {
+            mainDomain = parts.slice(-2).join(".");
+          }
+        } else {
+          mainDomain = hostname;
+        }
+      }
+      
+      // Extraer etiquetas de subdominios reconocidos (por ejemplo, "m" o "es")
+      let etiquetas = [];
+      const reconocidos = ["m", "es"];
+      let subdominios = hostname.split(".");
+      while (subdominios.length > 2 && reconocidos.includes(subdominios[0])) {
+        etiquetas.push(subdominios[0]);
+        subdominios.shift();
+      }
+      let etiquetaFinal = "";
+      if (etiquetas.length > 0) {
+        if (etiquetas.includes("m") && etiquetas.length > 1)
+          etiquetaFinal = "M-" + etiquetas.filter(e => e !== "m").join("-").toUpperCase();
+        else
+          etiquetaFinal = etiquetas.join("-").toUpperCase();
+      }
+      const dominioConEtiquetas = mainDomain.toUpperCase() + (etiquetaFinal ? " (" + etiquetaFinal + ")" : "");
+      /* --- Fin del Procesamiento del Dominio --- */
+      
       return {
         fecha,
         fechaTexto,
-        dominio: dominioPrincipal,
+        dominio: dominioConEtiquetas,
         titulo,
         url: `<a href="${limpiarURL(url)}" target="_blank">${limpiarURL(url)}</a>`,
         carpeta
@@ -166,6 +193,43 @@
     function limpiarURL(url) {
       try {
         const parsedUrl = new URL(url);
+        const hostname = parsedUrl.hostname.toLowerCase();
+        const pathname = parsedUrl.pathname;
+  
+        // Si la URL pertenece a Amazon, aplicar reglas específicas
+        if (hostname.includes("amazon.")) {
+          // Caso 1: Homepage (cuando el pathname es "/" o vacío)
+          if (pathname === "/" || pathname === "") {
+            return parsedUrl.origin + "/";
+          }
+          // Caso 2: Producto (contiene "/dp/")
+          if (pathname.includes("/dp/")) {
+            const partes = pathname.split("/dp/");
+            const idProducto = partes[1].split("/")[0];
+            return parsedUrl.origin + partes[0] + "/dp/" + idProducto;
+          }
+          // Caso 3: Categoría (path comienza con "/b/")
+          if (pathname.startsWith("/b/")) {
+            let newSearchParams = new URLSearchParams();
+            if (parsedUrl.searchParams.has("_encoding"))
+              newSearchParams.set("_encoding", parsedUrl.searchParams.get("_encoding"));
+            if (parsedUrl.searchParams.has("node"))
+              newSearchParams.set("node", parsedUrl.searchParams.get("node"));
+            return parsedUrl.origin + pathname + (newSearchParams.toString() ? "?" + newSearchParams.toString() : "");
+          }
+          // Caso 4: Búsqueda (path comienza con "/s")
+          if (pathname.startsWith("/s")) {
+            let newSearchParams = new URLSearchParams();
+            if (parsedUrl.searchParams.has("k"))
+              newSearchParams.set("k", parsedUrl.searchParams.get("k"));
+            return parsedUrl.origin + pathname + (newSearchParams.toString() ? "?" + newSearchParams.toString() : "");
+          }
+          // Para cualquier otro caso en Amazon, se retorna el URL sin query
+          parsedUrl.search = "";
+          return parsedUrl.href;
+        }
+  
+        // Para otros dominios: se elimina la query
         parsedUrl.search = "";
         return parsedUrl.href;
       } catch (error) {
