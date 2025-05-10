@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Editor HTML Online - Beta</title>
+    <title>Editor HTML Online - Alfa</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         /* Asegura que el padding se incluya en el ancho total */
@@ -12,12 +12,10 @@
         
         body {
             font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-        }
-        
-        h1 {
             text-align: center;
+            overflow-x: hidden;
+            margin-bottom: 0;
+            padding-bottom: 0;
         }
         
         .container {
@@ -39,12 +37,12 @@
             cursor: pointer;
         }
         
-        /* Se oculta el input file real */
+        /* Ocultar el input file real */
         input[type="file"] {
             display: none;
         }
         
-        /* Nombre del archivo cargado, debajo del botón */
+        /* Nombre del archivo cargado debajo del botón */
         #fileName {
             text-align: center;
             font-size: 14px;
@@ -52,7 +50,7 @@
             margin-top: 2px;
         }
         
-        /* Botón de guardar: mantiene el estilo original */
+        /* Botón de guardar */
         button {
             display: block;
             margin: 20px auto;
@@ -65,56 +63,72 @@
             cursor: pointer;
         }
         
-        /* Editor (textarea) y vista previa (iframe), centrados con margen horizontal de 6px */
+        /* Editor (textarea) y vista previa (iframe), centrados */
         #editor, #preview {
-            width: calc(100% - 12px);
+            max-width: 100%;
             margin: 10px auto;
             padding: 10px;
             border: 1px solid #ccc;
             border-radius: 5px;
+            text-align: left;
+            background: #f4f4f4;
+            white-space: pre-wrap;
+            word-wrap: break-word;
         }
-        
+
         /* La caja de código ya no se puede redimensionar manualmente */
         #editor {
             height: 300px;
             font-family: monospace;
             resize: none;
         }
-        
+
         #preview {
             height: 300px;
-            background: #f9f9f9;
         }
         
-        /* Media queries para móviles y PC */
-        @media (max-width: 600px) {
-            body {
-                font-size: 14px;
-            }
-            
-            #editor, #preview {
-                font-size: 14px;
-                height: 250px;
-            }
+        /* --- Para PC --- */
+        @media (min-width: 769px) { 
+            body { margin: 40px; } 
+            #editor, #preview { font-size: 13px; } 
         }
+        
+        /* --- Para Móvil --- */
+        @media (max-width: 768px) { 
+            body { margin: 20px; }
+            #editor, #preview { font-size: 12px; }
+        }
+        
+        /* --- Para Chrome --- */
+        @media screen and (-webkit-min-device-pixel-ratio: 0) {
+            @media (min-width: 769px) { #editor, #preview { font-size: 10px !important; } }
+            @media (max-width: 768px) { #editor, #preview { font-size: 10px !important; } }
+        }
+        
+        /* --- Para Firefox --- */
+        @-moz-document url-prefix() {
+            @media (min-width: 769px) { #editor, #preview { font-size: 18px !important; } }
+            @media (max-width: 768px) { #editor, #preview { font-size: 10px !important; } }
+        }
+        
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Editor HTML Online - Beta</h1>
+        <h1>Editor HTML Online - Alfa</h1>
         <!-- Botón de carga personalizado -->
         <label for="fileInput" class="boton-carga">Cargar</label>
         <input type="file" id="fileInput" accept=".html">
         <div id="fileName"></div> <!-- Nombre del archivo -->
-        <!-- Editor de código (no redimensionable) -->
+        <!-- Editor de código -->
         <textarea id="editor"></textarea>
         <!-- Botón para guardar archivo editado -->
         <button onclick="guardarHTML()">Guardar HTML</button>
-        <!-- Previsualización en iframe -->
+        <!-- Previsualización -->
         <iframe id="preview"></iframe>
     </div>
     <script>
-        // Leer el archivo HTML y mostrar el nombre debajo del botón de carga
+        // Leer archivo HTML y mostrar el nombre debajo del botón
         document.getElementById('fileInput').addEventListener('change', function(event) {
             const archivo = event.target.files[0];
             if (archivo) {
@@ -128,7 +142,7 @@
             }
         });
         
-        // Guardar el HTML editado
+        // Guardar HTML editado
         function guardarHTML() {
             const contenido = document.getElementById('editor').value;
             const blob = new Blob([contenido], { type: "text/html" });
