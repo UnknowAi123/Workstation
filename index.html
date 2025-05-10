@@ -62,42 +62,36 @@
       height: 300px;
     }
     
-    /* --- Media Queries: General (PC vs Phone) --- */
+    /* --- Media Queries for Editor (external styling) --- */
     @media (min-width: 769px) { /* PC */
       #editor { font-size: 14px; }
-      #preview { font-size: 14px; }
     }
     @media (max-width: 768px) { /* Phone */
       #editor { font-size: 12px; }
-      #preview { font-size: 12px; }
     }
     
-    /* --- Chrome Specific --- */
-    @media screen and (-webkit-min-device-pixel-ratio: 0) {
+    /* --- Chrome Specific for Editor --- */
+    @media screen and (-webkit-min-device-pixel-ratio:0) {
       @media (min-width: 769px) { /* Chrome PC */
-        #editor { font-size: 8px !important; }
-        #preview { font-size: 11px !important; }
+        #editor { font-size: 11px !important; }
       }
       @media (max-width: 768px) { /* Chrome Phone */
-        #editor { font-size: 11px !important; }
-        #preview { font-size: 10px !important; }
+        #editor { font-size: 10px !important; }
       }
     }
     
-    /* --- Firefox Specific --- */
+    /* --- Firefox Specific for Editor --- */
     @-moz-document url-prefix() {
       @media (min-width: 769px) { /* Firefox PC */
-        #editor { font-size: 14px !important; }
-        #preview { font-size: 18px !important; }
+        #editor { font-size: 17px !important; }
       }
       @media (max-width: 768px) { /* Firefox Phone */
-        #editor { font-size: 11px !important; }
-        #preview { font-size: 12px !important; }
+        #editor { font-size: 12px !important; }
       }
     }
   </style>
 </head>
-<body onload="resetAll()"> <!-- Reset al cargar -->
+<body onload="resetAll()"> <!-- Se resetea al cargar -->
   <div class="container">
     <h1>Editor HTML Online - Alfa</h1>
     
@@ -117,10 +111,10 @@
   </div>
   
   <script>
-    // --- Global variable to store the original HTML content ---
+    // --- Variable global para guardar el contenido original ---
     let contenidoOriginal = "";
-
-    // --- File Loading ---
+    
+    // --- Carga del Archivo HTML ---
     document.getElementById('fileInput').addEventListener('change', function(event) {
       const archivo = event.target.files[0];
       if (archivo) {
@@ -129,42 +123,69 @@
         reader.onload = function(e) {
           contenidoOriginal = e.target.result;
           document.getElementById('editor').value = contenidoOriginal;
-          // Siempre aplica el estilo básico a la vista previa
+          // Se inyecta el CSS básico (customizable por media queries) en la vista previa
           document.getElementById('preview').srcdoc = `<head>${basicCSS}</head>` + contenidoOriginal;
         };
         reader.readAsText(archivo);
       }
     });
-
-    // --- Basic View CSS: Simplicidad similar al editor ---
+    
+    /* --- Basic View CSS inyectado en la vista previa ---
+         Aquí se eliminó la fuente fija para poder personalizarla mediante media queries.
+         Se distinguen condiciones para PC y Phone y también se incluyen reglas específicas para Chrome y Firefox.
+    */
     const basicCSS = `<style>
+      /* Reset básico sin fuente fija */
       * {
-        font-size: 14px !important;
         font-weight: normal !important;
         margin: 0;
         padding: 0;
         font-family: Arial, sans-serif !important;
       }
-      h1, h2, h3, h4, h5, h6 {
-        font-size: inherit !important;
-        font-weight: normal !important;
+      /* Negrita para elementos indicados */
+      b, strong { font-weight: bold !important; }
+      /* Subrayado */
+      u { text-decoration: underline !important; }
+      
+      /* --- Fuente en dispositivos --- */
+      @media (min-width: 769px) {
+        /* PC: Valor por defecto para navegadores genéricos */
+        * { font-size: 13px !important; }
       }
-      b, strong {
-        font-weight: bold !important;
+      @media (max-width: 768px) {
+        /* Phone: Valor por defecto */
+        * { font-size: 12px !important; }
       }
-      u {
-        text-decoration: underline !important;
+      
+      /* --- Chrome Específico --- */
+      @media screen and (-webkit-min-device-pixel-ratio:0) {
+        @media (min-width: 769px) {
+          * { font-size: 12px !important; }  /* Chrome PC */
+        }
+        @media (max-width: 768px) {
+          * { font-size: 12px !important; }  /* Chrome Phone */
+        }
+      }
+      
+      /* --- Firefox Específico --- */
+      @-moz-document url-prefix() {
+        @media (min-width: 769px) {
+          * { font-size: 13px !important; }  /* Firefox PC */
+        }
+        @media (max-width: 768px) {
+          * { font-size: 12px !important; }  /* Firefox Phone */
+        }
       }
     </style>`;
-
-    // --- Reset All Elements on Page Load ---
+    
+    // --- Reset de la página al cargar ---
     function resetAll() {
       document.getElementById('editor').value = "";
       document.getElementById('preview').srcdoc = "";
       document.getElementById('fileName').textContent = "";
     }
-
-    // --- Save HTML Function ---
+    
+    // --- Función para Guardar el HTML Modificado ---
     function guardarHTML() {
       const contenido = document.getElementById('editor').value;
       const blob = new Blob([contenido], { type: "text/html" });
