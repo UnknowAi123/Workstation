@@ -1,175 +1,184 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>Editor HTML Online - Alfa</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        /* Asegurar un box-sizing consistente */
-        * {
-            box-sizing: border-box;
-        }
+  <meta charset="UTF-8">
+  <title>Editor HTML Online - Alfa</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    /* Asegurar un box-sizing consistente */
+    * {
+      box-sizing: border-box;
+    }
 
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      overflow-x: hidden;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      max-width: 1280px;
+      margin: auto;
+      padding: 20px;
+    }
+
+    /* Estilos para botones */
+    .boton-carga, button {
+      width: 80%;
+      padding: 10px;
+      margin: 10px auto;
+      display: block;
+      background-color: #0078D7;
+      color: white;
+      border: 2px solid #0078D7; /* Bordes unificados */
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px; /* Tamaño de fuente idéntico */
+      font-family: Arial, sans-serif; /* Fuente asegurada */
+      text-align: center;
+    }
+
+    /* Botón de carga */
+    .boton-carga {
+      margin-bottom: 2px;
+    }
+
+    /* Ocultar el input file real */
+    input[type="file"] {
+      display: none;
+    }
+
+    /* Nombre del archivo debajo del botón de carga */
+    #fileName {
+      font-size: 14px;
+      color: #555;
+      margin-bottom: 20px;
+    }
+
+    /* Editor (textarea) y vista previa (iframe) */
+    #editor, #preview {
+      width: 100%; /* Valor base, se ajusta en PC */
+      margin: 20px auto;
+      padding: 10px;
+      border: 2px solid #0078D7; /* Bordes unificados */
+      border-radius: 5px;
+      background: #f4f4f4;
+      display: block;
+    }
+
+    /* Editor de código */
+    #editor {
+      height: 300px;
+      font-family: monospace;
+      resize: none;
+    }
+
+    /* Vista previa */
+    #preview {
+      height: 300px;
+    }
+
+    /* Media queries generales */
+
+    /* Para pantallas grandes (PC) */
+    @media (min-width: 769px) {
+      body {
+        margin: 20px auto;  /* Menos margen lateral en PC */
+      }
+      #editor, #preview {
+        width: 90%;         /* Ancho ajustado para proporcionar más margen lateral */
+        font-size: 13px;
+      }
+    }
+
+    /* Para pantallas pequeñas (móviles) */
+    @media (max-width: 768px) {
+      body {
+        margin: 20px;
+      }
+      #editor, #preview {
+        font-size: 12px;
+      }
+    }
+
+    /* Específico para Chrome */
+    @media screen and (-webkit-min-device-pixel-ratio: 0) {
+      @media (min-width: 769px) {
         body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            overflow-x: hidden;
-            margin: 0;
-            padding: 0;
+          margin: 20px auto;
         }
-
-        .container {
-            max-width: 1280px;
-            margin: auto;
-            padding: 20px;
-        }
-
-        /* Estilos para botones */
-        .boton-carga, button {
-            width: 80%;
-            padding: 10px;
-            margin: 10px auto;
-            display: block;
-            background-color: #0078D7;
-            color: white;
-            border: 2px solid #0078D7; /* Bordes unificados */
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px; /* Tamaño de fuente idéntico */
-            font-family: Arial, sans-serif; /* Fuente asegurada */
-            text-align: center;
-        }
-
-        /* Botón de carga */
-        .boton-carga {
-            margin-bottom: 2px;
-        }
-
-        /* Ocultar el input file real */
-        input[type="file"] {
-            display: none;
-        }
-
-        /* Nombre del archivo debajo del botón de carga */
-        #fileName {
-            font-size: 14px;
-            color: #555;
-            margin-bottom: 20px;
-        }
-
-        /* Editor (textarea) y vista previa (iframe) */
         #editor, #preview {
-            width: 100%;
-            margin: 20px auto;
-            padding: 10px;
-            border: 2px solid #0078D7; /* Bordes unificados */
-            border-radius: 5px;
-            background: #f4f4f4;
-            display: block;
+          font-size: 10px !important;
         }
-
-        /* Editor de código */
-        #editor {
-            height: 300px;
-            font-family: monospace;
-            resize: none;
+      }
+      @media (max-width: 768px) {
+        #editor, #preview {
+          font-size: 10px !important;
         }
-
-        /* Vista previa */
-        #preview {
-            height: 300px;
-        }
-
-        /* Media queries */
-        @media (min-width: 769px) {
-            body {
-                margin: 40px auto;
-            }
-            #editor, #preview {
-                font-size: 13px;
-            }
-        }
-
-        @media (max-width: 768px) {
-            body {
-                margin: 20px;
-            }
-            #editor, #preview {
-                font-size: 12px;
-            }
-        }
-
-        /* Chrome */
-        @media screen and (-webkit-min-device-pixel-ratio: 0) {
-    @media (min-width: 769px) { 
-        body { margin: 40px auto; } /* Reduce margen lateral en Chrome */
-        #editor, #preview { font-size: 10px !important; }
+      }
     }
-}
 
-            @media (max-width: 768px) {
-                #editor, #preview { font-size: 10px !important; }
-            }
+    /* Específico para Firefox */
+    @-moz-document url-prefix() {
+      @media (min-width: 769px) {
+        body {
+          margin: 20px auto;
         }
-
-        /* Firefox */
-        @-moz-document url-prefix() {
-    @media (min-width: 769px) { 
-        body { margin: 20px auto; } /* Reducción de margen lateral */
-        #editor, #preview { 
-            font-size: 18px !important;
-            width: 90%; /* Ajuste del ancho */
+        #editor, #preview {
+          font-size: 18px !important;
         }
+      }
+      @media (max-width: 768px) {
+        #editor, #preview {
+          font-size: 10px !important;
+        }
+      }
     }
-}
-
-            @media (max-width: 768px) {
-                #editor, #preview { font-size: 10px !important; }
-            }
-        }
-    </style>
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Editor HTML Online - Alfa</h1>
+  <div class="container">
+    <h1>Editor HTML Online - Alfa</h1>
 
-        <!-- Botón de carga -->
-        <label for="fileInput" class="boton-carga">Cargar</label>
-        <input type="file" id="fileInput" accept=".html">
-        <div id="fileName"></div>
+    <!-- Botón de carga -->
+    <label for="fileInput" class="boton-carga">Cargar</label>
+    <input type="file" id="fileInput" accept=".html">
+    <div id="fileName"></div>
 
-        <!-- Editor de código -->
-        <textarea id="editor"></textarea>
+    <!-- Editor de código -->
+    <textarea id="editor"></textarea>
 
-        <!-- Botón para guardar -->
-        <button onclick="guardarHTML()">Guardar HTML</button>
+    <!-- Botón para guardar HTML -->
+    <button onclick="guardarHTML()">Guardar HTML</button>
 
-        <!-- Vista previa -->
-        <iframe id="preview"></iframe>
-    </div>
-  
-    <script>
-        document.getElementById('fileInput').addEventListener('change', function(event) {
-            const archivo = event.target.files[0];
-            if (archivo) {
-                document.getElementById('fileName').textContent = archivo.name;
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    document.getElementById('editor').value = e.target.result;
-                    document.getElementById('preview').srcdoc = e.target.result;
-                };
-                reader.readAsText(archivo);
-            }
-        });
+    <!-- Vista previa -->
+    <iframe id="preview"></iframe>
+  </div>
 
-        function guardarHTML() {
-            const contenido = document.getElementById('editor').value;
-            const blob = new Blob([contenido], { type: "text/html" });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = "archivo_modificado.html";
-            link.click();
-        }
-    </script>
+  <script>
+    document.getElementById('fileInput').addEventListener('change', function(event) {
+      const archivo = event.target.files[0];
+      if (archivo) {
+        document.getElementById('fileName').textContent = archivo.name;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          document.getElementById('editor').value = e.target.result;
+          document.getElementById('preview').srcdoc = e.target.result;
+        };
+        reader.readAsText(archivo);
+      }
+    });
+
+    function guardarHTML() {
+      const contenido = document.getElementById('editor').value;
+      const blob = new Blob([contenido], { type: "text/html" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "archivo_modificado.html";
+      link.click();
+    }
+  </script>
 </body>
 </html>
