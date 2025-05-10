@@ -1,156 +1,185 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>Editor HTML Online - Alfa</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        /* Asegura que el padding se incluya en el ancho total */
-        * {
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            overflow-x: hidden;
-            margin-bottom: 0;
-            padding-bottom: 0;
-        }
-        
-        .container {
-            max-width: 800px;
-            margin: auto;
-        }
-        
-        /* Botón de carga: se muestra "Cargar" con el estilo de la web Extractor */
-        .boton-carga {
-            display: block;
-            margin: 20px auto 2px auto; /* 2px de separación inferior para el nombre del archivo */
-            padding: 10px;
-            font-size: 16px;
-            border: none;
-            background-color: #0078D7;
-            color: white;
-            border-radius: 5px;
-            text-align: center;
-            cursor: pointer;
-        }
-        
-        /* Ocultar el input file real */
-        input[type="file"] {
-            display: none;
-        }
-        
-        /* Nombre del archivo cargado debajo del botón */
-        #fileName {
-            text-align: center;
-            font-size: 14px;
-            color: #555;
-            margin-top: 2px;
-        }
-        
-        /* Botón de guardar */
-        button {
-            display: block;
-            margin: 20px auto;
-            padding: 10px;
-            font-size: 16px;
-            border: none;
-            background-color: #0078D7;
-            color: white;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        
-        /* Editor (textarea) y vista previa (iframe), centrados */
-        #editor, #preview {
-            max-width: 100%;
-            margin: 10px auto;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            text-align: left;
-            background: #f4f4f4;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
+  <meta charset="UTF-8">
+  <title>Editor HTML Online - Alfa</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    /* Asegurar un box-sizing consistente */
+    * {
+      box-sizing: border-box;
+    }
 
-        /* La caja de código ya no se puede redimensionar manualmente */
-        #editor {
-            height: 300px;
-            font-family: monospace;
-            resize: none;
-        }
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      overflow-x: hidden;
+      margin: 0;
+      padding: 0;
+    }
 
-        #preview {
-            height: 300px;
-        }
-        
-        /* --- Para PC --- */
-        @media (min-width: 769px) { 
-            body { margin: 40px; } 
-            #editor, #preview { font-size: 13px; } 
-        }
-        
-        /* --- Para Móvil --- */
-        @media (max-width: 768px) { 
-            body { margin: 20px; }
-            #editor, #preview { font-size: 12px; }
-        }
-        
-        /* --- Para Chrome --- */
-        @media screen and (-webkit-min-device-pixel-ratio: 0) {
-            @media (min-width: 769px) { #editor, #preview { font-size: 10px !important; } }
-            @media (max-width: 768px) { #editor, #preview { font-size: 10px !important; } }
-        }
-        
-        /* --- Para Firefox --- */
-        @-moz-document url-prefix() {
-            @media (min-width: 769px) { #editor, #preview { font-size: 18px !important; } }
-            @media (max-width: 768px) { #editor, #preview { font-size: 10px !important; } }
-        }
-        
-    </style>
+    .container {
+      max-width: 800px;
+      margin: auto;
+      padding: 20px;
+    }
+
+    /* Estilos para input, botones y el botón de carga (label) */
+    input, button, .boton-carga {
+      width: 80%;
+      padding: 10px;
+      margin: 10px auto;
+      display: block;
+    }
+
+    /* Botón de carga – igual a la web Extractor (Beta) */
+    .boton-carga {
+      background-color: #0078D7;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      text-align: center;
+      /* Ajuste para que debajo quede un espacio de 2px para el nombre del archivo */
+      margin-bottom: 2px;
+    }
+    
+    /* Ocultar el input file real */
+    input[type="file"] {
+      display: none;
+    }
+
+    /* Nombre del archivo – se mostrará debajo del botón de carga */
+    #fileName {
+      font-size: 14px;
+      color: #555;
+      margin-bottom: 20px;
+    }
+
+    /* Botón de guardar */
+    button {
+      background-color: #0078D7;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    /* Editor (textarea) y vista previa (iframe) – cajas centradas */
+    #editor, #preview {
+      width: 80%;
+      margin: 20px auto;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      text-align: left;
+      background: #f4f4f4;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      display: block;
+    }
+
+    /* Impedir la redimensión manual del editor */
+    #editor {
+      height: 300px;
+      font-family: monospace;
+      resize: none;
+    }
+
+    #preview {
+      height: 300px;
+      border: 2px solid #ccc;
+    }
+
+    /* ========================
+       Media Queries (al estilo WebEx)
+       ======================== */
+
+    /* Para pantallas grandes (PC) */
+    @media (min-width: 769px) {
+      body {
+        margin: 40px;
+      }
+      /* Fuente base para las cajas */
+      #editor, #preview {
+        font-size: 13px;
+      }
+    }
+
+    /* Para pantallas pequeñas (Phone) */
+    @media (max-width: 768px) {
+      body {
+        margin: 20px;
+      }
+      #editor, #preview {
+        font-size: 12px;
+      }
+    }
+
+    /* --- Para Chrome --- */
+    @media screen and (-webkit-min-device-pixel-ratio: 0) {
+      @media (min-width: 769px) {
+        #editor, #preview { font-size: 10px !important; }
+      }
+      @media (max-width: 768px) {
+        #editor, #preview { font-size: 10px !important; }
+      }
+    }
+
+    /* --- Para Firefox --- */
+    @-moz-document url-prefix() {
+      @media (min-width: 769px) {
+        #editor, #preview { font-size: 18px !important; }
+      }
+      @media (max-width: 768px) {
+        #editor, #preview { font-size: 10px !important; }
+      }
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Editor HTML Online - Alfa</h1>
-        <!-- Botón de carga personalizado -->
-        <label for="fileInput" class="boton-carga">Cargar</label>
-        <input type="file" id="fileInput" accept=".html">
-        <div id="fileName"></div> <!-- Nombre del archivo -->
-        <!-- Editor de código -->
-        <textarea id="editor"></textarea>
-        <!-- Botón para guardar archivo editado -->
-        <button onclick="guardarHTML()">Guardar HTML</button>
-        <!-- Previsualización -->
-        <iframe id="preview"></iframe>
-    </div>
-    <script>
-        // Leer archivo HTML y mostrar el nombre debajo del botón
-        document.getElementById('fileInput').addEventListener('change', function(event) {
-            const archivo = event.target.files[0];
-            if (archivo) {
-                document.getElementById('fileName').textContent = archivo.name;
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    document.getElementById('editor').value = e.target.result;
-                    document.getElementById('preview').srcdoc = e.target.result;
-                };
-                reader.readAsText(archivo);
-            }
-        });
-        
-        // Guardar HTML editado
-        function guardarHTML() {
-            const contenido = document.getElementById('editor').value;
-            const blob = new Blob([contenido], { type: "text/html" });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = "archivo_modificado.html";
-            link.click();
-        }
-    </script>
+  <div class="container">
+    <h1>Editor HTML Online - Alfa</h1>
+
+    <!-- Botón de carga personalizado (label) -->
+    <label for="fileInput" class="boton-carga">Cargar</label>
+    <input type="file" id="fileInput" accept=".html">
+    <div id="fileName"></div>
+
+    <!-- Editor de código -->
+    <textarea id="editor"></textarea>
+
+    <!-- Botón para guardar HTML -->
+    <button onclick="guardarHTML()">Guardar HTML</button>
+
+    <!-- Vista previa -->
+    <iframe id="preview"></iframe>
+  </div>
+  
+  <script>
+    // Al cargar un archivo, se muestra el nombre y el contenido en el editor y la vista previa
+    document.getElementById('fileInput').addEventListener('change', function(event) {
+      const archivo = event.target.files[0];
+      if (archivo) {
+        document.getElementById('fileName').textContent = archivo.name;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          document.getElementById('editor').value = e.target.result;
+          document.getElementById('preview').srcdoc = e.target.result;
+        };
+        reader.readAsText(archivo);
+      }
+    });
+
+    // Función para guardar el HTML editado
+    function guardarHTML() {
+      const contenido = document.getElementById('editor').value;
+      const blob = new Blob([contenido], { type: "text/html" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "archivo_modificado.html";
+      link.click();
+    }
+  </script>
 </body>
 </html>
