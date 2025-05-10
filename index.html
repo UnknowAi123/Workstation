@@ -101,9 +101,12 @@
 
         /* Chrome */
         @media screen and (-webkit-min-device-pixel-ratio: 0) {
-            @media (min-width: 769px) {
-                #editor, #preview { font-size: 10px !important; }
-            }
+    @media (min-width: 769px) { 
+        body { margin: 40px auto; } /* Reduce margen lateral en Chrome */
+        #editor, #preview { font-size: 10px !important; }
+    }
+}
+
             @media (max-width: 768px) {
                 #editor, #preview { font-size: 10px !important; }
             }
@@ -111,8 +114,10 @@
 
         /* Firefox */
         @-moz-document url-prefix() {
-            @media (min-width: 769px) {
-                #editor, #preview { font-size: 18px !important; }
+        @media (min-width: 769px) { 
+        body { margin: 40px auto; } /* Reduce margen lateral en Firefox */
+        #editor, #preview { font-size: 18px !important; }
+        }
             }
             @media (max-width: 768px) {
                 #editor, #preview { font-size: 10px !important; }
