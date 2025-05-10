@@ -2,10 +2,10 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Editor HTML Online - Alfa</title>
+  <title>Editor HTML Online</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    /* Asegurar un box-sizing consistente */
+    /* 🔹 General: Ajustes base */
     * {
       box-sizing: border-box;
     }
@@ -24,7 +24,7 @@
       padding: 20px;
     }
 
-    /* Estilos para botones */
+    /* 🔹 Estilos de botones */
     .boton-carga, button {
       width: 80%;
       padding: 10px;
@@ -36,23 +36,20 @@
       border-radius: 5px;
       cursor: pointer;
       font-size: 16px;
-      font-family: Arial, sans-serif;
       text-align: center;
     }
 
-    /* Ocultar el input file real */
     input[type="file"] {
       display: none;
     }
 
-    /* Nombre del archivo debajo del botón de carga */
     #fileName {
       font-size: 14px;
       color: #555;
       margin-bottom: 20px;
     }
 
-    /* Editor y vista previa */
+    /* 🔹 Editor y Vista previa */
     #editor, #preview {
       width: 100%;
       margin: 20px auto;
@@ -63,62 +60,73 @@
       display: block;
     }
 
-    /* Editor */
+    /* 🔹 Editor (textarea) */
     #editor {
       height: 300px;
       font-family: monospace;
       resize: none;
     }
 
-    /* Vista previa */
+    /* 🔹 Vista previa */
     #preview {
       height: 300px;
     }
 
-    /* Ajustes generales para PC y phone en cualquier navegador */
-    @media (min-width: 769px) {
-      body {
-        margin: 20px auto;
+    /* 🔹 Ajustes generales */
+    @media (min-width: 769px) { /* 📌 PC */
+      #editor {
+        font-size: 14px;
       }
-      #editor, #preview {
-        width: 90%;
+      #preview {
+        font-size: 16px;
+      }
+    }
+
+    @media (max-width: 768px) { /* 📌 Phone */
+      #editor {
+        font-size: 12px;
+      }
+      #preview {
         font-size: 14px;
       }
     }
 
-    @media (max-width: 768px) {
-      body {
-        margin: 20px;
-      }
-      #editor, #preview {
-        font-size: 12px;
-      }
-    }
-
-    /* Específico para Chrome: Separación PC vs phone */
+    /* 🔹 Chrome: Ajustes por separado */
     @media screen and (-webkit-min-device-pixel-ratio: 0) {
-      @media (min-width: 769px) {
-        #editor, #preview {
+      @media (min-width: 769px) { /* 📌 Chrome PC */
+        #editor {
           font-size: 11px !important;
         }
+        #preview {
+          font-size: 13px !important;
+        }
       }
-      @media (max-width: 768px) {
-        #editor, #preview {
+      @media (max-width: 768px) { /* 📌 Chrome Phone */
+        #editor {
           font-size: 10px !important;
+        }
+        #preview {
+          font-size: 12px !important;
         }
       }
     }
 
-    /* Específico para Firefox: Separación PC vs phone */
+    /* 🔹 Firefox: Ajustes por separado */
     @-moz-document url-prefix() {
-      @media (min-width: 769px) {
-        #editor, #preview {
+      @media (min-width: 769px) { /* 📌 Firefox PC */
+        #editor {
           font-size: 17px !important;
         }
+        #preview {
+          font-size: 19px !important;
+        }
       }
-      @media (max-width: 768px) {
-        #editor, #preview {
+      @media (max-width: 768px) { /* 📌 Firefox Phone */
+        #editor {
           font-size: 12px !important;
+        }
+        #preview {
+          font-size: 14px !important;
         }
       }
     }
@@ -128,22 +136,23 @@
   <div class="container">
     <h1>Editor HTML Online - Alfa</h1>
 
-    <!-- Botón de carga -->
+    <!-- 🔹 Botón de carga -->
     <label for="fileInput" class="boton-carga">Cargar</label>
     <input type="file" id="fileInput" accept=".html">
     <div id="fileName"></div>
 
-    <!-- Editor de código -->
+    <!-- 🔹 Editor -->
     <textarea id="editor"></textarea>
 
-    <!-- Botón para guardar HTML -->
+    <!-- 🔹 Botón para guardar -->
     <button onclick="guardarHTML()">Guardar HTML</button>
 
-    <!-- Vista previa -->
+    <!-- 🔹 Vista previa -->
     <iframe id="preview"></iframe>
   </div>
 
   <script>
+    // 🔹 Carga de archivo HTML
     document.getElementById('fileInput').addEventListener('change', function(event) {
       const archivo = event.target.files[0];
       if (archivo) {
@@ -157,6 +166,7 @@
       }
     });
 
+    // 🔹 Guardar archivo modificado
     function guardarHTML() {
       const contenido = document.getElementById('editor').value;
       const blob = new Blob([contenido], { type: "text/html" });
