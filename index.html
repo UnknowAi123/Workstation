@@ -2,14 +2,11 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Editor HTML Online</title>
+  <title>Editor HTML Online - Alfa</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    /* 🔹 General: Ajustes base */
-    * {
-      box-sizing: border-box;
-    }
-
+    /* --- General Styles --- */
+    * { box-sizing: border-box; }
     body {
       font-family: Arial, sans-serif;
       text-align: center;
@@ -17,14 +14,13 @@
       margin: 0;
       padding: 0;
     }
-
     .container {
       max-width: 1280px;
       margin: auto;
       padding: 20px;
     }
-
-    /* 🔹 Estilos de botones */
+    
+    /* --- Button Styles --- */
     .boton-carga, button {
       width: 80%;
       padding: 10px;
@@ -38,18 +34,14 @@
       font-size: 16px;
       text-align: center;
     }
-
-    input[type="file"] {
-      display: none;
-    }
-
+    input[type="file"] { display: none; }
     #fileName {
       font-size: 14px;
       color: #555;
       margin-bottom: 20px;
     }
-
-    /* 🔹 Editor y Vista previa */
+    
+    /* --- Editor & Preview Boxes --- */
     #editor, #preview {
       width: 100%;
       margin: 20px auto;
@@ -59,75 +51,64 @@
       background: #f4f4f4;
       display: block;
     }
-
-    /* 🔹 Editor (textarea) */
+    /* Editor (Textarea) */
     #editor {
       height: 300px;
       font-family: monospace;
       resize: none;
     }
-
-    /* 🔹 Vista previa */
+    /* Preview (iframe) */
     #preview {
       height: 300px;
     }
-
-    /* 🔹 Ajustes generales */
-    @media (min-width: 769px) { /* 📌 PC */
-      #editor {
-        font-size: 14px;
-      }
-      #preview {
-        font-size: 16px;
-      }
+    
+    /* --- Preview Tabs --- */
+    .preview-tabs {
+      margin-top: 10px;
     }
-
-    @media (max-width: 768px) { /* 📌 Phone */
-      #editor {
-        font-size: 12px;
-      }
-      #preview {
-        font-size: 14px;
-      }
+    .preview-tabs button {
+      width: auto;
+      padding: 8px 12px;
+      margin: 5px;
+      background-color: #0078D7;
+      color: white;
+      border: 2px solid #0078D7;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
     }
-
-    /* 🔹 Chrome: Ajustes por separado */
+    
+    /* --- Media Queries: General (PC vs Phone) --- */
+    @media (min-width: 769px) { /* PC */
+      #editor { font-size: 14px; }
+      #preview { font-size: 16px; }
+    }
+    @media (max-width: 768px) { /* Phone */
+      #editor { font-size: 12px; }
+      #preview { font-size: 14px; }
+    }
+    
+    /* --- Chrome Specific --- */
     @media screen and (-webkit-min-device-pixel-ratio: 0) {
-      @media (min-width: 769px) { /* 📌 Chrome PC */
-        #editor {
-          font-size: 6px !important;
-        }
-        #preview {
-          font-size: 6px !important;
-        }
+      @media (min-width: 769px) { /* Chrome PC */
+        #editor { font-size: 11px !important; }
+        #preview { font-size: 13px !important; }
       }
-      @media (max-width: 768px) { /* 📌 Chrome Phone */
-        #editor {
-          font-size: 10px !important;
-        }
-        #preview {
-          font-size: 6px !important;
-        }
+      @media (max-width: 768px) { /* Chrome Phone */
+        #editor { font-size: 10px !important; }
+        #preview { font-size: 12px !important; }
       }
     }
-
-    /* 🔹 Firefox: Ajustes por separado */
+    
+    /* --- Firefox Specific --- */
     @-moz-document url-prefix() {
-      @media (min-width: 769px) { /* 📌 Firefox PC */
-        #editor {
-          font-size: 17px !important;
-        }
-        #preview {
-          font-size: 19px !important;
-        }
+      @media (min-width: 769px) { /* Firefox PC */
+        #editor { font-size: 17px !important; }
+        #preview { font-size: 19px !important; }
       }
-      @media (max-width: 768px) { /* 📌 Firefox Phone */
-        #editor {
-          font-size: 10px !important;
-        }
-        #preview {
-          font-size: 6px !important;
-        }
+      @media (max-width: 768px) { /* Firefox Phone */
+        #editor { font-size: 12px !important; }
+        #preview { font-size: 14px !important; }
       }
     }
   </style>
@@ -135,38 +116,81 @@
 <body>
   <div class="container">
     <h1>Editor HTML Online - Alfa</h1>
-
-    <!-- 🔹 Botón de carga -->
+    
+    <!-- --- File Load Button --- -->
     <label for="fileInput" class="boton-carga">Cargar</label>
     <input type="file" id="fileInput" accept=".html">
     <div id="fileName"></div>
-
-    <!-- 🔹 Editor -->
+    
+    <!-- --- Code Editor --- -->
     <textarea id="editor"></textarea>
-
-    <!-- 🔹 Botón para guardar -->
+    
+    <!-- --- Save Button --- -->
     <button onclick="guardarHTML()">Guardar HTML</button>
-
-    <!-- 🔹 Vista previa -->
+    
+    <!-- --- Preview Tabs for Switching Views --- -->
+    <div class="preview-tabs">
+      <button id="btnReal">Vista Real</button>
+      <button id="btnPlain">Vista Plana</button>
+    </div>
+    
+    <!-- --- Preview iframe --- -->
     <iframe id="preview"></iframe>
   </div>
-
+  
   <script>
-    // 🔹 Carga de archivo HTML
+    // --- Global variable to store the original HTML content ---
+    let contenidoOriginal = "";
+    
+    // --- File Loading ---
     document.getElementById('fileInput').addEventListener('change', function(event) {
       const archivo = event.target.files[0];
       if (archivo) {
         document.getElementById('fileName').textContent = archivo.name;
         const reader = new FileReader();
         reader.onload = function(e) {
-          document.getElementById('editor').value = e.target.result;
-          document.getElementById('preview').srcdoc = e.target.result;
+          contenidoOriginal = e.target.result; // Guarda el contenido original
+          document.getElementById('editor').value = contenidoOriginal;
+          // Por defecto, muestra la Vista Real
+          document.getElementById('preview').srcdoc = contenidoOriginal;
         };
         reader.readAsText(archivo);
       }
     });
-
-    // 🔹 Guardar archivo modificado
+    
+    // --- Plain View CSS: Cambia el tamaño de fuente aquí (sencillo y en código) ---
+    const plainFontSize = "14px"; // Modifica este valor según lo que necesites
+    const plainCSS = `<style>
+      /* Reset básico para Vista Plana */
+      * {
+        font-size: ${plainFontSize} !important;
+        font-weight: normal !important;
+        margin: 0;
+        padding: 0;
+      }
+      /* Los encabezados se muestran en negrita pero con tamaño uniforme */
+      h1, h2, h3, h4, h5, h6 {
+        font-weight: bold !important;
+        font-size: inherit !important;
+      }
+    </style>`;
+    
+    // --- Functions to Toggle Views ---
+    function mostrarVistaReal() {
+      // Vista Real: Se muestra el contenido original sin interferencias
+      document.getElementById('preview').srcdoc = contenidoOriginal;
+    }
+    
+    function mostrarVistaPlana() {
+      // Vista Plana: Se inyecta el CSS básico para un renderizado plano
+      document.getElementById('preview').srcdoc = `<head>${plainCSS}</head>` + contenidoOriginal;
+    }
+    
+    // --- Event Listeners for Preview Tabs ---
+    document.getElementById('btnReal').addEventListener('click', mostrarVistaReal);
+    document.getElementById('btnPlain').addEventListener('click', mostrarVistaPlana);
+    
+    // --- Save HTML Function ---
     function guardarHTML() {
       const contenido = document.getElementById('editor').value;
       const blob = new Blob([contenido], { type: "text/html" });
