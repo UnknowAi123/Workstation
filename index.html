@@ -114,11 +114,15 @@
 
         /* Firefox */
         @-moz-document url-prefix() {
-        @media (min-width: 769px) { 
-        body { margin: 40px auto; } /* Reduce margen lateral en Firefox */
-        #editor, #preview { font-size: 18px !important; }
+    @media (min-width: 769px) { 
+        body { margin: 20px auto; } /* Reducción de margen lateral */
+        #editor, #preview { 
+            font-size: 18px !important;
+            width: 90%; /* Ajuste del ancho */
         }
-            }
+    }
+}
+
             @media (max-width: 768px) {
                 #editor, #preview { font-size: 10px !important; }
             }
