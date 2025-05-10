@@ -62,26 +62,10 @@
       height: 300px;
     }
     
-    /* --- Preview Tabs --- */
-    .preview-tabs {
-      margin-top: 10px;
-    }
-    .preview-tabs button {
-      width: auto;
-      padding: 8px 12px;
-      margin: 5px;
-      background-color: #0078D7;
-      color: white;
-      border: 2px solid #0078D7;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    
     /* --- Media Queries: General (PC vs Phone) --- */
     @media (min-width: 769px) { /* PC */
-      #editor { font-size: 12px; }
-      #preview { font-size: 12px; }
+      #editor { font-size: 14px; }
+      #preview { font-size: 14px; }
     }
     @media (max-width: 768px) { /* Phone */
       #editor { font-size: 12px; }
@@ -91,8 +75,8 @@
     /* --- Chrome Specific --- */
     @media screen and (-webkit-min-device-pixel-ratio: 0) {
       @media (min-width: 769px) { /* Chrome PC */
-        #editor { font-size: 8px !important; }
-        #preview { font-size: 8px !important; }
+        #editor { font-size: 11px !important; }
+        #preview { font-size: 11px !important; }
       }
       @media (max-width: 768px) { /* Chrome Phone */
         #editor { font-size: 10px !important; }
@@ -103,17 +87,17 @@
     /* --- Firefox Specific --- */
     @-moz-document url-prefix() {
       @media (min-width: 769px) { /* Firefox PC */
-        #editor { font-size: 14px !important; }
-        #preview { font-size: 18px !important; }
+        #editor { font-size: 17px !important; }
+        #preview { font-size: 17px !important; }
       }
       @media (max-width: 768px) { /* Firefox Phone */
         #editor { font-size: 12px !important; }
-        #preview { font-size: 14px !important; }
+        #preview { font-size: 12px !important; }
       }
     }
   </style>
 </head>
-<body>
+<body onload="resetAll()"> <!-- Reset al cargar -->
   <div class="container">
     <h1>Editor HTML Online - Alfa</h1>
     
@@ -128,12 +112,6 @@
     <!-- --- Save Button --- -->
     <button onclick="guardarHTML()">Guardar HTML</button>
     
-    <!-- --- Preview Tabs for Switching Views --- -->
-    <div class="preview-tabs">
-      <button id="btnReal">Vista Real</button>
-      <button id="btnPlain">Vista Plana</button>
-    </div>
-    
     <!-- --- Preview iframe --- -->
     <iframe id="preview"></iframe>
   </div>
@@ -141,7 +119,7 @@
   <script>
     // --- Global variable to store the original HTML content ---
     let contenidoOriginal = "";
-    
+
     // --- File Loading ---
     document.getElementById('fileInput').addEventListener('change', function(event) {
       const archivo = event.target.files[0];
@@ -149,47 +127,43 @@
         document.getElementById('fileName').textContent = archivo.name;
         const reader = new FileReader();
         reader.onload = function(e) {
-          contenidoOriginal = e.target.result; // Guarda el contenido original
+          contenidoOriginal = e.target.result;
           document.getElementById('editor').value = contenidoOriginal;
-          // Por defecto, muestra la Vista Real
-          document.getElementById('preview').srcdoc = contenidoOriginal;
+          // Siempre aplica el estilo básico a la vista previa
+          document.getElementById('preview').srcdoc = `<head>${basicCSS}</head>` + contenidoOriginal;
         };
         reader.readAsText(archivo);
       }
     });
-    
-    // --- Plain View CSS: Cambia el tamaño de fuente aquí (sencillo y en código) ---
-    const plainFontSize = "10px"; // Modifica este valor según lo que necesites
-    const plainCSS = `<style>
-      /* Reset básico para Vista Plana */
+
+    // --- Basic View CSS: Simplicidad similar al editor ---
+    const basicCSS = `<style>
       * {
-        font-size: ${plainFontSize} !important;
+        font-size: 14px !important;
         font-weight: normal !important;
         margin: 0;
         padding: 0;
+        font-family: Arial, sans-serif !important;
       }
-      /* Los encabezados se muestran en negrita pero con tamaño uniforme */
       h1, h2, h3, h4, h5, h6 {
-        font-weight: bold !important;
         font-size: inherit !important;
+        font-weight: normal !important;
+      }
+      b, strong {
+        font-weight: bold !important;
+      }
+      u {
+        text-decoration: underline !important;
       }
     </style>`;
-    
-    // --- Functions to Toggle Views ---
-    function mostrarVistaReal() {
-      // Vista Real: Se muestra el contenido original sin interferencias
-      document.getElementById('preview').srcdoc = contenidoOriginal;
+
+    // --- Reset All Elements on Page Load ---
+    function resetAll() {
+      document.getElementById('editor').value = "";
+      document.getElementById('preview').srcdoc = "";
+      document.getElementById('fileName').textContent = "";
     }
-    
-    function mostrarVistaPlana() {
-      // Vista Plana: Se inyecta el CSS básico para un renderizado plano
-      document.getElementById('preview').srcdoc = `<head>${plainCSS}</head>` + contenidoOriginal;
-    }
-    
-    // --- Event Listeners for Preview Tabs ---
-    document.getElementById('btnReal').addEventListener('click', mostrarVistaReal);
-    document.getElementById('btnPlain').addEventListener('click', mostrarVistaPlana);
-    
+
     // --- Save HTML Function ---
     function guardarHTML() {
       const contenido = document.getElementById('editor').value;
