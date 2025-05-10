@@ -32,17 +32,12 @@
       display: block;
       background-color: #0078D7;
       color: white;
-      border: 2px solid #0078D7; /* Bordes unificados */
+      border: 2px solid #0078D7;
       border-radius: 5px;
       cursor: pointer;
-      font-size: 16px; /* Tamaño de fuente idéntico */
-      font-family: Arial, sans-serif; /* Fuente asegurada */
+      font-size: 16px;
+      font-family: Arial, sans-serif;
       text-align: center;
-    }
-
-    /* Botón de carga */
-    .boton-carga {
-      margin-bottom: 2px;
     }
 
     /* Ocultar el input file real */
@@ -57,18 +52,18 @@
       margin-bottom: 20px;
     }
 
-    /* Editor (textarea) y vista previa (iframe) */
+    /* Editor y vista previa */
     #editor, #preview {
-      width: 100%; /* Valor base, se ajusta en PC */
+      width: 100%;
       margin: 20px auto;
       padding: 10px;
-      border: 2px solid #0078D7; /* Bordes unificados */
+      border: 2px solid #0078D7;
       border-radius: 5px;
       background: #f4f4f4;
       display: block;
     }
 
-    /* Editor de código */
+    /* Editor */
     #editor {
       height: 300px;
       font-family: monospace;
@@ -80,20 +75,17 @@
       height: 300px;
     }
 
-    /* Media queries generales */
-
-    /* Para pantallas grandes (PC) */
+    /* Ajustes generales para PC y phone en cualquier navegador */
     @media (min-width: 769px) {
       body {
-        margin: 20px auto;  /* Menos margen lateral en PC */
+        margin: 20px auto;
       }
       #editor, #preview {
-        width: 90%;         /* Ancho ajustado para proporcionar más margen lateral */
-        font-size: 13px;
+        width: 90%;
+        font-size: 14px;
       }
     }
 
-    /* Para pantallas pequeñas (móviles) */
     @media (max-width: 768px) {
       body {
         margin: 20px;
@@ -103,14 +95,11 @@
       }
     }
 
-    /* Específico para Chrome */
+    /* Específico para Chrome: Separación PC vs phone */
     @media screen and (-webkit-min-device-pixel-ratio: 0) {
       @media (min-width: 769px) {
-        body {
-          margin: 20px auto;
-        }
         #editor, #preview {
-          font-size: 10px !important;
+          font-size: 11px !important;
         }
       }
       @media (max-width: 768px) {
@@ -120,19 +109,16 @@
       }
     }
 
-    /* Específico para Firefox */
+    /* Específico para Firefox: Separación PC vs phone */
     @-moz-document url-prefix() {
       @media (min-width: 769px) {
-        body {
-          margin: 20px auto;
-        }
         #editor, #preview {
-          font-size: 18px !important;
+          font-size: 17px !important;
         }
       }
       @media (max-width: 768px) {
         #editor, #preview {
-          font-size: 10px !important;
+          font-size: 12px !important;
         }
       }
     }
