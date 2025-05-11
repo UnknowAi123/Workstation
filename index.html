@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Editor HTML Online - Alfa</title>
+  <title>Simulador de Resolución - Alfa</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     /* --- General Styles --- */
@@ -10,7 +10,6 @@
     body {
       font-family: Arial, sans-serif;
       text-align: center;
-      overflow-x: hidden;
       margin: 0;
       padding: 0;
     }
@@ -34,165 +33,98 @@
       font-size: 16px;
       text-align: center;
     }
-    input[type="file"] { display: none; }
-    #fileName {
-      font-size: 14px;
-      color: #555;
-      margin-bottom: 20px;
+
+    /* --- Resolution Selection --- */
+    .resolution-selector {
+      margin-bottom: 15px;
     }
-    
+
     /* --- Editor & Preview Boxes --- */
-    #editor, #preview {
+    #editor, #preview-container {
       width: 100%;
       margin: 20px auto;
       padding: 10px;
       border: 2px solid #0078D7;
-      border-radius: 5px;
       background: #f4f4f4;
-      display: block;
+      overflow: auto;
     }
-    /* Editor (Textarea) */
-    #editor {
-      height: 300px;
-      font-family: monospace;
-      resize: none;
-    }
-    /* Preview (iframe) */
+
+    /* --- Default Preview Size (will be adjusted dynamically) --- */
     #preview {
-      height: 300px;
-    }
-    
-    /* --- Media Queries for Editor (external styling) --- */
-    @media (min-width: 769px) { /* PC */
-      #editor { font-size: 10px; }
-    }
-    @media (max-width: 768px) { /* Phone */
-      #editor { font-size: 12px; }
-    }
-    
-    /* --- Chrome Specific for Editor --- */
-    @media screen and (-webkit-min-device-pixel-ratio:0) {
-      @media (min-width: 769px) { /* Chrome PC */
-        #editor { font-size: 7px !important; }
-      }
-      @media (max-width: 768px) { /* Chrome Phone */
-        #editor { font-size: 10px !important; }
-      }
-    }
-    
-    /* --- Firefox Specific for Editor --- */
-    @-moz-document url-prefix() {
-      @media (min-width: 769px) { /* Firefox PC */
-        #editor { font-size: 18px !important; }
-      }
-      @media (max-width: 768px) { /* Firefox Phone */
-        #editor { font-size: 11px !important; }
-      }
+      width: 100%;
+      height: 600px; /* Default height, changes dynamically */
+      border: none;
     }
   </style>
 </head>
 <body onload="resetAll()"> <!-- Se resetea al cargar -->
   <div class="container">
-    <h1>Editor HTML Online - Alfa</h1>
+    <h1>Simulador de Resolución - Alfa</h1>
     
-    <!-- --- File Load Button --- -->
-    <label for="fileInput" class="boton-carga">Cargar</label>
-    <input type="file" id="fileInput" accept=".html">
-    <div id="fileName"></div>
+    <!-- --- Code Input Box --- -->
+    <textarea id="editor" placeholder="Escribe o pega código HTML aquí..."></textarea>
+
+    <!-- --- Render Button --- -->
+    <button onclick="actualizarVista()">Actualizar Vista Previa</button>
     
-    <!-- --- Code Editor --- -->
-    <textarea id="editor"></textarea>
-    
-    <!-- --- Save Button --- -->
-    <button onclick="guardarHTML()">Guardar HTML</button>
-    
-    <!-- --- Preview iframe --- -->
-    <iframe id="preview"></iframe>
+    <!-- --- Resolution Selector --- -->
+    <div class="resolution-selector">
+      <label>Selecciona la Resolución:</label>
+      <select id="resolutionSelect" onchange="cambiarResolucion()">
+        <option value="1280x1024">1280x1024</option>
+        <option value="1366x768">HD (1366x768)</option>
+        <option value="1920x1080">Full HD (1920x1080)</option>
+      </select>
+    </div>
+
+    <!-- --- Preview Box --- -->
+    <div id="preview-container">
+      <iframe id="preview"></iframe>
+    </div>
   </div>
   
   <script>
-    // --- Variable global para guardar el contenido original ---
-    let contenidoOriginal = "";
-    
-    // --- Carga del Archivo HTML ---
-    document.getElementById('fileInput').addEventListener('change', function(event) {
-      const archivo = event.target.files[0];
-      if (archivo) {
-        document.getElementById('fileName').textContent = archivo.name;
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          contenidoOriginal = e.target.result;
-          document.getElementById('editor').value = contenidoOriginal;
-          // Se inyecta el CSS básico (customizable por media queries) en la vista previa
-          document.getElementById('preview').srcdoc = `<head>${basicCSS}</head>` + contenidoOriginal;
-        };
-        reader.readAsText(archivo);
-      }
-    });
-    
-    /* --- Basic View CSS inyectado en la vista previa ---
-         Aquí se eliminó la fuente fija para poder personalizarla mediante media queries.
-         Se distinguen condiciones para PC y Phone y también se incluyen reglas específicas para Chrome y Firefox.
-    */
+    // --- Render HTML from Editor ---
+    function actualizarVista() {
+      let codigoHTML = document.getElementById('editor').value;
+      document.getElementById('preview').srcdoc = `<head>${basicCSS}</head>` + codigoHTML;
+    }
+
+    /* --- Basic View CSS inyectado en la vista previa --- */
     const basicCSS = `<style>
-      /* Reset básico sin fuente fija */
       * {
         font-weight: normal !important;
         margin: 0;
         padding: 0;
         font-family: Arial, sans-serif !important;
       }
-      /* Negrita para elementos indicados */
       b, strong { font-weight: bold !important; }
-      /* Subrayado */
       u { text-decoration: underline !important; }
-      
-      /* --- Fuente en dispositivos --- */
-      @media (min-width: 769px) {
-        /* PC: Valor por defecto para navegadores genéricos */
-        * { font-size: 13px !important; }
-      }
-      @media (max-width: 768px) {
-        /* Phone: Valor por defecto */
-        * { font-size: 12px !important; }
-      }
-      
-      /* --- Chrome Específico --- */
-      @media screen and (-webkit-min-device-pixel-ratio:0) {
-        @media (min-width: 769px) {
-          * { font-size: 8px !important; }  /* Chrome PC */
-        }
-        @media (max-width: 768px) {
-          * { font-size: 12px !important; }  /* Chrome Phone */
-        }
-      }
-      
-      /* --- Firefox Específico --- */
-      @-moz-document url-prefix() {
-        @media (min-width: 769px) {
-          * { font-size: 20px !important; }  /* Firefox PC */
-        }
-        @media (max-width: 768px) {
-          * { font-size: 12px !important; }  /* Firefox Phone */
-        }
-      }
     </style>`;
-    
-    // --- Reset de la página al cargar ---
+
+    // --- Resolution Adjustment ---
+    function cambiarResolucion() {
+      let resolution = document.getElementById("resolutionSelect").value;
+      let previewContainer = document.getElementById("preview-container");
+
+      if (resolution === "1280x1024") {
+        previewContainer.style.width = "1280px";
+        previewContainer.style.height = "1024px";
+      } else if (resolution === "1366x768") {
+        previewContainer.style.width = "1366px";
+        previewContainer.style.height = "768px";
+      } else if (resolution === "1920x1080") {
+        previewContainer.style.width = "1920px";
+        previewContainer.style.height = "1080px";
+      }
+    }
+
+    // --- Reset Everything on Page Load ---
     function resetAll() {
       document.getElementById('editor').value = "";
       document.getElementById('preview').srcdoc = "";
-      document.getElementById('fileName').textContent = "";
-    }
-    
-    // --- Función para Guardar el HTML Modificado ---
-    function guardarHTML() {
-      const contenido = document.getElementById('editor').value;
-      const blob = new Blob([contenido], { type: "text/html" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "archivo_modificado.html";
-      link.click();
+      document.getElementById("resolutionSelect").value = "1280x1024";
+      cambiarResolucion(); // Apply default resolution
     }
   </script>
 </body>
