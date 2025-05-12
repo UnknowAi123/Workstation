@@ -12,7 +12,7 @@
       text-align: center;
       margin: 0;
       padding: 0;
-      overflow: hidden; /* 🔥 Oculta scroll interno */
+      overflow-x: hidden; /* 🔥 Solo ocultamos el scroll horizontal */
     }
     .container {
       max-width: 1280px;
@@ -54,16 +54,29 @@
     #preview-container {
       margin: auto;
       border: 2px solid #000;
-      overflow: hidden; /* 🔥 Evita scroll interno */
+      overflow: hidden;
       position: relative;
+      transform-origin: top left;
     }
 
     /* --- Outer Scroll --- */
     .scroll-wrapper {
       width: 100%;
-      overflow-y: scroll; /* 🔥 Scroll externo */
+      overflow-y: auto; /* 🔥 Scroll externo activo */
       height: 600px; /* Ajustado según resolución */
       border: 2px solid #444;
+    }
+
+    /* --- Scaling for Mobile --- */
+    @media screen and (max-width: 768px) {
+      #preview-container {
+        transform: scale(0.6); /* 🔥 Reduce a escala proporcional */
+        width: 1280px;
+        height: auto;
+      }
+      .scroll-wrapper {
+        overflow-y: auto; /* 🔥 Scroll externo habilitado */
+      }
     }
 
     /* --- Default Preview Size (will be adjusted dynamically) --- */
