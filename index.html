@@ -5,7 +5,7 @@
   <title>Juego de Memoria de Colores</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <style>
-    /* Reglas globales */
+    /* Regla global para evitar desplazamientos involuntarios */
     * {
       box-sizing: border-box;
     }
@@ -14,6 +14,7 @@
       padding: 0;
       -ms-touch-action: manipulation;
       touch-action: manipulation;
+      overscroll-behavior: none;  /* Previene el desplazamiento y rebote */
       overflow: hidden;
     }
     body {
@@ -42,7 +43,7 @@
     /* Contenedor de la cuadrícula */
     .grid-container {
       width: 100%;
-      max-width: 375px;  /* Ancho fijo máximo */
+      max-width: 375px;  /* Ancho máximo establecido */
       margin: 0 auto;
       padding: 10px;
     }
@@ -53,7 +54,7 @@
       background-color: #333;
       padding: 10px;
       width: 100%;
-      max-width: 375px;  /* Asegura que la cuadrícula no exceda 375px */
+      max-width: 375px;
       margin: 0 auto;
     }
     /* Estilos para cada celda */
@@ -81,6 +82,18 @@
     .message {
       font-size: 28px;
       margin-top: 20px;
+    }
+    /* Media query para pantallas pequeñas (phone) */
+    @media (max-width: 400px) {
+      .grid {
+        /* Calculamos el tamaño de cada celda en funcion del viewport:
+           (100vw - 2 * 10px de padding del contenedor - 7 * 5px de gap) / 8 */
+        grid-template-columns: repeat(8, calc((100vw - 55px) / 8));
+      }
+      .cell {
+        width: calc((100vw - 55px) / 8);
+        height: calc((100vw - 55px) / 8);
+      }
     }
   </style>
 </head>
@@ -267,7 +280,7 @@
       messageDisplay.textContent = win ? "¡Ganaste!" : "¡Perdiste!";
     }
 
-    // Al presionar "Reiniciar", se reinicia el juego y se activa inmediatamente
+    // El botón "Reiniciar" reinicia el juego y lo activa de inmediato
     restartButton.addEventListener("click", function() {
       initGame();
       startGame();
