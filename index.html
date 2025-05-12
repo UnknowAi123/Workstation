@@ -22,95 +22,104 @@
     /* Contenedor de la cuadrícula */
     .grid {
       display: grid;
-      grid-template-columns: repeat(8, 50px);
-      grid-gap: 1px;
+      grid-template-columns: repeat(8, 40px);
+      grid-gap: 5px;
       justify-content: center;
-      background-color: #333; /* simula los 1px entre celdas */
+      background-color: #333;
       margin: auto;
     }
     /* Cada celda */
     .cell {
-      width: 50px;
-      height: 50px;
+      width: 40px;
+      height: 40px;
       background-color: #ccc;
       cursor: pointer;
-      transition: background-color 0.3s;
+      transition: background-color 0.3s, opacity 0.3s;
     }
     /* Resaltado de celda seleccionada */
     .cell.selected {
       outline: 3px solid #000;
     }
-    /* Celda removida: se deshabilita y se hace "invisible" (se funde con el fondo) */
+    /* Celda removida: se oculta */
     .cell.removed {
-      background-color: #fff;
-      cursor: default;
+      opacity: 0;
+      pointer-events: none;
     }
     .message {
       font-size: 28px;
       margin-top: 20px;
     }
-    #restart {
-      margin-top: 20px;
+    .controls {
+      margin-top: 15px;
+    }
+    .button {
       padding: 10px 20px;
       font-size: 16px;
+      cursor: pointer;
+      margin: 5px;
     }
   </style>
 </head>
 <body>
   <h1>Juego de Memoria de Colores</h1>
-  <div class="timer" id="timer">30</div>
+  <div class="timer" id="timer">60</div>
   <div class="grid" id="grid"></div>
   <div class="message" id="message"></div>
-  <button id="restart">Reiniciar Juego</button>
+  <div class="controls">
+    <button class="button" id="start">Iniciar Juego</button>
+    <button class="button" id="restart">Reiniciar</button>
+  </div>
   
   <script>
-    // Variables globales del juego
+    // Variables globales
     const grid = document.getElementById("grid");
     const timerDisplay = document.getElementById("timer");
     const messageDisplay = document.getElementById("message");
+    const startButton = document.getElementById("start");
     const restartButton = document.getElementById("restart");
-    
+
     let firstCell = null;
     let secondCell = null;
     let lockBoard = false;
-    let timeLeft = 30;
+    let timeLeft = 60;
     let timerInterval;
-    
-    // Función para generar un color aleatorio con saturación y luminosidad fijas
+    let gameStarted = false;
+
+    // Generar colores aleatorios con mejor variedad
     function getRandomColor() {
       const hue = Math.floor(Math.random() * 360);
-      return `hsl(${hue}, 70%, 50%)`;
+      const saturation = Math.random() * 40 + 60; // Evita colores apagados
+      return `hsl(${hue}, ${saturation}%, 50%)`;
     }
-    
-    // Función para mezclar un array (algoritmo Fisher-Yates)
+
+    // Mezclar un array (Fisher-Yates)
     function shuffle(array) {
       for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [array[i], array[j]] = [array[j], array[i]];
       }
     }
-    
+
     // Inicializa el juego: genera las celdas y asigna los colores
     function initGame() {
-      // Reiniciar variables y DOM
       grid.innerHTML = "";
       messageDisplay.textContent = "";
       firstCell = null;
       secondCell = null;
       lockBoard = false;
-      timeLeft = 30;
+      timeLeft = 60;
       timerDisplay.textContent = timeLeft;
-      
-      // Crear un array de 32 colores aleatorios (cada uno duplicado)
+      gameStarted = false;
+
+      // Crear array de 32 colores aleatorios (cada uno duplicado)
       const colors = [];
       for (let i = 0; i < 32; i++) {
         const color = getRandomColor();
         colors.push(color, color);
       }
-      // Mezclar el array de 64 colores
       shuffle(colors);
-      
-      // Crear las 64 celdas de la cuadrícula
+
+      // Crear las 64 celdas
       for (let i = 0; i < 64; i++) {
         const cell = document.createElement("div");
         cell.classList.add("cell");
@@ -119,12 +128,17 @@
         cell.addEventListener("click", handleCellClick);
         grid.appendChild(cell);
       }
-      
-      // Iniciar el temporizador
-      timerInterval = setInterval(updateTimer, 1000);
     }
-    
-    // Actualiza el contador y verifica si se agotó el tiempo
+
+    // Iniciar el juego al presionar el botón
+    function startGame() {
+      if (!gameStarted) {
+        gameStarted = true;
+        timerInterval = setInterval(updateTimer, 1000);
+      }
+    }
+
+    // Actualiza el temporizador
     function updateTimer() {
       timeLeft--;
       timerDisplay.textContent = timeLeft;
@@ -133,22 +147,21 @@
         endGame(false);
       }
     }
-    
-    // Maneja el clic en una celda
+
+    // Manejo de clic en celda
     function handleCellClick() {
-      if (lockBoard) return;
-      if (this.classList.contains("removed")) return;
-      if (this === firstCell) return; // Evitar hacer clic dos veces en la misma celda
-      
-      // Marcar la celda como seleccionada
+      if (!gameStarted) return;
+      if (lockBoard || this.classList.contains("removed")) return;
+      if (this === firstCell) return;
+
       this.classList.add("selected");
-      
+
       if (!firstCell) {
         firstCell = this;
       } else {
         secondCell = this;
         lockBoard = true;
-        // Verificar si ambos colores coinciden
+
         if (firstCell.dataset.color === secondCell.dataset.color) {
           setTimeout(() => {
             firstCell.classList.add("removed");
@@ -159,7 +172,6 @@
             checkGameEnd();
           }, 200);
         } else {
-          // Si no coinciden, quitar la selección después de un breve retardo
           setTimeout(() => {
             firstCell.classList.remove("selected");
             secondCell.classList.remove("selected");
@@ -168,15 +180,15 @@
         }
       }
     }
-    
-    // Reinicia la selección de celdas
+
+    // Reinicia la selección
     function resetSelection() {
       firstCell = null;
       secondCell = null;
       lockBoard = false;
     }
-    
-    // Verifica si se han removido todas las celdas
+
+    // Verifica si el juego ha terminado
     function checkGameEnd() {
       const remaining = document.querySelectorAll(".cell:not(.removed)").length;
       if (remaining === 0) {
@@ -184,21 +196,18 @@
         endGame(true);
       }
     }
-    
-    // Finaliza el juego mostrando el mensaje correspondiente
+
+    // Muestra mensaje de victoria o derrota
     function endGame(win) {
       lockBoard = true;
-      if (win) {
-        messageDisplay.textContent = "¡Ganaste!";
-      } else {
-        messageDisplay.textContent = "¡Perdiste!";
-      }
+      messageDisplay.textContent = win ? "¡Ganaste!" : "¡Perdiste!";
     }
-    
-    // Reiniciar el juego al hacer clic en el botón de reinicio
+
+    // Reiniciar juego
     restartButton.addEventListener("click", initGame);
-    
-    // Inicializar el juego al cargar la página
+    startButton.addEventListener("click", startGame);
+
+    // Iniciar configuración inicial
     initGame();
   </script>
 </body>
