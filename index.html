@@ -37,6 +37,7 @@
       grid-gap: 5px;
       background-color: #333;
       padding: 10px;
+      max-width: 95vw; /* Ajusta la cuadrícula en pantallas pequeñas */
     }
     /* Cada celda */
     .cell {
@@ -81,9 +82,7 @@
     <button class="button" id="start">Iniciar Juego</button>
     <button class="button" id="restart">Reiniciar</button>
   </div>
-
-
-<script>
+  <script>
     const grid = document.getElementById("grid");
     const timerDisplay = document.getElementById("timer");
     const messageDisplay = document.getElementById("message");
@@ -97,14 +96,14 @@
     let timerInterval;
     let gameStarted = false;
 
-    // Generar colores alternando vibrantes y pastel, limitando tonos demasiado claros
+    // Generar colores con mejor diferenciación y evitar tonos demasiado similares
     function getRandomColor(isPastel) {
-      const hue = Math.floor(Math.random() * 360);
-      const saturation = isPastel ? Math.random() * 30 + 40 : Math.random() * 40 + 60;
-      let lightness = isPastel ? Math.random() * 30 + 65 : Math.random() * 40 + 50;
+      const hue = Math.floor(Math.random() * 330); // Evita colores muy cercanos entre sí
+      const saturation = isPastel ? Math.random() * 30 + 45 : Math.random() * 40 + 60;
+      let lightness = isPastel ? Math.random() * 30 + 65 : Math.random() * 30 + 50;
 
-      // Limitar colores blancos o demasiado claros
-      if (lightness > 90) lightness = 85;
+      // Limitar colores muy claros y blancos
+      if (lightness > 85) lightness = 82;
 
       return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
     }
@@ -113,7 +112,12 @@
       const colors = [];
       for (let i = 0; i < 32; i++) {
         const pastel = i % 2 === 0;
-        const color = getRandomColor(pastel);
+        let color;
+        
+        do {
+          color = getRandomColor(pastel);
+        } while (colors.includes(color)); // Asegurar que no haya colores demasiado similares seguidos
+        
         colors.push(color, color);
       }
       return colors;
@@ -157,9 +161,10 @@
     }
 
     function updateTimer() {
-      timeLeft--;
-      timerDisplay.textContent = timeLeft;
-      if (timeLeft <= 0) {
+      if (timeLeft > 0) {
+        timeLeft--;
+        timerDisplay.textContent = timeLeft;
+      } else {
         clearInterval(timerInterval);
         endGame(false);
       }
