@@ -5,14 +5,14 @@
   <title>Juego de Memoria de Colores</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <style>
-    /* Global: aseguramos box-sizing para todos */
+    /* Global: forzamos el box-sizing para todos los elementos */
     * {
       box-sizing: border-box;
     }
     html, body {
       margin: 0;
       padding: 0;
-      /* En esta versión no se bloquea el scroll */
+      /* Sin bloqueo de scroll en este caso */
       -ms-touch-action: manipulation;
       touch-action: manipulation;
     }
@@ -39,27 +39,31 @@
       font-size: 24px;
       margin-bottom: 10px;
     }
-    /* Contenedor de la cuadrícula */
+    /* Contenedor de la cuadrícula sin padding para utilizar todo el ancho disponible.
+       Se establece un mínimo de 300px y se centra. */
     .grid-container {
       width: 100%;
-      min-width: 300px; /* No se reduce por debajo de 300px */
+      min-width: 300px;
       margin: 0 auto;
-      padding: 4px; /* 4px de padding lateral */
     }
-    /* La cuadrícula ocupará el 100% del ancho del contenedor.
-       Usaremos una variable CSS (–cell-size) que se definirá vía JavaScript.
-       Se define 8 columnas y se usa gap de 4px (7 gaps = 28px). */
+    /* La cuadrícula:
+         - Ocupa el 100% del ancho del contenedor.
+         - Tiene un padding de 4px (en ambos lados para formar los "gaps" exteriores).
+         - Se definen 8 columnas, usando la variable CSS --cell-size calculada vía JS.
+         - El gap interno será de 4px.
+         En total, horizontalmente: 2×4px de padding + 7×4px de gap = 8 + 28 = 36px, 
+         que es lo que se resta del ancho total para calcular el tamaño de cada celda. */
     .grid {
+      width: 100%;
       display: grid;
       grid-template-columns: repeat(8, var(--cell-size));
       grid-auto-rows: var(--cell-size);
       gap: 4px;
+      padding: 4px;
       background-color: #333;
-      /* Para centrar la cuadrícula, si el ancho calculado es menor que el total,
-         se deja que el contenedor gestione su tamaño. */
       margin: 0 auto;
     }
-    /* Cada celda ocupa el 100% del espacio asignado por la cuadrícula */
+    /* Cada celda ocupa el 100% del tamaño asignado por la cuadrícula */
     .cell {
       width: 100%;
       height: 100%;
@@ -67,16 +71,16 @@
       cursor: pointer;
       transition: background-color 0.3s, opacity 0.3s, filter 0.2s, transform 0.2s, border 0.2s;
     }
-    /* Indicador de celda seleccionada: borde dorado y escalado leve */
+    /* Indicador visual de selección */
     .cell.selected {
       border: 3px solid #FFD700;
       transform: scale(1.05);
     }
-    /* Efecto para parejas equivocadas */
+    /* Efecto para celdas equivocadas */
     .cell.wrong {
       filter: brightness(0.5);
     }
-    /* Celda removida (emparejada) */
+    /* Celdas removidas: se ocultan y dejan de recibir clics */
     .cell.removed {
       opacity: 0;
       pointer-events: none;
@@ -89,7 +93,7 @@
 </head>
 <body>
   <h1>Juego de Memoria de Colores</h1>
-  <!-- Botones de control arriba -->
+  <!-- Botones de control en la parte superior -->
   <div class="controls">
     <button class="button" id="start">Iniciar Juego</button>
     <button class="button" id="restart">Reiniciar</button>
@@ -99,8 +103,7 @@
     <div class="grid" id="grid"></div>
   </div>
   <div class="message" id="message"></div>
-
-<script>
+  <script>
     const grid = document.getElementById("grid");
     const gridContainer = document.querySelector(".grid-container");
     const timerDisplay = document.getElementById("timer");
@@ -115,20 +118,18 @@
     let timerInterval;
     let gameStarted = false;
 
-    // Función que actualiza el tamaño de celda en base al ancho interno del contenedor.
+    // Calcula el tamaño ideal de cada celda en base al ancho del contenedor.
+    // Se resta 36px: 2 * 4px de padding en .grid (izquierdo y derecho) + 7 * 4px de gap interno.
     function updateCellSize() {
-      // El ancho interno (clientWidth) ya incluye el padding
-      const containerWidth = gridContainer.clientWidth; 
-      // Se restan 7 gaps de 4px cada uno (7 * 4 = 28px)
-      const cellSize = (containerWidth - 28) / 8;
-      // Asigna la variable CSS --cell-size para la cuadrícula
+      const containerWidth = gridContainer.clientWidth;
+      const cellSize = (containerWidth - 36) / 8;
       grid.style.setProperty('--cell-size', cellSize + 'px');
     }
-    // Actualiza al cargar y en cada redimensionamiento
+
     updateCellSize();
     window.addEventListener('resize', updateCellSize);
 
-    // Función para generar un color aleatorio en HSL
+    // Función para generar un color aleatorio en HSL, con tonos pastel o vibrantes
     function getRandomColor(isPastel) {
       const hue = Math.floor(Math.random() * 360);
       const saturation = isPastel ? Math.random() * 30 + 40 : Math.random() * 40 + 60;
@@ -137,7 +138,7 @@
       return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
     }
 
-    // Convierte un string HSL en un objeto
+    // Convierte un string HSL a un objeto {hue, saturation, lightness}
     function parseHSL(hslString) {
       const regex = /hsl\((\d+),\s*([\d\.]+)%,\s*([\d\.]+)%\)/;
       const result = regex.exec(hslString);
@@ -151,7 +152,7 @@
       return null;
     }
 
-    // Comprueba si dos colores son demasiado similares (para forzar contraste)
+    // Comprueba si dos colores son demasiado similares (para forzar mayor contraste)
     function areColorsSimilar(colorStr1, colorStr2) {
       const color1 = parseHSL(colorStr1);
       const color2 = parseHSL(colorStr2);
@@ -162,7 +163,7 @@
       return (hueDiff < 20 && satDiff < 15 && lightDiff < 10);
     }
 
-    // Genera 32 pares de colores (64 celdas) asegurando mayor contraste
+    // Genera 32 pares de colores, es decir, 64 celdas, forzando contraste
     function generateColors() {
       const colors = [];
       for (let i = 0; i < 32; i++) {
@@ -187,7 +188,7 @@
     }
 
     function initGame() {
-      // Limpiar cualquier intervalo previo
+      // Limpia intervalos previos
       if (timerInterval) {
         clearInterval(timerInterval);
         timerInterval = null;
@@ -235,7 +236,6 @@
       if (lockBoard || this.classList.contains("removed")) return;
       if (this === firstCell) return;
 
-      // Se muestra el indicador de selección
       this.classList.add("selected");
 
       if (!firstCell) {
