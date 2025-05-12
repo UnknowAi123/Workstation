@@ -5,14 +5,14 @@
   <title>Juego de Memoria de Colores</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <style>
-    /* Global: aseguramos que todos los elementos usen border-box */
+    /* Global: aseguramos box-sizing para todos */
     * {
       box-sizing: border-box;
     }
     html, body {
       margin: 0;
       padding: 0;
-      /* En esta versión NO se bloquea el scroll */
+      /* En esta versión no se bloquea el scroll */
       -ms-touch-action: manipulation;
       touch-action: manipulation;
     }
@@ -39,31 +39,27 @@
       font-size: 24px;
       margin-bottom: 10px;
     }
-    /* Contenedor de la cuadrícula: se define un ancho mínimo de 300px y 4px de padding lateral */
+    /* Contenedor de la cuadrícula */
     .grid-container {
       width: 100%;
-      min-width: 300px;
+      min-width: 300px; /* No se reduce por debajo de 300px */
       margin: 0 auto;
-      padding: 4px;
+      padding: 4px; /* 4px de padding lateral */
     }
-    /* La cuadrícula se define con 8 columnas. Se restan 7 gaps (4px cada uno = 28px) 
-       y se usa clamp() para que la dimensión no supere 48px.
-       
-       La fórmula:
-         grid cell dimension = clamp( (300px-28px)/8, (100% - 28px)/8, 48px )
-       Esto significa:
-       • Valor mínimo: si el contenedor es 300px, cada celda será calc((300-28)/8) px.
-       • Valor ideal: según el ancho real de la cuadrícula (100% del contenedor menos 28px) dividido en 8.
-       • Valor máximo: 48px.
-    */
+    /* La cuadrícula ocupará el 100% del ancho del contenedor.
+       Usaremos una variable CSS (–cell-size) que se definirá vía JavaScript.
+       Se define 8 columnas y se usa gap de 4px (7 gaps = 28px). */
     .grid {
       display: grid;
-      grid-template-columns: repeat(8, clamp(calc((300px - 28px) / 8), calc((100% - 28px) / 8), 48px));
-      grid-auto-rows: clamp(calc((300px - 28px) / 8), calc((100% - 28px) / 8), 48px);
-      grid-gap: 4px;
+      grid-template-columns: repeat(8, var(--cell-size));
+      grid-auto-rows: var(--cell-size);
+      gap: 4px;
       background-color: #333;
+      /* Para centrar la cuadrícula, si el ancho calculado es menor que el total,
+         se deja que el contenedor gestione su tamaño. */
+      margin: 0 auto;
     }
-    /* Cada celda ocupa el 100% del tamaño definido por la cuadrícula */
+    /* Cada celda ocupa el 100% del espacio asignado por la cuadrícula */
     .cell {
       width: 100%;
       height: 100%;
@@ -71,16 +67,16 @@
       cursor: pointer;
       transition: background-color 0.3s, opacity 0.3s, filter 0.2s, transform 0.2s, border 0.2s;
     }
-    /* Al seleccionar, se añade un borde dorado y se escalada ligeramente */
+    /* Indicador de celda seleccionada: borde dorado y escalado leve */
     .cell.selected {
       border: 3px solid #FFD700;
       transform: scale(1.05);
     }
-    /* Efecto para selección errónea */
+    /* Efecto para parejas equivocadas */
     .cell.wrong {
       filter: brightness(0.5);
     }
-    /* Las celdas removidas (emparejadas) se ocultan */
+    /* Celda removida (emparejada) */
     .cell.removed {
       opacity: 0;
       pointer-events: none;
@@ -105,6 +101,7 @@
   <div class="message" id="message"></div>
   <script>
     const grid = document.getElementById("grid");
+    const gridContainer = document.querySelector(".grid-container");
     const timerDisplay = document.getElementById("timer");
     const messageDisplay = document.getElementById("message");
     const startButton = document.getElementById("start");
@@ -117,9 +114,20 @@
     let timerInterval;
     let gameStarted = false;
 
-    // NOTA: En esta versión no se añade bloqueo de scroll
+    // Función que actualiza el tamaño de celda en base al ancho interno del contenedor.
+    function updateCellSize() {
+      // El ancho interno (clientWidth) ya incluye el padding
+      const containerWidth = gridContainer.clientWidth; 
+      // Se restan 7 gaps de 4px cada uno (7 * 4 = 28px)
+      const cellSize = (containerWidth - 28) / 8;
+      // Asigna la variable CSS --cell-size para la cuadrícula
+      grid.style.setProperty('--cell-size', cellSize + 'px');
+    }
+    // Actualiza al cargar y en cada redimensionamiento
+    updateCellSize();
+    window.addEventListener('resize', updateCellSize);
 
-    // Función para generar un color aleatorio con ajustes para tonos pastel o vibrantes
+    // Función para generar un color aleatorio en HSL
     function getRandomColor(isPastel) {
       const hue = Math.floor(Math.random() * 360);
       const saturation = isPastel ? Math.random() * 30 + 40 : Math.random() * 40 + 60;
@@ -128,7 +136,7 @@
       return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
     }
 
-    // Función para convertir un string HSL en un objeto con propiedades hue, saturation y lightness
+    // Convierte un string HSL en un objeto
     function parseHSL(hslString) {
       const regex = /hsl\((\d+),\s*([\d\.]+)%,\s*([\d\.]+)%\)/;
       const result = regex.exec(hslString);
@@ -142,7 +150,7 @@
       return null;
     }
 
-    // Comprueba si dos colores son demasiado similares (para forzar mayor contraste)
+    // Comprueba si dos colores son demasiado similares (para forzar contraste)
     function areColorsSimilar(colorStr1, colorStr2) {
       const color1 = parseHSL(colorStr1);
       const color2 = parseHSL(colorStr2);
@@ -169,7 +177,7 @@
       return colors;
     }
 
-    // Posiciona aleatoriamente los colores (algoritmo Fisher-Yates)
+    // Algoritmo Fisher-Yates para mezclar el array de colores
     function shuffle(array) {
       for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -178,7 +186,7 @@
     }
 
     function initGame() {
-      // Limpia intervalos previos para evitar acumulación
+      // Limpiar cualquier intervalo previo
       if (timerInterval) {
         clearInterval(timerInterval);
         timerInterval = null;
@@ -226,6 +234,7 @@
       if (lockBoard || this.classList.contains("removed")) return;
       if (this === firstCell) return;
 
+      // Se muestra el indicador de selección
       this.classList.add("selected");
 
       if (!firstCell) {
