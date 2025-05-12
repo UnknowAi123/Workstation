@@ -2,201 +2,204 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Editor HTML Online - Alfa</title>
-  <!-- Forzamos que el navegador renderice la página con un ancho fijo de 1280px,
-       para forzar el modo PC incluso desde un teléfono y lograr uniformidad en las fuentes -->
-  <meta name="viewport" content="width=1280, initial-scale=1.0, user-scalable=no">
+  <title>Juego de Memoria de Colores</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    /* --- General Styles --- */
-    * { box-sizing: border-box; }
-    html, body {
+    /* Estilos generales */
+    body {
       font-family: Arial, sans-serif;
       text-align: center;
-      overflow-x: hidden;
-      margin: 0;
-      padding: 0;
+      background-color: #fff;
+      margin: 20px;
     }
-    .container {
-      max-width: 1280px;
+    h1 {
+      margin-bottom: 10px;
+    }
+    .timer {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+    /* Contenedor de la cuadrícula */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(8, 50px);
+      grid-gap: 1px;
+      justify-content: center;
+      background-color: #333; /* simula los 1px entre celdas */
       margin: auto;
-      padding: 20px;
     }
-    
-    /* --- Button Styles --- */
-    .boton-carga, button {
-      width: 80%;
-      padding: 10px;
-      margin: 10px auto;
-      display: block;
-      background-color: #0078D7;
-      color: white;
-      border: 2px solid #0078D7;
-      border-radius: 5px;
+    /* Cada celda */
+    .cell {
+      width: 50px;
+      height: 50px;
+      background-color: #ccc;
       cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    /* Resaltado de celda seleccionada */
+    .cell.selected {
+      outline: 3px solid #000;
+    }
+    /* Celda removida: se deshabilita y se hace "invisible" (se funde con el fondo) */
+    .cell.removed {
+      background-color: #fff;
+      cursor: default;
+    }
+    .message {
+      font-size: 28px;
+      margin-top: 20px;
+    }
+    #restart {
+      margin-top: 20px;
+      padding: 10px 20px;
       font-size: 16px;
-      text-align: center;
-    }
-    input[type="file"] { display: none; }
-    #fileName {
-      font-size: 14px;
-      color: #555;
-      margin-bottom: 20px;
-    }
-    
-    /* --- Editor & Preview Boxes --- */
-    #editor, #preview {
-      width: 100%;
-      margin: 20px auto;
-      padding: 10px;
-      border: 2px solid #0078D7;
-      border-radius: 5px;
-      background: #f4f4f4;
-      display: block;
-    }
-    /* Editor (Textarea) */
-    #editor {
-      height: 300px;
-      font-family: monospace;
-      resize: none;
-    }
-    /* Preview (iframe) */
-    #preview {
-      height: 300px;
-    }
-    
-    /* --- Media Queries for Editor (external styling) --- */
-    @media (min-width: 769px) { /* PC */
-      #editor { font-size: 16px; }
-    }
-    @media (max-width: 768px) { /* Phone */
-      #editor { font-size: 12px; }
-    }
-    
-    /* --- Chrome Specific for Editor --- */
-    @media screen and (-webkit-min-device-pixel-ratio:0) {
-      @media (min-width: 769px) { /* Chrome PC */
-        #editor { font-size: 16px !important; }
-      }
-      @media (max-width: 768px) { /* Chrome Phone */
-        #editor { font-size: 10px !important; }
-      }
-    }
-    
-    /* --- Firefox Specific for Editor --- */
-    @-moz-document url-prefix() {
-      @media (min-width: 769px) { /* Firefox PC */
-        #editor { font-size: 16px !important; }
-      }
-      @media (max-width: 768px) { /* Firefox Phone */
-        #editor { font-size: 11px !important; }
-      }
     }
   </style>
 </head>
-<body onload="resetAll()"> <!-- Se resetea al cargar -->
-  <div class="container">
-    <h1>Editor HTML Online - Alfa</h1>
-    
-    <!-- --- File Load Button --- -->
-    <label for="fileInput" class="boton-carga">Cargar</label>
-    <input type="file" id="fileInput" accept=".html">
-    <div id="fileName"></div>
-    
-    <!-- --- Code Editor --- -->
-    <textarea id="editor"></textarea>
-    
-    <!-- --- Save Button --- -->
-    <button onclick="guardarHTML()">Guardar HTML</button>
-    
-    <!-- --- Preview iframe --- -->
-    <iframe id="preview"></iframe>
-  </div>
+<body>
+  <h1>Juego de Memoria de Colores</h1>
+  <div class="timer" id="timer">30</div>
+  <div class="grid" id="grid"></div>
+  <div class="message" id="message"></div>
+  <button id="restart">Reiniciar Juego</button>
   
   <script>
-    // --- Variable global para guardar el contenido original ---
-    let contenidoOriginal = "";
+    // Variables globales del juego
+    const grid = document.getElementById("grid");
+    const timerDisplay = document.getElementById("timer");
+    const messageDisplay = document.getElementById("message");
+    const restartButton = document.getElementById("restart");
     
-    // --- Carga del Archivo HTML ---
-    document.getElementById('fileInput').addEventListener('change', function(event) {
-      const archivo = event.target.files[0];
-      if (archivo) {
-        document.getElementById('fileName').textContent = archivo.name;
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          contenidoOriginal = e.target.result;
-          document.getElementById('editor').value = contenidoOriginal;
-          // Se inyecta el CSS básico (customizable por media queries) en la vista previa
-          document.getElementById('preview').srcdoc = `<head>${basicCSS}</head>` + contenidoOriginal;
-        };
-        reader.readAsText(archivo);
-      }
-    });
+    let firstCell = null;
+    let secondCell = null;
+    let lockBoard = false;
+    let timeLeft = 30;
+    let timerInterval;
     
-    /* --- Basic View CSS inyectado en la vista previa ---
-         Se eliminó la fuente fija para poder personalizarla mediante media queries.
-         Ahora se han ajustado todas las reglas para que en modo PC (viewport ≥ 769px, que forzamos siempre al tener 1280px)
-         la fuente sea de 16px en todos los elementos, tanto para navegadores genéricos como para Chrome y Firefox.
-    */
-    const basicCSS = `<style>
-      /* Reset básico sin fuente fija */
-      * {
-        font-weight: normal !important;
-        margin: 0;
-        padding: 0;
-        font-family: Arial, sans-serif !important;
-      }
-      /* Negrita para elementos indicados */
-      b, strong { font-weight: bold !important; }
-      /* Subrayado */
-      u { text-decoration: underline !important; }
-      
-      /* --- Fuente en dispositivos --- */
-      @media (min-width: 769px) {
-        /* PC: Se fuerza 16px para todos los elementos */
-        * { font-size: 16px !important; }
-      }
-      @media (max-width: 768px) {
-        /* Phone: Se fuerza 12px para todos los elementos */
-        * { font-size: 12px !important; }
-      }
-      
-      /* --- Chrome Específico --- */
-      @media screen and (-webkit-min-device-pixel-ratio:0) {
-        @media (min-width: 769px) {
-          * { font-size: 16px !important; }  /* Chrome PC */
-        }
-        @media (max-width: 768px) {
-          * { font-size: 12px !important; }  /* Chrome Phone */
-        }
-      }
-      
-      /* --- Firefox Específico --- */
-      @-moz-document url-prefix() {
-        @media (min-width: 769px) {
-          * { font-size: 16px !important; }  /* Firefox PC */
-        }
-        @media (max-width: 768px) {
-          * { font-size: 12px !important; }  /* Firefox Phone */
-        }
-      }
-    </style>`;
-    
-    // --- Reset de la página al cargar ---
-    function resetAll() {
-      document.getElementById('editor').value = "";
-      document.getElementById('preview').srcdoc = "";
-      document.getElementById('fileName').textContent = "";
+    // Función para generar un color aleatorio con saturación y luminosidad fijas
+    function getRandomColor() {
+      const hue = Math.floor(Math.random() * 360);
+      return `hsl(${hue}, 70%, 50%)`;
     }
     
-    // --- Función para Guardar el HTML Modificado ---
-    function guardarHTML() {
-      const contenido = document.getElementById('editor').value;
-      const blob = new Blob([contenido], { type: "text/html" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "archivo_modificado.html";
-      link.click();
+    // Función para mezclar un array (algoritmo Fisher-Yates)
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
     }
+    
+    // Inicializa el juego: genera las celdas y asigna los colores
+    function initGame() {
+      // Reiniciar variables y DOM
+      grid.innerHTML = "";
+      messageDisplay.textContent = "";
+      firstCell = null;
+      secondCell = null;
+      lockBoard = false;
+      timeLeft = 30;
+      timerDisplay.textContent = timeLeft;
+      
+      // Crear un array de 32 colores aleatorios (cada uno duplicado)
+      const colors = [];
+      for (let i = 0; i < 32; i++) {
+        const color = getRandomColor();
+        colors.push(color, color);
+      }
+      // Mezclar el array de 64 colores
+      shuffle(colors);
+      
+      // Crear las 64 celdas de la cuadrícula
+      for (let i = 0; i < 64; i++) {
+        const cell = document.createElement("div");
+        cell.classList.add("cell");
+        cell.style.backgroundColor = colors[i];
+        cell.dataset.color = colors[i];
+        cell.addEventListener("click", handleCellClick);
+        grid.appendChild(cell);
+      }
+      
+      // Iniciar el temporizador
+      timerInterval = setInterval(updateTimer, 1000);
+    }
+    
+    // Actualiza el contador y verifica si se agotó el tiempo
+    function updateTimer() {
+      timeLeft--;
+      timerDisplay.textContent = timeLeft;
+      if (timeLeft <= 0) {
+        clearInterval(timerInterval);
+        endGame(false);
+      }
+    }
+    
+    // Maneja el clic en una celda
+    function handleCellClick() {
+      if (lockBoard) return;
+      if (this.classList.contains("removed")) return;
+      if (this === firstCell) return; // Evitar hacer clic dos veces en la misma celda
+      
+      // Marcar la celda como seleccionada
+      this.classList.add("selected");
+      
+      if (!firstCell) {
+        firstCell = this;
+      } else {
+        secondCell = this;
+        lockBoard = true;
+        // Verificar si ambos colores coinciden
+        if (firstCell.dataset.color === secondCell.dataset.color) {
+          setTimeout(() => {
+            firstCell.classList.add("removed");
+            secondCell.classList.add("removed");
+            firstCell.classList.remove("selected");
+            secondCell.classList.remove("selected");
+            resetSelection();
+            checkGameEnd();
+          }, 200);
+        } else {
+          // Si no coinciden, quitar la selección después de un breve retardo
+          setTimeout(() => {
+            firstCell.classList.remove("selected");
+            secondCell.classList.remove("selected");
+            resetSelection();
+          }, 600);
+        }
+      }
+    }
+    
+    // Reinicia la selección de celdas
+    function resetSelection() {
+      firstCell = null;
+      secondCell = null;
+      lockBoard = false;
+    }
+    
+    // Verifica si se han removido todas las celdas
+    function checkGameEnd() {
+      const remaining = document.querySelectorAll(".cell:not(.removed)").length;
+      if (remaining === 0) {
+        clearInterval(timerInterval);
+        endGame(true);
+      }
+    }
+    
+    // Finaliza el juego mostrando el mensaje correspondiente
+    function endGame(win) {
+      lockBoard = true;
+      if (win) {
+        messageDisplay.textContent = "¡Ganaste!";
+      } else {
+        messageDisplay.textContent = "¡Perdiste!";
+      }
+    }
+    
+    // Reiniciar el juego al hacer clic en el botón de reinicio
+    restartButton.addEventListener("click", initGame);
+    
+    // Inicializar el juego al cargar la página
+    initGame();
   </script>
 </body>
 </html>
