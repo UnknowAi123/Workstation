@@ -169,6 +169,11 @@
     }
 
     function initGame() {
+      // Limpiar cualquier intervalo previo para evitar acumulación
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
       grid.innerHTML = "";
       messageDisplay.textContent = "";
       firstCell = null;
@@ -212,7 +217,7 @@
       if (lockBoard || this.classList.contains("removed")) return;
       if (this === firstCell) return;
 
-      // Se aplica el efecto de selección para indicar cuál celda se ha tocado
+      // Indicador visual de selección
       this.classList.add("selected");
 
       if (!firstCell) {
@@ -222,7 +227,6 @@
         lockBoard = true;
 
         if (firstCell.dataset.color === secondCell.dataset.color) {
-          // Si hacen match, se remueven ambas celdas rápidamente
           setTimeout(() => {
             firstCell.classList.add("removed");
             secondCell.classList.add("removed");
@@ -232,7 +236,7 @@
             checkGameEnd();
           }, 200);
         } else {
-          // Si no hacen match, ambas se oscurecen (efecto "wrong") y luego se restauran
+          // Ambas celdas se oscurecen para indicar fallo
           firstCell.classList.add("wrong");
           secondCell.classList.add("wrong");
           setTimeout(() => {
@@ -263,7 +267,7 @@
       messageDisplay.textContent = win ? "¡Ganaste!" : "¡Perdiste!";
     }
 
-    // El botón de "Reiniciar" vuelve a configurar el tablero y activa el juego de inmediato
+    // Al presionar "Reiniciar", se reinicia el juego y se activa inmediatamente
     restartButton.addEventListener("click", function() {
       initGame();
       startGame();
