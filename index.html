@@ -5,15 +5,17 @@
   <title>Juego de Memoria de Colores</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <style>
-    /* Estilos generales */
+    /* Evitar zoom y desplazamiento en móviles */
+    html, body {
+      -ms-touch-action: manipulation;
+      touch-action: manipulation;
+      overflow: hidden;
+    }
     body {
       font-family: Arial, sans-serif;
       text-align: center;
       background-color: #fff;
       margin: 20px;
-      -ms-touch-action: manipulation;
-      touch-action: manipulation; /* Evita zoom accidental */
-      overflow: hidden; /* Bloquea desplazamiento inesperado */
     }
     h1 {
       margin-bottom: 10px;
@@ -79,7 +81,9 @@
     <button class="button" id="start">Iniciar Juego</button>
     <button class="button" id="restart">Reiniciar</button>
   </div>
-  <script>
+
+
+<script>
     const grid = document.getElementById("grid");
     const timerDisplay = document.getElementById("timer");
     const messageDisplay = document.getElementById("message");
@@ -93,13 +97,13 @@
     let timerInterval;
     let gameStarted = false;
 
-    // Generar colores aleatorios con mejor balance entre pastel y vibrante
+    // Generar colores alternando vibrantes y pastel, limitando tonos demasiado claros
     function getRandomColor(isPastel) {
       const hue = Math.floor(Math.random() * 360);
       const saturation = isPastel ? Math.random() * 30 + 40 : Math.random() * 40 + 60;
-      const lightness = isPastel ? Math.random() * 30 + 65 : Math.random() * 40 + 50;
-      
-      // Evitar colores demasiado claros o blancos
+      let lightness = isPastel ? Math.random() * 30 + 65 : Math.random() * 40 + 50;
+
+      // Limitar colores blancos o demasiado claros
       if (lightness > 90) lightness = 85;
 
       return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
