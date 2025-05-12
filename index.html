@@ -5,16 +5,17 @@
   <title>Juego de Memoria de Colores</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <style>
-    /* Regla global para evitar desplazamientos involuntarios */
+    /* Regla global para que todos los elementos respeten border-box */
     * {
       box-sizing: border-box;
     }
+    /* Bloqueo de desplazamiento y rebote */
     html, body {
       margin: 0;
       padding: 0;
       -ms-touch-action: manipulation;
       touch-action: manipulation;
-      overscroll-behavior: none;  /* Previene el desplazamiento y rebote */
+      overscroll-behavior: none;
       overflow: hidden;
     }
     body {
@@ -43,7 +44,7 @@
     /* Contenedor de la cuadrícula */
     .grid-container {
       width: 100%;
-      max-width: 375px;  /* Ancho máximo establecido */
+      max-width: 375px;  /* Ancho máximo establecido para PC */
       margin: 0 auto;
       padding: 10px;
     }
@@ -85,14 +86,20 @@
     }
     /* Media query para pantallas pequeñas (phone) */
     @media (max-width: 400px) {
+      .grid-container {
+        padding: 4px;  /* Márgenes laterales reducidos */
+      }
       .grid {
-        /* Calculamos el tamaño de cada celda en funcion del viewport:
-           (100vw - 2 * 10px de padding del contenedor - 7 * 5px de gap) / 8 */
-        grid-template-columns: repeat(8, calc((100vw - 55px) / 8));
+        padding: 4px;   /* Se reduce el padding interno de la cuadrícula */
+        /* Se calcula el ancho de cada celda:
+           Total disponible = 100vw - (2 * contenedor padding 4px) - (2 * grid padding 4px) - (7 * grid-gap 5px)
+           = 100vw - 8px - 8px - 35px = 100vw - 51px */
+        grid-template-columns: repeat(8, calc((100vw - 51px) / 8));
+        margin: 0 auto;
       }
       .cell {
-        width: calc((100vw - 55px) / 8);
-        height: calc((100vw - 55px) / 8);
+        width: calc((100vw - 51px) / 8);
+        height: calc((100vw - 51px) / 8);
       }
     }
   </style>
@@ -109,7 +116,9 @@
     <div class="grid" id="grid"></div>
   </div>
   <div class="message" id="message"></div>
-  <script>
+
+
+<script>
     const grid = document.getElementById("grid");
     const timerDisplay = document.getElementById("timer");
     const messageDisplay = document.getElementById("message");
@@ -122,6 +131,11 @@
     let timeLeft = 60;
     let timerInterval;
     let gameStarted = false;
+
+    // Prevenir que se desplace la página en PC al hacer zoom
+    window.addEventListener('scroll', () => {
+      window.scrollTo(0, 0);
+    });
 
     // Genera un color aleatorio con ajuste para tonos pastel o vibrantes
     function getRandomColor(isPastel) {
@@ -249,7 +263,6 @@
             checkGameEnd();
           }, 200);
         } else {
-          // Ambas celdas se oscurecen para indicar fallo
           firstCell.classList.add("wrong");
           secondCell.classList.add("wrong");
           setTimeout(() => {
