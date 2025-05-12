@@ -20,13 +20,17 @@
       margin-bottom: 10px;
     }
     /* Contenedor de la cuadrícula */
+    .grid-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
     .grid {
       display: grid;
       grid-template-columns: repeat(8, 40px);
       grid-gap: 5px;
-      justify-content: center;
       background-color: #333;
-      margin: auto;
+      padding: 10px;
     }
     /* Cada celda */
     .cell {
@@ -63,7 +67,9 @@
 <body>
   <h1>Juego de Memoria de Colores</h1>
   <div class="timer" id="timer">60</div>
-  <div class="grid" id="grid"></div>
+  <div class="grid-container">
+    <div class="grid" id="grid"></div>
+  </div>
   <div class="message" id="message"></div>
   <div class="controls">
     <button class="button" id="start">Iniciar Juego</button>
@@ -71,7 +77,6 @@
   </div>
   
   <script>
-    // Variables globales
     const grid = document.getElementById("grid");
     const timerDisplay = document.getElementById("timer");
     const messageDisplay = document.getElementById("message");
@@ -85,14 +90,24 @@
     let timerInterval;
     let gameStarted = false;
 
-    // Generar colores aleatorios con mejor variedad
-    function getRandomColor() {
+    // Generar colores aleatorios con filtros de contraste y alternancia pastel/vibrante
+    function getRandomColor(isPastel) {
       const hue = Math.floor(Math.random() * 360);
-      const saturation = Math.random() * 40 + 60; // Evita colores apagados
-      return `hsl(${hue}, ${saturation}%, 50%)`;
+      const saturation = isPastel ? Math.random() * 40 + 30 : Math.random() * 40 + 60;
+      const lightness = isPastel ? Math.random() * 30 + 70 : 50;
+      return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
     }
 
-    // Mezclar un array (Fisher-Yates)
+    function generateColors() {
+      const colors = [];
+      for (let i = 0; i < 32; i++) {
+        const pastel = i % 2 === 0;
+        const color = getRandomColor(pastel);
+        colors.push(color, color);
+      }
+      return colors;
+    }
+
     function shuffle(array) {
       for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -100,7 +115,6 @@
       }
     }
 
-    // Inicializa el juego: genera las celdas y asigna los colores
     function initGame() {
       grid.innerHTML = "";
       messageDisplay.textContent = "";
@@ -111,15 +125,9 @@
       timerDisplay.textContent = timeLeft;
       gameStarted = false;
 
-      // Crear array de 32 colores aleatorios (cada uno duplicado)
-      const colors = [];
-      for (let i = 0; i < 32; i++) {
-        const color = getRandomColor();
-        colors.push(color, color);
-      }
+      const colors = generateColors();
       shuffle(colors);
 
-      // Crear las 64 celdas
       for (let i = 0; i < 64; i++) {
         const cell = document.createElement("div");
         cell.classList.add("cell");
@@ -130,7 +138,6 @@
       }
     }
 
-    // Iniciar el juego al presionar el botón
     function startGame() {
       if (!gameStarted) {
         gameStarted = true;
@@ -138,7 +145,6 @@
       }
     }
 
-    // Actualiza el temporizador
     function updateTimer() {
       timeLeft--;
       timerDisplay.textContent = timeLeft;
@@ -148,7 +154,6 @@
       }
     }
 
-    // Manejo de clic en celda
     function handleCellClick() {
       if (!gameStarted) return;
       if (lockBoard || this.classList.contains("removed")) return;
@@ -181,14 +186,12 @@
       }
     }
 
-    // Reinicia la selección
     function resetSelection() {
       firstCell = null;
       secondCell = null;
       lockBoard = false;
     }
 
-    // Verifica si el juego ha terminado
     function checkGameEnd() {
       const remaining = document.querySelectorAll(".cell:not(.removed)").length;
       if (remaining === 0) {
@@ -197,17 +200,14 @@
       }
     }
 
-    // Muestra mensaje de victoria o derrota
     function endGame(win) {
       lockBoard = true;
       messageDisplay.textContent = win ? "¡Ganaste!" : "¡Perdiste!";
     }
 
-    // Reiniciar juego
     restartButton.addEventListener("click", initGame);
     startButton.addEventListener("click", startGame);
 
-    // Iniciar configuración inicial
     initGame();
   </script>
 </body>
