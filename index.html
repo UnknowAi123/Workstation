@@ -5,77 +5,74 @@
   <title>Juego de Memoria de Colores</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <style>
-    /* Regla global para que todos los elementos respeten border-box */
+    /* Global: Uso de box-sizing para todos los elementos */
     * {
       box-sizing: border-box;
     }
-    /* Bloqueo de desplazamiento y rebote */
     html, body {
       margin: 0;
       padding: 0;
+      /* En esta versión no se bloquea el scroll */
       -ms-touch-action: manipulation;
       touch-action: manipulation;
-      overscroll-behavior: none;
-      overflow: hidden;
     }
     body {
       font-family: Arial, sans-serif;
       background-color: #fff;
-      padding: 10px;
+      padding: 20px;
       text-align: center;
     }
     h1 {
       margin-bottom: 10px;
-      font-size: 16px; /* Título con letra más pequeña */
+      font-size: 20px; /* Título con letra más pequeña */
     }
     .controls {
-      margin-bottom: 6px;
+      margin-bottom: 10px;
     }
     .button {
       padding: 10px 20px;
-      font-size: 12px;
+      font-size: 16px;
       cursor: pointer;
-      margin: 4px;
+      margin: 5px;
     }
     .timer {
-      font-size: 20px;
-      margin-bottom: 6px;
+      font-size: 24px;
+      margin-bottom: 10px;
     }
-    /* Contenedor de la cuadrícula */
+    /* Contenedor de la cuadrícula: mínimo 300px, con 4px de padding lateral */
     .grid-container {
       width: 100%;
-      max-width: 600px;  /* Ancho máximo establecido para PC */
+      min-width: 300px;
       margin: 0 auto;
-      padding: 10px;
+      padding: 4px;
     }
+    /* Cuadrícula: se adapta al ancho del contenedor.
+       Se definen 8 columnas; el espacio entre celdas es de 4px (7 gaps = 28px). */
     .grid {
+      width: 100%;
       display: grid;
-      grid-template-columns: repeat(8, 40px);
+      grid-template-columns: repeat(8, calc((100% - 28px) / 8));
       grid-gap: 4px;
       background-color: #333;
-      padding: 10px;
-      width: 100%;
-      max-width: 400px;
-      margin: 0 auto;
     }
-    /* Estilos para cada celda */
+    /* Cada celda: el ancho y alto se calculan en función del tamaño disponible */
     .cell {
-      width: 28px;
-      height: 28px;
+      width: calc((100% - 28px) / 8);
+      height: calc((100% - 28px) / 8);
       background-color: #ccc;
       cursor: pointer;
       transition: background-color 0.3s, opacity 0.3s, filter 0.2s, transform 0.2s, border 0.2s;
     }
-    /* Indicador de celda seleccionada */
+    /* Indicador visual al seleccionar: borde dorado y leve escalado */
     .cell.selected {
-      border: 3px solid #FFD700; /* Borde dorado */
+      border: 3px solid #FFD700;
       transform: scale(1.05);
     }
     /* Efecto para parejas equivocadas */
     .cell.wrong {
       filter: brightness(0.5);
     }
-    /* Celda removida */
+    /* Celda removida (acertada) */
     .cell.removed {
       opacity: 0;
       pointer-events: none;
@@ -84,29 +81,11 @@
       font-size: 28px;
       margin-top: 20px;
     }
-    /* Media query para pantallas pequeñas (phone) */
-    @media (max-width: 400px) {
-      .grid-container {
-        padding: 4px;  /* Márgenes laterales reducidos */
-      }
-      .grid {
-        padding: 4px;   /* Se reduce el padding interno de la cuadrícula */
-        /* Se calcula el ancho de cada celda:
-           Total disponible = 100vw - (2 * contenedor padding 4px) - (2 * grid padding 4px) - (7 * grid-gap 5px)
-           = 100vw - 8px - 8px - 35px = 100vw - 51px */
-        grid-template-columns: repeat(8, calc((100vw - 51px) / 8));
-        margin: 0 auto;
-      }
-      .cell {
-        width: calc((100vw - 51px) / 8);
-        height: calc((100vw - 51px) / 8);
-      }
-    }
   </style>
 </head>
 <body>
   <h1>Juego de Memoria de Colores</h1>
-  <!-- Botones situados arriba -->
+  <!-- Los botones de control se sitúan arriba -->
   <div class="controls">
     <button class="button" id="start">Iniciar Juego</button>
     <button class="button" id="restart">Reiniciar</button>
@@ -116,9 +95,7 @@
     <div class="grid" id="grid"></div>
   </div>
   <div class="message" id="message"></div>
-
-
-<script>
+  <script>
     const grid = document.getElementById("grid");
     const timerDisplay = document.getElementById("timer");
     const messageDisplay = document.getElementById("message");
@@ -132,12 +109,9 @@
     let timerInterval;
     let gameStarted = false;
 
-    // Prevenir que se desplace la página en PC al hacer zoom
-    window.addEventListener('scroll', () => {
-      window.scrollTo(0, 0);
-    });
-
-    // Genera un color aleatorio con ajuste para tonos pastel o vibrantes
+    // NOTA: En esta versión no se añade el listener para bloquear el scroll.
+    
+    // Genera un color aleatorio en HSL, con ajuste para tonos pastel o vibrantes
     function getRandomColor(isPastel) {
       const hue = Math.floor(Math.random() * 360);
       const saturation = isPastel ? Math.random() * 30 + 40 : Math.random() * 40 + 60;
@@ -160,7 +134,7 @@
       return null;
     }
 
-    // Compara dos colores HSL para determinar si son demasiado similares
+    // Comprueba si dos colores HSL son demasiado similares
     function areColorsSimilar(colorStr1, colorStr2) {
       const color1 = parseHSL(colorStr1);
       const color2 = parseHSL(colorStr2);
@@ -171,7 +145,7 @@
       return (hueDiff < 20 && satDiff < 15 && lightDiff < 10);
     }
 
-    // Genera un array de 32 pares de colores con mayor contraste
+    // Genera 32 pares de colores asegurando un mayor contraste
     function generateColors() {
       const colors = [];
       for (let i = 0; i < 32; i++) {
@@ -187,7 +161,7 @@
       return colors;
     }
 
-    // Algoritmo de Fisher-Yates para mezclar el array
+    // Algoritmo Fisher-Yates para mezclar el array
     function shuffle(array) {
       for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
