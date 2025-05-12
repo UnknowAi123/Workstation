@@ -5,16 +5,16 @@
   <title>Juego de Memoria de Colores</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <style>
-    /* Aseguramos que todos los elementos usen box-sizing: border-box */
+    /* Reglas globales */
     * {
       box-sizing: border-box;
     }
     html, body {
+      margin: 0;
+      padding: 0;
       -ms-touch-action: manipulation;
       touch-action: manipulation;
       overflow: hidden;
-      margin: 0;
-      padding: 0;
     }
     body {
       font-family: Arial, sans-serif;
@@ -41,9 +41,10 @@
     }
     /* Contenedor de la cuadrícula */
     .grid-container {
+      width: 100%;
+      max-width: 375px;  /* Ancho fijo máximo */
       margin: 0 auto;
       padding: 10px;
-      max-width: 100%;
     }
     .grid {
       display: grid;
@@ -51,25 +52,28 @@
       grid-gap: 5px;
       background-color: #333;
       padding: 10px;
+      width: 100%;
+      max-width: 375px;  /* Asegura que la cuadrícula no exceda 375px */
       margin: 0 auto;
-      max-width: 100%;
     }
-    /* Cada celda */
+    /* Estilos para cada celda */
     .cell {
       width: 40px;
       height: 40px;
       background-color: #ccc;
       cursor: pointer;
-      transition: background-color 0.3s, opacity 0.3s, filter 0.2s;
+      transition: background-color 0.3s, opacity 0.3s, filter 0.2s, transform 0.2s, border 0.2s;
     }
+    /* Indicador de celda seleccionada */
     .cell.selected {
-      outline: 3px solid #000;
+      border: 3px solid #FFD700; /* Borde dorado */
+      transform: scale(1.05);
     }
     /* Efecto para parejas equivocadas */
     .cell.wrong {
       filter: brightness(0.5);
     }
-    /* Celda removida (acertada) */
+    /* Celda removida */
     .cell.removed {
       opacity: 0;
       pointer-events: none;
@@ -82,7 +86,7 @@
 </head>
 <body>
   <h1>Juego de Memoria de Colores</h1>
-  <!-- Los botones van arriba -->
+  <!-- Botones situados arriba -->
   <div class="controls">
     <button class="button" id="start">Iniciar Juego</button>
     <button class="button" id="restart">Reiniciar</button>
@@ -106,7 +110,7 @@
     let timerInterval;
     let gameStarted = false;
 
-    // Genera un color aleatorio; si es pastel, se usa una luz mayor
+    // Genera un color aleatorio con ajuste para tonos pastel o vibrantes
     function getRandomColor(isPastel) {
       const hue = Math.floor(Math.random() * 360);
       const saturation = isPastel ? Math.random() * 30 + 40 : Math.random() * 40 + 60;
@@ -115,7 +119,7 @@
       return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
     }
 
-    // Función para analizar un string HSL y devolver un objeto
+    // Parsea un string HSL y lo convierte en un objeto
     function parseHSL(hslString) {
       const regex = /hsl\((\d+),\s*([\d\.]+)%,\s*([\d\.]+)%\)/;
       const result = regex.exec(hslString);
@@ -129,7 +133,7 @@
       return null;
     }
 
-    // Compara dos colores para determinar si son demasiado similares
+    // Compara dos colores HSL para determinar si son demasiado similares
     function areColorsSimilar(colorStr1, colorStr2) {
       const color1 = parseHSL(colorStr1);
       const color2 = parseHSL(colorStr2);
@@ -140,7 +144,7 @@
       return (hueDiff < 20 && satDiff < 15 && lightDiff < 10);
     }
 
-    // Genera el arreglo de colores (32 parejas) asegurando mayor contraste
+    // Genera un array de 32 pares de colores con mayor contraste
     function generateColors() {
       const colors = [];
       for (let i = 0; i < 32; i++) {
@@ -156,7 +160,7 @@
       return colors;
     }
 
-    // Algoritmo Fisher-Yates para mezclar el arreglo
+    // Algoritmo de Fisher-Yates para mezclar el array
     function shuffle(array) {
       for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -208,6 +212,7 @@
       if (lockBoard || this.classList.contains("removed")) return;
       if (this === firstCell) return;
 
+      // Se aplica el efecto de selección para indicar cuál celda se ha tocado
       this.classList.add("selected");
 
       if (!firstCell) {
@@ -217,6 +222,7 @@
         lockBoard = true;
 
         if (firstCell.dataset.color === secondCell.dataset.color) {
+          // Si hacen match, se remueven ambas celdas rápidamente
           setTimeout(() => {
             firstCell.classList.add("removed");
             secondCell.classList.add("removed");
@@ -226,7 +232,7 @@
             checkGameEnd();
           }, 200);
         } else {
-          // Agregamos la clase "wrong" a ambas celdas para oscurecerlas
+          // Si no hacen match, ambas se oscurecen (efecto "wrong") y luego se restauran
           firstCell.classList.add("wrong");
           secondCell.classList.add("wrong");
           setTimeout(() => {
@@ -257,12 +263,11 @@
       messageDisplay.textContent = win ? "¡Ganaste!" : "¡Perdiste!";
     }
 
-    // Al presionar "Reiniciar", se reinicia el tablero y se activa el juego de inmediato
+    // El botón de "Reiniciar" vuelve a configurar el tablero y activa el juego de inmediato
     restartButton.addEventListener("click", function() {
       initGame();
       startGame();
     });
-
     startButton.addEventListener("click", startGame);
 
     initGame();
