@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Juego de Memoria de Colores - Modo RGB/Hex</title>
+  <title>Juego de Memoria de Colores - Paleta Pantone</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <style>
     /* Reset global y estilos básicos */
@@ -54,9 +54,6 @@
       border: 3px solid #FFD700;
       transform: scale(1.05);
     }
-    .cell.wrong {
-      filter: brightness(0.5);
-    }
     .cell.removed {
       opacity: 0;
       pointer-events: none;
@@ -67,11 +64,10 @@
   </style>
 </head>
 <body>
-  <h1>Juego de Memoria de Colores</h1>
+  <h1>Juego de Memoria de Colores - Paleta Pantone</h1>
   <div class="controls">
     <button class="button" id="start">Iniciar Juego</button>
     <button class="button" id="restart">Reiniciar</button>
-    <button class="button" id="colorMode">Modo Daltónico: Desactivado</button>
   </div>
   <div class="timer" id="timer">60</div>
   <div class="grid-container">
@@ -87,11 +83,6 @@
     const messageDisplay = document.getElementById("message");
     const startButton = document.getElementById("start");
     const restartButton = document.getElementById("restart");
-    const colorModeButton = document.getElementById("colorMode");
-
-    // Modos del botón daltónico (aunque en este enfoque usamos el mismo método de generación RGB).
-    const modes = ["normal", "protanopia", "deuteranopia", "tritanopia"];
-    let daltonicModeIndex = 0;
 
     let firstCell = null,
         secondCell = null,
@@ -100,81 +91,43 @@
         timerInterval,
         gameStarted = false;
 
-    // Actualiza el tamaño de cada celda según el ancho del contenedor.
+    // Ajusta el tamaño de las celdas según el ancho del contenedor.
     function updateCellSize() {
       const containerWidth = gridContainer.clientWidth;
-      const cellSize = (containerWidth - 36) / 8; // 8 celdas + 36px en márgenes/gaps
+      const cellSize = (containerWidth - 36) / 8;
       grid.style.setProperty('--cell-size', cellSize + 'px');
     }
     updateCellSize();
     window.addEventListener('resize', updateCellSize);
 
-    // Cicla los modos daltónicos (aunque en este código la generación es uniforme en RGB).
-    colorModeButton.addEventListener("click", function() {
-      daltonicModeIndex = (daltonicModeIndex + 1) % modes.length;
-      const modeText = modes[daltonicModeIndex];
-      colorModeButton.textContent =
-        `Modo Daltónico: ${modeText.charAt(0).toUpperCase() + modeText.slice(1)}`;
-      initGame();
-    });
-
     // ---------------------------
-    // FUNCIÓN DE COLOR EN RGB (SIN HSL)
+    // PALETA PANTONE EN HEXADECIMAL
     // ---------------------------
-    
-    // Convierte componentes R, G, B a una cadena hexadecimal.
-    function rgbToHex(r, g, b) {
-      function toHex(n) {
-        const hex = n.toString(16);
-        return hex.length === 1 ? "0" + hex : hex;
-      }
-      return "#" + toHex(r) + toHex(g) + toHex(b);
+    const pantoneColors = [
+      "#FF6F61", "#6B5B95", "#88B04B", "#F7CAC9", "#92A8D1",
+      "#955251", "#B565A7", "#009B77", "#DD4124", "#D65076",
+      "#45B8AC", "#EFC050", "#5B5EA6", "#9B2335", "#DFCFBE",
+      "#55B4B0", "#E15D44", "#7F4145", "#7D3F98", "#897C3E",
+      "#B0A4E3", "#00A591", "#3F69AA", "#ADA8A5", "#A62116",
+      "#A50B5E", "#EEA47F", "#BC243C", "#0072B5", "#9E4624"
+    ];
+
+    // Genera un color aleatorio dentro de la paleta Pantone.
+    function getRandomPantoneColor() {
+      return pantoneColors[Math.floor(Math.random() * pantoneColors.length)];
     }
 
-    // Genera un color pastel en RGB.
-    // La técnica consiste en generar un valor aleatorio para cada canal y promediarlo con 255 para lograr tonos suaves.
-    function getRandomPastelRGB() {
-      const r = Math.floor((Math.random() * 256 + 255) / 2);
-      const g = Math.floor((Math.random() * 256 + 255) / 2);
-      const b = Math.floor((Math.random() * 256 + 255) / 2);
-      return { r: r, g: g, b: b, hex: rgbToHex(r, g, b) };
-    }
-
-    // Calcula la distancia euclidiana entre dos colores en el espacio RGB.
-    function colorDistance(color1, color2) {
-      const dr = color1.r - color2.r;
-      const dg = color1.g - color2.g;
-      const db = color1.b - color2.b;
-      return Math.sqrt(dr * dr + dg * dg + db * db);
-    }
-
-    // Umbral para considerar que dos colores son demasiado similares.
-    // Si la distancia es menor que rgbThreshold, se rechaza el nuevo color.
-    const rgbThreshold = 40;
-    function areColorsSimilar(color1, color2) {
-      return colorDistance(color1, color2) < rgbThreshold;
-    }
-
-    // Genera 44 colores únicos (cada uno duplicado para formar pares, totalizando 88 celdas).
-    // Se realizan hasta 10 intentos para generar un color que no sea demasiado similar a los ya generados.
+    // Genera los colores de la cuadrícula (44 pares = 88 celdas).
     function generateColors() {
       const colors = [];
       for (let i = 0; i < 44; i++) {
-        let color, attempt = 0;
-        do {
-          color = getRandomPastelRGB();
-          attempt++;
-        } while (colors.some(c => areColorsSimilar(c, color)) && attempt < 10);
-        // Se duplica el color para formar un par.
+        const color = getRandomPantoneColor();
         colors.push(color, color);
       }
       return colors;
     }
-    // ---------------------------
-    // FIN DEL TEMA DE COLOR (RGB y HEX)
-    // ---------------------------
 
-    // Algoritmo de shuffle (Fisher–Yates)
+    // Mezcla los colores (Fisher-Yates shuffle)
     function shuffle(array) {
       for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -194,14 +147,15 @@
       timerDisplay.textContent = timeLeft;
       gameStarted = false;
 
-      const colorObjects = generateColors();
-      shuffle(colorObjects);
-      // Crea 88 celdas usando el color en formato HEX.
+      const colorList = generateColors();
+      shuffle(colorList);
+
+      // Se crean 88 celdas asignando colores Pantone.
       for (let i = 0; i < 88; i++) {
         const cell = document.createElement("div");
         cell.classList.add("cell");
-        cell.style.backgroundColor = colorObjects[i].hex;
-        cell.dataset.color = colorObjects[i].hex;
+        cell.style.backgroundColor = colorList[i];
+        cell.dataset.color = colorList[i];
         cell.addEventListener("click", handleCellClick);
         grid.appendChild(cell);
       }
@@ -240,17 +194,13 @@
           setTimeout(() => {
             firstCell.classList.add("removed");
             secondCell.classList.add("removed");
-            firstCell.classList.remove("selected");
-            secondCell.classList.remove("selected");
             resetSelection();
             checkGameEnd();
           }, 200);
         } else {
-          firstCell.classList.add("wrong");
-          secondCell.classList.add("wrong");
           setTimeout(() => {
-            firstCell.classList.remove("wrong", "selected");
-            secondCell.classList.remove("wrong", "selected");
+            firstCell.classList.remove("selected");
+            secondCell.classList.remove("selected");
             resetSelection();
           }, 200);
         }
@@ -264,8 +214,7 @@
     }
 
     function checkGameEnd() {
-      const remaining = document.querySelectorAll(".cell:not(.removed)").length;
-      if (remaining === 0) {
+      if (document.querySelectorAll(".cell:not(.removed)").length === 0) {
         clearInterval(timerInterval);
         endGame(true);
       }
