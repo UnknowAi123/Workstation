@@ -2,49 +2,20 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <title>Juego de Memoria de Colores - Distribución Aleatoria</title>
+    <title>Juego de Memoria de Colores - Generación Aleatoria Sin Límites</title>
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
     <style>
       /* Reset y estilos básicos */
-      * {
-        box-sizing: border-box;
-      }
-      html,
-      body {
-        margin: 0;
-        padding: 0;
-        touch-action: manipulation;
-      }
-      body {
-        font-family: Arial, sans-serif;
-        background: #fff;
-        padding: 20px;
-        text-align: center;
-      }
-      h1 {
-        margin-bottom: 10px;
-        font-size: 20px;
-      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; touch-action: manipulation; }
+      body { font-family: Arial, sans-serif; background: #fff; padding: 20px; text-align: center; }
+      h1 { margin-bottom: 10px; font-size: 20px; }
       /* Controles y botones */
-      .controls {
-        margin-bottom: 10px;
-      }
-      .button {
-        padding: 10px 20px;
-        font-size: 16px;
-        cursor: pointer;
-        margin: 5px;
-      }
-      .timer {
-        font-size: 24px;
-        margin-bottom: 10px;
-      }
+      .controls { margin-bottom: 10px; }
+      .button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin: 5px; }
+      .timer { font-size: 24px; margin-bottom: 10px; }
       /* Contenedor de la cuadrícula */
-      .grid-container {
-        width: 100%;
-        min-width: 300px;
-        margin: 0 auto;
-      }
+      .grid-container { width: 100%; min-width: 300px; margin: 0 auto; }
       .grid {
         width: 100%;
         display: grid;
@@ -95,7 +66,7 @@
     <div class="message" id="message"></div>
 
     <script>
-      // UTILIDADES: Parsear una cadena HSL y comparar colores.
+      // UTILIDADES: Función para parsear una cadena HSL.
       function parseHSL(hslStr) {
         const regex = /hsl\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%\s*\)/;
         const result = regex.exec(hslStr);
@@ -103,24 +74,21 @@
           return {
             hue: parseFloat(result[1]),
             saturation: parseFloat(result[2]),
-            lightness: parseFloat(result[3]),
+            lightness: parseFloat(result[3])
           };
         }
         return null;
       }
       
-      // Comparación: Se considera similar si la diferencia (circular para hue) es menor a 16° y
-      // las diferencias en saturación y luminosidad son menores a 10.
+      // Dos colores se consideran "demasiado cercanos" si la diferencia en saturación y en luminosidad son menores a 16.
+      // (No se compara el hue).
       function areColorsSimilar(colorStr1, colorStr2) {
         const c1 = parseHSL(colorStr1),
-          c2 = parseHSL(colorStr2);
+              c2 = parseHSL(colorStr2);
         if (!c1 || !c2) return false;
-        let hueDiff = Math.abs(c1.hue - c2.hue);
-        hueDiff = Math.min(hueDiff, 360 - hueDiff);
         return (
-          hueDiff < 16 &&
-          Math.abs(c1.saturation - c2.saturation) < 10 &&
-          Math.abs(c1.lightness - c2.lightness) < 10
+          Math.abs(c1.saturation - c2.saturation) < 16 &&
+          Math.abs(c1.lightness - c2.lightness) < 16
         );
       }
       
@@ -132,19 +100,18 @@
       }
       
       // MODO DALTÓNICO: Lista de modos y obtención de tonos base.
-      const modes = [ "normal", "protanopia", "deuteranopia", "tritanopia" ];
+      const modes = ["normal", "protanopia", "deuteranopia", "tritanopia"];
       let daltonicModeIndex = 0;
       const colorModeButton = document.getElementById("colorMode");
       colorModeButton.addEventListener("click", () => {
         daltonicModeIndex = (daltonicModeIndex + 1) % modes.length;
         const modeName = modes[daltonicModeIndex];
         colorModeButton.textContent =
-          `Modo Daltónico: ` +
-          (modeName.charAt(0).toUpperCase() + modeName.slice(1));
+          "Modo Daltónico: " + (modeName.charAt(0).toUpperCase() + modeName.slice(1));
         initGame();
       });
       
-      // Para modos distintos a "normal" se usan tonos base fijos; en "normal" se elige hue totalmente aleatorio.
+      // Para modos distintos a "normal" se usan tonos base fijos; en "normal" se elige hue aleatoriamente.
       function getBaseHues() {
         if (modes[daltonicModeIndex] === "normal") {
           return null;
@@ -158,17 +125,16 @@
       }
       
       // GENERACIÓN DE COLORES:
-      // Se generan 44 colores únicos para duplicarlos y formar 88 celdas.
-      // • En modo normal: hue aleatorio 0–359, con restricción de que en cada bin (de 45°) no haya más de 8 colores.
-      // • En modos daltónicos: se omite esa limitación y se elige hue a partir de la lista base (con offset de ±5).
-      // Para saturación se usa rango [40, 60] y para luminosidad [65, 80].
+      // Se generan 44 colores únicos (duplicados para formar 88 celdas).
+      // • En modo normal se escoge hue aleatorio [0,359].
+      // • En modos daltónicos se obtiene hue a partir de una lista base con offset (±5).
+      // Los rangos para saturación son [20,80] y para luminosidad [40,80].
+      // La restricción es que un nuevo color no sea "demasiado cercano" (en saturación y luminosidad) a uno ya registrado.
       function generateDistinctColors() {
         const targetCount = 44;
         const distinctColors = [];
-        // Solo se aplica en modo "normal" (no daltonico)
-        const normalMode = modes[daltonicModeIndex] === "normal";
-        const binCounts = normalMode ? new Array(8).fill(0) : null; // 8 bins (cada uno de 45°)
-      
+        const normalMode = (modes[daltonicModeIndex] === "normal");
+        
         let attemptsTotal = 0;
         const maxAttempts = 10000;
         while (distinctColors.length < targetCount && attemptsTotal < maxAttempts) {
@@ -182,27 +148,19 @@
             hue = base + Math.floor(Math.random() * 11) - 5;
             hue = (hue + 360) % 360;
           }
-          const sat = Math.floor(Math.random() * (60 - 40 + 1)) + 40;
-          const light = Math.floor(Math.random() * (80 - 65 + 1)) + 65;
+          const sat = Math.floor(Math.random() * (80 - 20 + 1)) + 20;   // [20,80]
+          const light = Math.floor(Math.random() * (80 - 40 + 1)) + 40;  // [40,80]
           const candidate = `hsl(${hue}, ${sat}%, ${light}%)`;
           if (isColorTooClose(candidate, distinctColors)) continue;
-      
-          if (normalMode) {
-            let bin = Math.floor(hue / 45); // Cada bin de 45° es un "tipo"
-            if (binCounts[bin] >= 8) continue; // Limitar a 8 colores únicos por tipo
-            binCounts[bin]++;
-          }
           distinctColors.push(candidate);
         }
         if (distinctColors.length < targetCount) {
-          console.warn(
-            "No se pudieron generar suficientes colores distintos sin superar los límites en modo normal."
-          );
+          console.warn("No se pudieron generar suficientes colores distintos sin similitudes.");
         }
         return distinctColors;
       }
       
-      // Función para mezclar un array (Fisher–Yates)
+      // Función para mezclar un array (algoritmo Fisher–Yates)
       function shuffle(array) {
         for (let i = array.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
@@ -210,7 +168,7 @@
         }
       }
       
-      // Ajusta el tamaño de las celdas en función del ancho del contenedor (8 columnas)
+      // Ajuste del tamaño de cada celda según el ancho del contenedor (8 columnas)
       const gridContainer = document.querySelector(".grid-container");
       const grid = document.getElementById("grid");
       function updateCellSize() {
@@ -223,11 +181,11 @@
       
       // Variables y funciones del juego
       let firstCell = null,
-        secondCell = null,
-        lockBoard = false;
+          secondCell = null,
+          lockBoard = false;
       let timerInterval,
-        timeLeft = 60,
-        gameStarted = false;
+          timeLeft = 60,
+          gameStarted = false;
       const timerDisplay = document.getElementById("timer");
       const messageDisplay = document.getElementById("message");
       const startButton = document.getElementById("start");
@@ -244,12 +202,12 @@
         timerDisplay.textContent = timeLeft;
         gameStarted = false;
       
-        // Se generan 44 colores únicos y se duplican para obtener 88 celdas
+        // Se generan 44 colores únicos y se duplican para obtener 88 celdas.
         const distinctColors = generateDistinctColors();
         let colors = distinctColors.concat(distinctColors);
         shuffle(colors);
-      
-        colors.forEach((color) => {
+        
+        colors.forEach(color => {
           const cell = document.createElement("div");
           cell.classList.add("cell");
           cell.style.backgroundColor = color;
@@ -279,7 +237,7 @@
       function handleCellClick() {
         if (!gameStarted || lockBoard || this.classList.contains("removed")) return;
         if (this === firstCell) return;
-      
+        
         this.classList.add("selected");
         if (!firstCell) {
           firstCell = this;
@@ -325,10 +283,7 @@
         messageDisplay.textContent = win ? "¡Ganaste!" : "¡Perdiste!";
       }
       
-      restartButton.addEventListener("click", () => {
-        initGame();
-        startGame();
-      });
+      restartButton.addEventListener("click", () => { initGame(); startGame(); });
       startButton.addEventListener("click", startGame);
       
       initGame();
