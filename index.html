@@ -18,6 +18,9 @@
     
     /* Contenedor de la cuadrícula */
     .grid-container { width: 100%; min-width: 300px; margin: 0 auto; }
+    
+    /* La cuadrícula usa la variable --cell-size para definir el tamaño de cada celda.
+       Se crean 8 columnas; el tamaño se recalcula en JS en función del ancho del contenedor. */
     .grid {
       width: 100%;
       display: grid;
@@ -29,7 +32,7 @@
       margin: 0 auto;
     }
     
-    /* Celdas */
+    /* Estilos de cada celda */
     .cell {
       width: 100%;
       height: 100%;
@@ -65,78 +68,50 @@
     <div class="grid" id="grid"></div>
   </div>
   <div class="message" id="message"></div>
-
+  
   <script>
-    // MODO DALTÓNICO: Lista de modos y obtención de tonos base.
+    // Referencias a elementos del DOM.
+    const grid = document.getElementById("grid");
+    const gridContainer = document.querySelector(".grid-container");
+    const timerDisplay = document.getElementById("timer");
+    const messageDisplay = document.getElementById("message");
+    const startButton = document.getElementById("start");
+    const restartButton = document.getElementById("restart");
+    const colorModeButton = document.getElementById("colorMode");
+
+    // Modos para el botón daltónico: "normal" y 3 tipos de daltonismo.
     const modes = ["normal", "protanopia", "deuteranopia", "tritanopia"];
     let daltonicModeIndex = 0;
-    const colorModeButton = document.getElementById("colorMode");
-    colorModeButton.addEventListener("click", () => {
+
+    let firstCell = null,
+        secondCell = null,
+        lockBoard = false,
+        timeLeft = 60,
+        timerInterval,
+        gameStarted = false;
+
+    // Actualiza el tamaño de cada celda según el ancho del contenedor.
+    function updateCellSize() {
+      const containerWidth = gridContainer.clientWidth;
+      const cellSize = (containerWidth - 36) / 8; // 8 celdas + 36 px de márgenes/gaps
+      grid.style.setProperty('--cell-size', cellSize + 'px');
+    }
+    updateCellSize();
+    window.addEventListener('resize', updateCellSize);
+
+    // Ciclo de modo daltónico: normal → protanopia → deuteranopia → tritanopia.
+    colorModeButton.addEventListener("click", function() {
       daltonicModeIndex = (daltonicModeIndex + 1) % modes.length;
-      const modeName = modes[daltonicModeIndex];
-      colorModeButton.textContent = `Modo Daltónico: ${modeName.charAt(0).toUpperCase() + modeName.slice(1)}`;
+      const modeText = modes[daltonicModeIndex];
+      colorModeButton.textContent =
+        `Modo Daltónico: ${modeText.charAt(0).toUpperCase() + modeText.slice(1)}`;
       initGame();
     });
 
-    // Obtiene los tonos base para modos daltónicos
-    function getBaseHues() {
-      if (modes[daltonicModeIndex] === "normal") {
-        return null;
-      } else if (modes[daltonicModeIndex] === "protanopia") {
-        return [180, 195, 210, 225, 240, 255, 270, 285];
-      } else if (modes[daltonicModeIndex] === "deuteranopia") {
-        return [0, 15, 30, 45, 60, 75, 90, 105];
-      } else if (modes[daltonicModeIndex] === "tritanopia") {
-        return [60, 75, 90, 105, 120, 135, 150, 165];
-      }
-    }
-
-    // GENERACIÓN DE COLORES: Usa valores aleatorios en rangos definidos
-    function generateDistinctColors() {
-      const targetCount = 44;
-      const distinctColors = [];
-
-      let attemptsTotal = 0;
-      const maxAttempts = 10000;
-      while (distinctColors.length < targetCount && attemptsTotal < maxAttempts) {
-        attemptsTotal++;
-        let hue;
-        if (modes[daltonicModeIndex] === "normal") {
-          hue = Math.floor(Math.random() * 360);
-        } else {
-          const baseHues = getBaseHues();
-          let base = baseHues[Math.floor(Math.random() * baseHues.length)];
-          hue = base + Math.floor(Math.random() * 11) - 5;
-          hue = (hue + 360) % 360;
-        }
-        const sat = Math.floor(Math.random() * (80 - 20 + 1)) + 20;   // [20,80]
-        const light = Math.floor(Math.random() * (80 - 40 + 1)) + 40; // [40,80]
-        const candidate = `hsl(${hue}, ${sat}%, ${light}%)`;
-        
-        // Aplica la diferencia de 16 en saturación y luminosidad SOLO en el resultado final
-        const parsedCandidate = parseHSL(candidate);
-        let isValid = true;
-        for (let existingColor of distinctColors) {
-          const parsedExisting = parseHSL(existingColor);
-          if (
-            Math.abs(parsedCandidate.saturation - parsedExisting.saturation) < 16 &&
-            Math.abs(parsedCandidate.lightness - parsedExisting.lightness) < 16
-          ) {
-            isValid = false;
-            break;
-          }
-        }
-        
-        if (isValid) distinctColors.push(candidate);
-      }
-
-      return distinctColors;
-    }
-
-    // Función para analizar y extraer valores de HSL de una cadena
-    function parseHSL(hslStr) {
+    // Función parseHSL: extrae hue, saturación y luminosidad de una cadena HSL.
+    function parseHSL(hslString) {
       const regex = /hsl\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%\s*\)/;
-      const result = regex.exec(hslStr);
+      const result = regex.exec(hslString);
       if (result) {
         return {
           hue: parseFloat(result[1]),
@@ -147,7 +122,61 @@
       return null;
     }
 
-    // Función para mezclar un array (algoritmo Fisher–Yates)
+    // Función areColorsSimilar:
+    // Se consideran demasiado similares si:
+    //   - La diferencia en hue (circularmente) es menor a 16°
+    //   - La diferencia en saturación es menor a 16
+    //   - La diferencia en luminosidad es menor a 16
+    function areColorsSimilar(colorStr1, colorStr2) {
+      const c1 = parseHSL(colorStr1);
+      const c2 = parseHSL(colorStr2);
+      if (!c1 || !c2) return false;
+      let hueDiff = Math.abs(c1.hue - c2.hue);
+      hueDiff = Math.min(hueDiff, 360 - hueDiff);
+      const satDiff = Math.abs(c1.saturation - c2.saturation);
+      const lightDiff = Math.abs(c1.lightness - c2.lightness);
+      return (hueDiff < 16 && satDiff < 16 && lightDiff < 16);
+    }
+
+    // Función para obtener un color aleatorio usando los rangos:
+    // - Saturación entre 20% y 80%
+    // - Luminosidad entre 40% y 80%
+    // Para hue: en modo normal es 0-359; en modos daltónicos se restringe el rango.
+    function getRandomColor() {
+      let hue;
+      if (modes[daltonicModeIndex] === "protanopia") {
+        hue = Math.random() * 120 + 180; // hue entre 180 y 300
+      } else if (modes[daltonicModeIndex] === "deuteranopia") {
+        hue = Math.random() * 120;       // hue entre 0 y 120
+      } else if (modes[daltonicModeIndex] === "tritanopia") {
+        hue = Math.random() * 120 + 60;    // hue entre 60 y 180
+      } else {
+        hue = Math.floor(Math.random() * 360);
+      }
+      const saturation = Math.random() * (80 - 20) + 20; // [20,80)
+      const lightness = Math.random() * (80 - 40) + 40;    // [40,80)
+      return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+    }
+
+    // Genera 44 colores únicos (cada color se duplica formando 88 celdas).
+    // La verificación se hace comparando el resultado completo de hue, saturación y luminosidad:
+    // Si un color nuevo es demasiado similar (diferencias en hue, sat y luz < 16) a uno ya generado,
+    // se volverá a generar.
+    function generateColors() {
+      const colors = [];
+      for (let i = 0; i < 44; i++) {
+        let color, attempt = 0;
+        do {
+          color = getRandomColor();
+          attempt++;
+        } while (colors.some(c => areColorsSimilar(c, color)) && attempt < 10);
+        // Se añade dos veces para formar un par
+        colors.push(color, color);
+      }
+      return colors;
+    }
+
+    // Algoritmo de shuffle (Fisher–Yates) para mezclar los colores.
     function shuffle(array) {
       for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -155,22 +184,100 @@
       }
     }
 
+    // Inicializa el juego: resetea todas las variables, el temporizador y genera las 88 celdas.
     function initGame() {
-      const grid = document.getElementById("grid");
+      if (timerInterval) clearInterval(timerInterval);
       grid.innerHTML = "";
+      messageDisplay.textContent = "";
+      firstCell = null;
+      secondCell = null;
+      lockBoard = false;
+      timeLeft = 60;
+      timerDisplay.textContent = timeLeft;
+      gameStarted = false;
 
-      const distinctColors = generateDistinctColors();
-      let colors = distinctColors.concat(distinctColors);
+      const colors = generateColors();
       shuffle(colors);
-
-      colors.forEach(color => {
+      for (let i = 0; i < 88; i++) {
         const cell = document.createElement("div");
         cell.classList.add("cell");
-        cell.style.backgroundColor = color;
-        cell.dataset.color = color;
+        cell.style.backgroundColor = colors[i];
+        cell.dataset.color = colors[i];
+        cell.addEventListener("click", handleCellClick);
         grid.appendChild(cell);
-      });
+      }
     }
+
+    // Inicia el juego (comienza el temporizador)
+    function startGame() {
+      if (!gameStarted) {
+        gameStarted = true;
+        timerInterval = setInterval(updateTimer, 1000);
+      }
+    }
+
+    function updateTimer() {
+      if (timeLeft > 0) {
+        timeLeft--;
+        timerDisplay.textContent = timeLeft;
+      } else {
+        clearInterval(timerInterval);
+        endGame(false);
+      }
+    }
+
+    function handleCellClick() {
+      if (!gameStarted || lockBoard || this.classList.contains("removed")) return;
+      if (this === firstCell) return;
+
+      this.classList.add("selected");
+      if (!firstCell) {
+        firstCell = this;
+      } else {
+        secondCell = this;
+        lockBoard = true;
+        if (firstCell.dataset.color === secondCell.dataset.color) {
+          setTimeout(() => {
+            firstCell.classList.add("removed");
+            secondCell.classList.add("removed");
+            firstCell.classList.remove("selected");
+            secondCell.classList.remove("selected");
+            resetSelection();
+            checkGameEnd();
+          }, 200);
+        } else {
+          firstCell.classList.add("wrong");
+          secondCell.classList.add("wrong");
+          setTimeout(() => {
+            firstCell.classList.remove("wrong", "selected");
+            secondCell.classList.remove("wrong", "selected");
+            resetSelection();
+          }, 200);
+        }
+      }
+    }
+
+    function resetSelection() {
+      firstCell = null;
+      secondCell = null;
+      lockBoard = false;
+    }
+
+    function checkGameEnd() {
+      const remaining = document.querySelectorAll(".cell:not(.removed)").length;
+      if (remaining === 0) {
+        clearInterval(timerInterval);
+        endGame(true);
+      }
+    }
+
+    function endGame(win) {
+      lockBoard = true;
+      messageDisplay.textContent = win ? "¡Ganaste!" : "¡Perdiste!";
+    }
+
+    restartButton.addEventListener("click", () => { initGame(); startGame(); });
+    startButton.addEventListener("click", startGame);
 
     initGame();
   </script>
