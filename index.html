@@ -2,13 +2,13 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Juego de Memoria de Colores</title>
+  <title>Juego de Memoria de Colores - Distribución Aleatoria Controlada</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <style>
     /* Reset y estilos básicos */
     * { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; -ms-touch-action: manipulation; touch-action: manipulation; }
-    body { font-family: Arial, sans-serif; background-color: #fff; padding: 20px; text-align: center; }
+    html, body { margin: 0; padding: 0; touch-action: manipulation; }
+    body { font-family: Arial, sans-serif; background: #fff; padding: 20px; text-align: center; }
     h1 { margin-bottom: 10px; font-size: 20px; }
     
     /* Controles y botones */
@@ -29,11 +29,11 @@
       margin: 0 auto;
     }
     
-    /* Estilos de celdas */
+    /* Celdas */
     .cell {
       width: 100%;
       height: 100%;
-      background-color: #ccc;
+      background: #ccc;
       cursor: pointer;
       transition: all 0.3s;
     }
@@ -67,9 +67,8 @@
   <div class="message" id="message"></div>
   
   <script>
-    // UTILIDADES PARA COMPARAR COLORES HSL
+    // Funciones para analizar y comparar colores en formato HSL
     function parseHSL(hslStr) {
-      // Extrae hue, saturation y luminosidad
       const regex = /hsl\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%\s*\)/;
       const result = regex.exec(hslStr);
       if (result) {
@@ -81,28 +80,26 @@
       }
       return null;
     }
- 
+    
+    // Se considera "demasiado cercano" si diferencia en cada componente es menor a 10.
     function areColorsSimilar(colorStr1, colorStr2) {
-      const c1 = parseHSL(colorStr1);
-      const c2 = parseHSL(colorStr2);
+      const c1 = parseHSL(colorStr1),
+            c2 = parseHSL(colorStr2);
       if (!c1 || !c2) return false;
-      // Umbrales para considerar si los colores son "demasiado cercanos"
-      const hueDiff = Math.abs(c1.hue - c2.hue);
-      const satDiff = Math.abs(c1.saturation - c2.saturation);
-      const lightDiff = Math.abs(c1.lightness - c2.lightness);
+      const hueDiff = Math.abs(c1.hue - c2.hue),
+            satDiff = Math.abs(c1.saturation - c2.saturation),
+            lightDiff = Math.abs(c1.lightness - c2.lightness);
       return (hueDiff < 10 && satDiff < 10 && lightDiff < 10);
     }
- 
+    
     function isColorTooClose(newColor, colorArray) {
       for (let color of colorArray) {
-        if (areColorsSimilar(newColor, color)) {
-          return true;
-        }
+        if (areColorsSimilar(newColor, color)) return true;
       }
       return false;
     }
- 
-    // CONFIGURACIÓN DEL MODO DALTÓNICO
+    
+    // Modo daltónico: lista de modos y una función para obtener tonos base según el modo.
     const modes = ["normal", "protanopia", "deuteranopia", "tritanopia"];
     let daltonicModeIndex = 0;
     const colorModeButton = document.getElementById("colorMode");
@@ -113,10 +110,10 @@
       initGame();
     });
     
-    // Retorna los hues base según el modo seleccionado.
+    // En modos distintos al "normal", se utiliza una lista de tonos base.
     function getBaseHues() {
       if (modes[daltonicModeIndex] === "normal") {
-        return [0, 30, 60, 120, 180, 240, 300, 330];
+        return null;
       } else if (modes[daltonicModeIndex] === "protanopia") {
         return [180, 195, 210, 225, 240, 255, 270, 285];
       } else if (modes[daltonicModeIndex] === "deuteranopia") {
@@ -126,45 +123,48 @@
       }
     }
     
-    // GENERA 44 COLORES DISTINTOS (para 44 pares que luego se duplican a 88 celdas)
+    // Genera 44 colores distintos (para luego duplicar a 88 celdas) de forma completamente aleatoria:
+    // – S y L entre 30% y 90%
+    // – Si estamos en modo "normal": H se toma 0–359; en otros modos, se elige un valor de la lista base (con ±5 de varianza)
+    // – Se evita que dos colores sean muy cercanos y, adicionalmente, que en el mismo tipo (bin de 45°) haya más de 8 colores.
     function generateDistinctColors() {
-      const baseHues = getBaseHues();
-      const colors = [];
+      const targetCount = 44;
+      const distinctColors = [];
+      const binCounts = new Array(8).fill(0); // cada bin representa un rango de 45° (0-44, 45-89, …)
       
-      // Grupo 1: 8 colores básicos equilibrados (saturación 50%, luminosidad 50%)
-      baseHues.forEach(hue => {
-        colors.push(`hsl(${hue}, 50%, 50%)`);
-      });
-      
-      // Grupo 2: 8 colores básicos vivos (saturación 100%, luminosidad 50%)
-      baseHues.forEach(hue => {
-        colors.push(`hsl(${hue}, 100%, 50%)`);
-      });
-      
-      // Grupo 3: 8 colores básicos en tono pastel (saturación 40%, luminosidad 80%)
-      baseHues.forEach(hue => {
-        colors.push(`hsl(${hue}, 40%, 80%)`);
-      });
-      
-      // Grupo 4: 20 colores aleatorios cíclicos entre los 8 tonos base,
-      // con saturación y luminosidad en el rango 40% - 80%
-      for (let i = 0; i < 20; i++) {
-        const hue = baseHues[i % baseHues.length];
-        let newColor;
-        let attempts = 0;
-        do {
-          const sat = Math.floor(Math.random() * (80 - 40 + 1)) + 40; // entre 40 y 80
-          const light = Math.floor(Math.random() * (80 - 40 + 1)) + 40; // entre 40 y 80
-          newColor = `hsl(${hue}, ${sat}%, ${light}%)`;
-          attempts++;
-        } while (isColorTooClose(newColor, colors) && attempts < 10);
-        colors.push(newColor);
+      function getType(hue) {
+        return Math.floor(hue / 45);
       }
       
-      return colors; // Total: 8 + 8 + 8 + 20 = 44 colores distintos.
+      let attemptsTotal = 0;
+      while (distinctColors.length < targetCount && attemptsTotal < 10000) {
+        attemptsTotal++;
+        let hue;
+        const baseHues = getBaseHues();
+        if (modes[daltonicModeIndex] === "normal") {
+          hue = Math.floor(Math.random() * 360);
+        } else {
+          // Escoger aleatoriamente de la lista base y aplicar un pequeño offset (-5 a +5)
+          let base = baseHues[Math.floor(Math.random() * baseHues.length)];
+          hue = base + Math.floor(Math.random()*11) - 5;
+          hue = (hue + 360) % 360; // asegurar que esté en 0-359
+        }
+        const sat = Math.floor(Math.random() * (90 - 30 + 1)) + 30;
+        const light = Math.floor(Math.random() * (90 - 30 + 1)) + 30;
+        const candidate = `hsl(${hue}, ${sat}%, ${light}%)`;
+        const type = getType(hue);
+        if (binCounts[type] >= 8) continue; // máximo 8 colores distintos por tipo (16 celdas al duplicar)
+        if (isColorTooClose(candidate, distinctColors)) continue;
+        distinctColors.push(candidate);
+        binCounts[type]++;
+      }
+      if (distinctColors.length < targetCount) {
+        console.warn("No se pudieron generar suficientes colores distintos sin superar el límite por tipo.");
+      }
+      return distinctColors;
     }
     
-    // Algoritmo de mezcla (Fisher–Yates)
+    // Función de mezcla (Fisher–Yates)
     function shuffle(array) {
       for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -172,7 +172,7 @@
       }
     }
     
-    // Ajuste del tamaño de celda según el ancho del contenedor
+    // Ajusta el tamaño de cada celda en función del ancho del contenedor (8 columnas)
     const gridContainer = document.querySelector(".grid-container");
     const grid = document.getElementById("grid");
     function updateCellSize() {
@@ -202,12 +202,11 @@
       timerDisplay.textContent = timeLeft;
       gameStarted = false;
       
-      // Se generan 44 colores distintos que se duplican (para 88 celdas)
+      // Se generan 44 colores distintos y se duplican para tener 88 celdas.
       const distinctColors = generateDistinctColors();
       let colors = distinctColors.concat(distinctColors);
       shuffle(colors);
       
-      // Se crean las 88 celdas.
       colors.forEach(color => {
         const cell = document.createElement("div");
         cell.classList.add("cell");
