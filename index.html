@@ -2,274 +2,166 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Juego de Memoria de Colores</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Simulador de Resolución - Alfa</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    /* Global: forzamos el box-sizing para todos los elementos */
-    * {
-      box-sizing: border-box;
-    }
-    html, body {
-      margin: 0;
-      padding: 0;
-      -ms-touch-action: manipulation;
-      touch-action: manipulation;
-    }
+    /* --- General Styles --- */
+    * { box-sizing: border-box; }
     body {
       font-family: Arial, sans-serif;
-      background-color: #fff;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden; /* 🔥 Solo ocultamos el scroll horizontal */
+    }
+    .container {
+      max-width: 1280px;
+      margin: auto;
       padding: 20px;
+    }
+    
+    /* --- Button Styles --- */
+    button {
+      width: 80%;
+      padding: 10px;
+      margin: 10px auto;
+      display: block;
+      background-color: #0078D7;
+      color: white;
+      border: 2px solid #0078D7;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
       text-align: center;
     }
-    h1 {
-      margin-bottom: 10px;
-      font-size: 20px;
+
+    /* --- Resolution Selection --- */
+    .resolution-selector {
+      margin-bottom: 15px;
     }
-    .controls {
-      margin-bottom: 10px;
-    }
-    .button {
-      padding: 10px 20px;
-      font-size: 16px;
-      cursor: pointer;
-      margin: 5px;
-    }
-    .timer {
-      font-size: 24px;
-      margin-bottom: 10px;
-    }
-    .grid-container {
+
+    /* --- Editor & Preview Boxes --- */
+    #editor {
       width: 100%;
-      min-width: 300px;
-      margin: 0 auto;
+      height: 200px;
+      font-family: monospace;
+      resize: none;
+      border: 2px solid #0078D7;
+      background: #f4f4f4;
     }
-    .grid {
+
+    /* --- Preview Frame (Fixed Window) --- */
+    #preview-container {
+      margin: auto;
+      border: 2px solid #000;
+      overflow: hidden;
+      position: relative;
+      transform-origin: top left;
+    }
+
+    /* --- Outer Scroll --- */
+    .scroll-wrapper {
       width: 100%;
-      display: grid;
-      grid-template-columns: repeat(8, var(--cell-size));
-      grid-auto-rows: var(--cell-size);
-      gap: 4px;
-      padding: 4px;
-      background-color: #333;
-      margin: 0 auto;
+      overflow-y: auto; /* 🔥 Scroll externo activo */
+      height: 600px; /* Ajustado según resolución */
+      border: 2px solid #444;
     }
-    .cell {
+
+    /* --- Scaling for Mobile --- */
+    @media screen and (max-width: 768px) {
+      #preview-container {
+        transform: scale(0.6); /* 🔥 Reduce a escala proporcional */
+        width: 1280px;
+        height: auto;
+      }
+      .scroll-wrapper {
+        overflow-y: auto; /* 🔥 Scroll externo habilitado */
+      }
+    }
+
+    /* --- Default Preview Size (will be adjusted dynamically) --- */
+    #preview {
       width: 100%;
       height: 100%;
-      background-color: #ccc;
-      cursor: pointer;
-      transition: background-color 0.3s, opacity 0.3s, filter 0.2s, transform 0.2s, border 0.2s;
-    }
-    .cell.selected {
-      border: 3px solid #FFD700;
-      transform: scale(1.05);
-    }
-    .cell.wrong {
-      filter: brightness(0.5);
-    }
-    .cell.removed {
-      opacity: 0;
-      pointer-events: none;
-    }
-    .message {
-      font-size: 28px;
-      margin-top: 20px;
+      border: none;
     }
   </style>
 </head>
-<body>
-  <h1>Juego de Memoria de Colores</h1>
-  <div class="controls">
-    <button class="button" id="start">Iniciar Juego</button>
-    <button class="button" id="restart">Reiniciar</button>
+<body onload="resetAll()"> <!-- Se resetea al cargar -->
+  <div class="container">
+    <h1>Simulador de Resolución - Alfa</h1>
+    
+    <!-- --- Code Input Box --- -->
+    <textarea id="editor" placeholder="Escribe o pega código HTML aquí..."></textarea>
+
+    <!-- --- Render Button --- -->
+    <button onclick="actualizarVista()">Actualizar Vista Previa</button>
+    
+    <!-- --- Resolution Selector --- -->
+    <div class="resolution-selector">
+      <label>Selecciona la Resolución:</label>
+      <select id="resolutionSelect" onchange="cambiarResolucion()">
+        <option value="1280x1024">1280x1024</option>
+        <option value="1366x768">HD (1366x768)</option>
+        <option value="1920x1080">Full HD (1920x1080)</option>
+      </select>
+    </div>
+
+    <!-- --- Scroll Wrapper (for External Scroll) --- -->
+    <div class="scroll-wrapper">
+      <div id="preview-container">
+        <iframe id="preview"></iframe>
+      </div>
+    </div>
   </div>
-  <div class="timer" id="timer">60</div>
-  <div class="grid-container">
-    <div class="grid" id="grid"></div>
-  </div>
-  <div class="message" id="message"></div>
+  
   <script>
-    const grid = document.getElementById("grid");
-    const gridContainer = document.querySelector(".grid-container");
-    const timerDisplay = document.getElementById("timer");
-    const messageDisplay = document.getElementById("message");
-    const startButton = document.getElementById("start");
-    const restartButton = document.getElementById("restart");
-
-    let firstCell = null;
-    let secondCell = null;
-    let lockBoard = false;
-    let timeLeft = 60;
-    let timerInterval;
-    let gameStarted = false;
-
-    function updateCellSize() {
-      const containerWidth = gridContainer.clientWidth;
-      const cellSize = (containerWidth - 36) / 8;
-      grid.style.setProperty('--cell-size', cellSize + 'px');
+    // --- Render HTML from Editor ---
+    function actualizarVista() {
+      let codigoHTML = document.getElementById('editor').value;
+      document.getElementById('preview').srcdoc = `<head>${basicCSS}</head>` + codigoHTML;
     }
 
-    updateCellSize();
-    window.addEventListener('resize', updateCellSize);
-
-    function getRandomColor(isPastel) {
-      const hue = Math.floor(Math.random() * 360);
-      const saturation = isPastel ? Math.random() * 30 + 40 : Math.random() * 40 + 60;
-      let lightness = isPastel ? Math.random() * 30 + 65 : Math.random() * 30 + 50;
-      if (lightness > 85) lightness = 82;
-      return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-    }
-
-    function parseHSL(hslString) {
-      const regex = /hsl\((\d+),\s*([\d\.]+)%,\s*([\d\.]+)%\)/;
-      const result = regex.exec(hslString);
-      if (result) {
-        return {
-          hue: parseInt(result[1]),
-          saturation: parseFloat(result[2]),
-          lightness: parseFloat(result[3])
-        };
+    /* --- Basic View CSS inyectado en la vista previa --- */
+    const basicCSS = `<style>
+      * {
+        font-weight: normal !important;
+        margin: 0;
+        padding: 0;
+        font-family: Arial, sans-serif !important;
       }
-      return null;
-    }
+      b, strong { font-weight: bold !important; }
+      u { text-decoration: underline !important; }
+    </style>`;
 
-    function areColorsSimilar(colorStr1, colorStr2) {
-      const color1 = parseHSL(colorStr1);
-      const color2 = parseHSL(colorStr2);
-      if (!color1 || !color2) return false;
-      const hueDiff = Math.abs(color1.hue - color2.hue);
-      const satDiff = Math.abs(color1.saturation - color2.saturation);
-      const lightDiff = Math.abs(color1.lightness - color2.lightness);
-      return (hueDiff < 20 && satDiff < 15 && lightDiff < 10);
-    }
+    // --- Resolution Adjustment ---
+    function cambiarResolucion() {
+      let resolution = document.getElementById("resolutionSelect").value;
+      let previewContainer = document.getElementById("preview-container");
+      let scrollWrapper = document.querySelector(".scroll-wrapper");
 
-    // Genera 44 pares de colores, es decir, 88 celdas, forzando contraste
-    function generateColors() {
-      const colors = [];
-      for (let i = 0; i < 44; i++) {
-        const isPastel = i % 2 === 0;
-        let color;
-        let attempt = 0;
-        do {
-          color = getRandomColor(isPastel);
-          attempt++;
-        } while (colors.some(c => areColorsSimilar(c, color)) && attempt < 10);
-        colors.push(color, color);
-      }
-      return colors;
-    }
-
-    function shuffle(array) {
-      for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
+      if (resolution === "1280x1024") {
+        previewContainer.style.width = "1280px";
+        previewContainer.style.height = "1024px";
+        scrollWrapper.style.height = "1024px";
+      } else if (resolution === "1366x768") {
+        previewContainer.style.width = "1366px";
+        previewContainer.style.height = "768px";
+        scrollWrapper.style.height = "768px";
+      } else if (resolution === "1920x1080") {
+        previewContainer.style.width = "1920px";
+        previewContainer.style.height = "1080px";
+        scrollWrapper.style.height = "1080px";
       }
     }
 
-    function initGame() {
-      if (timerInterval) {
-        clearInterval(timerInterval);
-        timerInterval = null;
-      }
-      grid.innerHTML = "";
-      messageDisplay.textContent = "";
-      firstCell = null;
-      secondCell = null;
-      lockBoard = false;
-      timeLeft = 60;
-      timerDisplay.textContent = timeLeft;
-      gameStarted = false;
-
-      const colors = generateColors();
-      shuffle(colors);
-      // Crea 88 celdas en lugar de 64
-      for (let i = 0; i < 88; i++) {
-        const cell = document.createElement("div");
-        cell.classList.add("cell");
-        cell.style.backgroundColor = colors[i];
-        cell.dataset.color = colors[i];
-        cell.addEventListener("click", handleCellClick);
-        grid.appendChild(cell);
-      }
+    // --- Reset Everything on Page Load ---
+    function resetAll() {
+      document.getElementById('editor').value = "";
+      document.getElementById('preview').srcdoc = "";
+      document.getElementById("resolutionSelect").value = "1280x1024";
+      cambiarResolucion(); // Apply default resolution
     }
-
-    function startGame() {
-      if (!gameStarted) {
-        gameStarted = true;
-        timerInterval = setInterval(updateTimer, 1000);
-      }
-    }
-
-    function updateTimer() {
-      if (timeLeft > 0) {
-        timeLeft--;
-        timerDisplay.textContent = timeLeft;
-      } else {
-        clearInterval(timerInterval);
-        endGame(false);
-      }
-    }
-
-    function handleCellClick() {
-      if (!gameStarted) return;
-      if (lockBoard || this.classList.contains("removed")) return;
-      if (this === firstCell) return;
-
-      this.classList.add("selected");
-
-      if (!firstCell) {
-        firstCell = this;
-      } else {
-        secondCell = this;
-        lockBoard = true;
-
-        if (firstCell.dataset.color === secondCell.dataset.color) {
-          setTimeout(() => {
-            firstCell.classList.add("removed");
-            secondCell.classList.add("removed");
-            firstCell.classList.remove("selected");
-            secondCell.classList.remove("selected");
-            resetSelection();
-            checkGameEnd();
-          }, 200);
-        } else {
-          firstCell.classList.add("wrong");
-          secondCell.classList.add("wrong");
-          setTimeout(() => {
-            firstCell.classList.remove("wrong", "selected");
-            secondCell.classList.remove("wrong", "selected");
-            resetSelection();
-          }, 200);
-        }
-      }
-    }
-
-    function resetSelection() {
-      firstCell = null;
-      secondCell = null;
-      lockBoard = false;
-    }
-
-    function checkGameEnd() {
-      const remaining = document.querySelectorAll(".cell:not(.removed)").length;
-      if (remaining === 0) {
-        clearInterval(timerInterval);
-        endGame(true);
-      }
-    }
-
-    function endGame(win) {
-      lockBoard = true;
-      messageDisplay.textContent = win ? "¡Ganaste!" : "¡Perdiste!";
-    }
-
-    restartButton.addEventListener("click", function() {
-      initGame();
-      startGame();
-    });
-    startButton.addEventListener("click", startGame);
-
-    initGame();
   </script>
 </body>
 </html>
