@@ -57,7 +57,7 @@
       width: 100%;
       display: grid;
       grid-template-columns: repeat(8, var(--cell-size));
-      grid-auto-rows: (11, var(--cell-size);
+      grid-auto-rows: var(--cell-size);
       gap: 4px;
       padding: 4px;
       background-color: #333;
@@ -166,7 +166,7 @@
     // Genera 32 pares de colores, es decir, 64 celdas, forzando contraste
     function generateColors() {
       const colors = [];
-      for (let i = 0; i < 44; i++) {
+      for (let i = 0; i < 32; i++) {
         const isPastel = i % 2 === 0;
         let color;
         let attempt = 0;
@@ -204,7 +204,7 @@
 
       const colors = generateColors();
       shuffle(colors);
-      for (let i = 0; i < 88; i++) {
+      for (let i = 0; i < 64; i++) {
         const cell = document.createElement("div");
         cell.classList.add("cell");
         cell.style.backgroundColor = colors[i];
