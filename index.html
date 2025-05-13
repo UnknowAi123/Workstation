@@ -70,7 +70,7 @@
   <div class="message" id="message"></div>
   
   <script>
-    // Referencias a elementos del DOM.
+    // Referencias a los elementos del DOM.
     const grid = document.getElementById("grid");
     const gridContainer = document.querySelector(".grid-container");
     const timerDisplay = document.getElementById("timer");
@@ -79,7 +79,7 @@
     const restartButton = document.getElementById("restart");
     const colorModeButton = document.getElementById("colorMode");
 
-    // Modos para el botón daltónico: "normal" y 3 tipos de daltonismo.
+    // Modos disponibles: "normal" y tres tipos de daltonismo.
     const modes = ["normal", "protanopia", "deuteranopia", "tritanopia"];
     let daltonicModeIndex = 0;
 
@@ -90,16 +90,16 @@
         timerInterval,
         gameStarted = false;
 
-    // Actualiza el tamaño de cada celda según el ancho del contenedor.
+    // Ajusta el tamaño de cada celda según el ancho del contenedor.
     function updateCellSize() {
       const containerWidth = gridContainer.clientWidth;
-      const cellSize = (containerWidth - 36) / 8; // 8 celdas + 36px de márgenes/gaps
+      const cellSize = (containerWidth - 36) / 8; // 8 celdas + 36px entre márgenes
       grid.style.setProperty('--cell-size', cellSize + 'px');
     }
     updateCellSize();
     window.addEventListener('resize', updateCellSize);
 
-    // Ciclo de modo daltónico: normal → protanopia → deuteranopia → tritanopia.
+    // Ciclo de modos daltónicos: normal → protanopia → deuteranopia → tritanopia.
     colorModeButton.addEventListener("click", function() {
       daltonicModeIndex = (daltonicModeIndex + 1) % modes.length;
       const modeText = modes[daltonicModeIndex];
@@ -108,7 +108,7 @@
       initGame();
     });
 
-    // Función para extraer valores de una cadena HSL.
+    // Función para extraer hue, saturación y luminosidad de una cadena HSL.
     function parseHSL(hslString) {
       const regex = /hsl\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%\s*\)/;
       const result = regex.exec(hslString);
@@ -122,25 +122,26 @@
       return null;
     }
 
-    // Compara dos colores; se consideran demasiado similares si:
-    // • La diferencia en hue (circularmente) es menor a 10°
-    // • La diferencia en saturación es menor a 35
-    // • La diferencia en luminosidad es menor a 30
+    // Función para determinar si dos colores son demasiado similares.
+    // Se consideran similares si:
+    //   - La diferencia en hue (teniendo en cuenta la circularidad) es menor a 15°
+    //   - La diferencia en saturación es menor a 35
+    //   - La diferencia en luminosidad es menor a 30
     function areColorsSimilar(colorStr1, colorStr2) {
       const c1 = parseHSL(colorStr1);
       const c2 = parseHSL(colorStr2);
       if (!c1 || !c2) return false;
       let hueDiff = Math.abs(c1.hue - c2.hue);
-      hueDiff = Math.min(hueDiff, 360 - hueDiff);
+      hueDiff = Math.min(hueDiff, 360 - hueDiff);  // Diferencia circular
       const satDiff = Math.abs(c1.saturation - c2.saturation);
       const lightDiff = Math.abs(c1.lightness - c2.lightness);
-      return (hueDiff < 10 && satDiff < 35 && lightDiff < 30);
+      return (hueDiff < 15 && satDiff < 35 && lightDiff < 30);
     }
 
-    // Obtiene un color aleatorio usando los siguientes rangos:
-    // - Saturación: entre 20% y 80%
-    // - Luminosidad: entre 40% y 80%
-    // - Hue: se elige según el modo. En normal es 0-359; en modos daltónicos se restringe.
+    // Genera un color aleatorio usando:
+    // - Saturación entre 20% y 80%
+    // - Luminosidad entre 40% y 80%
+    // - Hue: en modo normal se elige entre 0 y 360; en modos daltónicos se restringe el rango.
     function getRandomColor() {
       let hue;
       if (modes[daltonicModeIndex] === "protanopia") {
@@ -157,9 +158,9 @@
       return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
     }
 
-    // Genera 44 colores únicos (cada uno duplicado para formar pares, totalizando 88 celdas).
+    // Genera 44 colores únicos (cada uno duplicado para formar 88 celdas).
     // Si el color generado es demasiado similar (según los nuevos umbrales) a alguno ya generado,
-    // se vuelve a generar (máximo 10 intentos).
+    // se vuelve a generar (hasta 10 intentos).
     function generateColors() {
       const colors = [];
       for (let i = 0; i < 44; i++) {
@@ -168,7 +169,7 @@
           color = getRandomColor();
           attempt++;
         } while (colors.some(c => areColorsSimilar(c, color)) && attempt < 10);
-        // Se duplica para formar un par
+        // Se duplica el color para formar un par.
         colors.push(color, color);
       }
       return colors;
@@ -206,7 +207,7 @@
       }
     }
 
-    // Inicia el juego (arranca el temporizador)
+    // Inicia el juego (arranca el temporizador).
     function startGame() {
       if (!gameStarted) {
         gameStarted = true;
