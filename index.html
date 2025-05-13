@@ -8,19 +8,15 @@
     /* Reset y estilos básicos */
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; touch-action: manipulation; }
-    body { font-family: Arial, sans-serif; background: #333; padding: 20px; text-align: center; }
+    body { font-family: Arial, sans-serif; background: #fff; padding: 20px; text-align: center; }
     h1 { margin-bottom: 10px; font-size: 20px; }
-    
     /* Controles y botones */
     .controls { margin-bottom: 10px; }
     .button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin: 5px; }
     .timer { font-size: 24px; margin-bottom: 10px; }
-    
     /* Contenedor de la cuadrícula */
     .grid-container { width: 100%; min-width: 300px; margin: 0 auto; }
-    
-    /* La cuadrícula usa la variable --cell-size para definir el tamaño de cada celda.
-       Se crean 8 columnas; el tamaño se recalcula en JS en función del ancho del contenedor. */
+    /* La cuadrícula usa la variable --cell-size; se crean 8 columnas (se recalcula en JS). */
     .grid {
       width: 100%;
       display: grid;
@@ -31,8 +27,7 @@
       background-color: #333;
       margin: 0 auto;
     }
-    
-    /* Estilos de cada celda */
+    /* Estilos de las celdas */
     .cell {
       width: 100%;
       height: 100%;
@@ -51,7 +46,6 @@
       opacity: 0;
       pointer-events: none;
     }
-    
     /* Mensaje final */
     .message { font-size: 28px; margin-top: 20px; }
   </style>
@@ -79,7 +73,7 @@
     const restartButton = document.getElementById("restart");
     const colorModeButton = document.getElementById("colorMode");
 
-    // Modos para el botón daltónico: "normal" y 3 tipos de daltonismo.
+    // Definición de modos: "normal" y 3 tipos de daltonismo.
     const modes = ["normal", "protanopia", "deuteranopia", "tritanopia"];
     let daltonicModeIndex = 0;
 
@@ -93,13 +87,13 @@
     // Actualiza el tamaño de cada celda según el ancho del contenedor.
     function updateCellSize() {
       const containerWidth = gridContainer.clientWidth;
-      const cellSize = (containerWidth - 36) / 8; // 8 celdas + 36 px de márgenes/gaps
+      const cellSize = (containerWidth - 36) / 8; // 8 celdas + 36px de márgenes/gaps
       grid.style.setProperty('--cell-size', cellSize + 'px');
     }
     updateCellSize();
     window.addEventListener('resize', updateCellSize);
 
-    // Ciclo de modo daltónico: normal → protanopia → deuteranopia → tritanopia.
+    // Ciclo de modos daltónicos: normal → protanopia → deuteranopia → tritanopia.
     colorModeButton.addEventListener("click", function() {
       daltonicModeIndex = (daltonicModeIndex + 1) % modes.length;
       const modeText = modes[daltonicModeIndex];
@@ -108,7 +102,7 @@
       initGame();
     });
 
-    // Función parseHSL: extrae hue, saturación y luminosidad de una cadena HSL.
+    // Función para extraer valores de una cadena HSL.
     function parseHSL(hslString) {
       const regex = /hsl\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%\s*\)/;
       const result = regex.exec(hslString);
@@ -122,11 +116,11 @@
       return null;
     }
 
-    // Función areColorsSimilar:
+    // Función para comprobar si dos colores son demasiado similares.
     // Se consideran demasiado similares si:
-    //   - La diferencia en hue (circularmente) es menor a 16°
-    //   - La diferencia en saturación es menor a 16
-    //   - La diferencia en luminosidad es menor a 16
+    //   - La diferencia en hue es menor a 6° (teniendo en cuenta la circularidad)
+    //   - La diferencia en saturación es menor a 30
+    //   - La diferencia en luminosidad es menor a 25
     function areColorsSimilar(colorStr1, colorStr2) {
       const c1 = parseHSL(colorStr1);
       const c2 = parseHSL(colorStr2);
@@ -135,33 +129,35 @@
       hueDiff = Math.min(hueDiff, 360 - hueDiff);
       const satDiff = Math.abs(c1.saturation - c2.saturation);
       const lightDiff = Math.abs(c1.lightness - c2.lightness);
-      return (hueDiff < 16 && satDiff < 16 && lightDiff < 16);
+      return (hueDiff < 6 && satDiff < 30 && lightDiff < 25);
     }
 
-    // Función para obtener un color aleatorio usando los rangos:
-    // - Saturación entre 20% y 80%
-    // - Luminosidad entre 40% y 80%
-    // Para hue: en modo normal es 0-359; en modos daltónicos se restringe el rango.
+    // Función para obtener un color aleatorio usando los siguientes rangos:
+    // Hue: en modo normal se escoge entre 0 y 360; en modos daltónicos se usa un rango sugerido.
+    // Saturación: entre 20% y 80%
+    // Luminosidad: entre 40% y 80%
     function getRandomColor() {
       let hue;
       if (modes[daltonicModeIndex] === "protanopia") {
-        hue = Math.random() * 120 + 180; // hue entre 180 y 300
+        // Protanopia: tonos de azul y verde (hue entre 180 y 300)
+        hue = Math.random() * 120 + 180;
       } else if (modes[daltonicModeIndex] === "deuteranopia") {
-        hue = Math.random() * 120;       // hue entre 0 y 120
+        // Deuteranopia: tonos de rojo y amarillo (hue entre 0 y 120)
+        hue = Math.random() * 120;
       } else if (modes[daltonicModeIndex] === "tritanopia") {
-        hue = Math.random() * 120 + 60;    // hue entre 60 y 180
+        // Tritanopia: tonos de rojo y verde (hue entre 60 y 180)
+        hue = Math.random() * 120 + 60;
       } else {
         hue = Math.floor(Math.random() * 360);
       }
-      const saturation = Math.random() * (80 - 20) + 20; // [20,80)
-      const lightness = Math.random() * (80 - 40) + 40;    // [40,80)
+      const saturation = Math.random() * (80 - 20) + 20;  // [20,80)
+      const lightness = Math.random() * (80 - 40) + 40;     // [40,80)
       return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
     }
 
-    // Genera 44 colores únicos (cada color se duplica formando 88 celdas).
-    // La verificación se hace comparando el resultado completo de hue, saturación y luminosidad:
-    // Si un color nuevo es demasiado similar (diferencias en hue, sat y luz < 16) a uno ya generado,
-    // se volverá a generar.
+    // Genera 44 colores únicos (cada uno se duplica para formar un par, dando 88 celdas).
+    // Se verifica que el color resultante (combinación de hue, saturación y luminosidad)
+    // no sea demasiado similar a alguno ya generado usando los nuevos umbrales.
     function generateColors() {
       const colors = [];
       for (let i = 0; i < 44; i++) {
@@ -170,13 +166,13 @@
           color = getRandomColor();
           attempt++;
         } while (colors.some(c => areColorsSimilar(c, color)) && attempt < 10);
-        // Se añade dos veces para formar un par
+        // Se duplica el color para formar un par.
         colors.push(color, color);
       }
       return colors;
     }
 
-    // Algoritmo de shuffle (Fisher–Yates) para mezclar los colores.
+    // Función de shuffle (Fisher–Yates) para mezclar el array de colores.
     function shuffle(array) {
       for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -184,7 +180,7 @@
       }
     }
 
-    // Inicializa el juego: resetea todas las variables, el temporizador y genera las 88 celdas.
+    // Inicializa el juego: limpia la cuadrícula, resetea el temporizador y genera 88 celdas.
     function initGame() {
       if (timerInterval) clearInterval(timerInterval);
       grid.innerHTML = "";
@@ -208,7 +204,7 @@
       }
     }
 
-    // Inicia el juego (comienza el temporizador)
+    // Inicia el juego (arranca el temporizador).
     function startGame() {
       if (!gameStarted) {
         gameStarted = true;
