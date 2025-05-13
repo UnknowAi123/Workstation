@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Juego de Memoria de Colores - Rainbow Mode</title>
+  <title>Juego de Memoria de Colores</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <style>
     /* Reset y estilos básicos */
@@ -11,25 +11,25 @@
     body { font-family: Arial, sans-serif; background-color: #fff; padding: 20px; text-align: center; }
     h1 { margin-bottom: 10px; font-size: 20px; }
     
-    /* Controles */
+    /* Controles y botones */
     .controls { margin-bottom: 10px; }
     .button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin: 5px; }
     .timer { font-size: 24px; margin-bottom: 10px; }
     
-    /* Contenedor y cuadrícula – se usan 7 columnas para 84 celdas */
+    /* Contenedor de la cuadrícula */
     .grid-container { width: 100%; min-width: 300px; margin: 0 auto; }
     .grid {
       width: 100%;
       display: grid;
-      grid-template-columns: repeat(7, var(--cell-size));
+      grid-template-columns: repeat(8, var(--cell-size));
       grid-auto-rows: var(--cell-size);
       gap: 4px;
       padding: 4px;
-      background-color: #fff;
+      background-color: #333;
       margin: 0 auto;
     }
     
-    /* Celdas */
+    /* Estilos de cada celda */
     .cell {
       width: 100%;
       height: 100%;
@@ -54,10 +54,11 @@
   </style>
 </head>
 <body>
-  <h1>Juego de Memoria de Colores - Rainbow Mode</h1>
+  <h1>Juego de Memoria de Colores</h1>
   <div class="controls">
     <button class="button" id="start">Iniciar Juego</button>
     <button class="button" id="restart">Reiniciar</button>
+    <button class="button" id="colorMode">Modo Daltónico: Desactivado</button>
   </div>
   <div class="timer" id="timer">60</div>
   <div class="grid-container">
@@ -66,79 +67,90 @@
   <div class="message" id="message"></div>
   
   <script>
-    // Elementos del DOM.
-    const grid = document.getElementById("grid");
-    const gridContainer = document.querySelector(".grid-container");
-    const timerDisplay = document.getElementById("timer");
-    const messageDisplay = document.getElementById("message");
-    const startButton = document.getElementById("start");
-    const restartButton = document.getElementById("restart");
-
-    let firstCell = null, secondCell = null, lockBoard = false;
-    let timerInterval, timeLeft = 60, gameStarted = false;
-
-    // Actualiza el tamaño de cada celda según el ancho del contenedor.
-    // Para 7 columnas: 2*4px de padding y 6*4px de gap = 8 + 24 = 32px extras.
-    function updateCellSize() {
-      const containerWidth = gridContainer.clientWidth;
-      const cellSize = (containerWidth - 32) / 7;
-      grid.style.setProperty('--cell-size', cellSize + 'px');
+    // Configuración del modo daltónico
+    const modes = ["normal", "protanopia", "deuteranopia", "tritanopia"];
+    let daltonicModeIndex = 0;
+    const colorModeButton = document.getElementById("colorMode");
+    colorModeButton.addEventListener("click", () => {
+      daltonicModeIndex = (daltonicModeIndex + 1) % modes.length;
+      const modeName = modes[daltonicModeIndex];
+      colorModeButton.textContent = `Modo Daltónico: ${modeName.charAt(0).toUpperCase() + modeName.slice(1)}`;
+      initGame();
+    });
+    
+    // Función para obtener los tonos base según el modo
+    function getBaseHues() {
+      if (modes[daltonicModeIndex] === "normal") {
+        return [0, 30, 60, 120, 180, 240, 300, 330];
+      } else if (modes[daltonicModeIndex] === "protanopia") {
+        return [180, 195, 210, 225, 240, 255, 270, 285];
+      } else if (modes[daltonicModeIndex] === "deuteranopia") {
+        return [0, 15, 30, 45, 60, 75, 90, 105];
+      } else if (modes[daltonicModeIndex] === "tritanopia") {
+        return [60, 75, 90, 105, 120, 135, 150, 165];
+      }
     }
-    updateCellSize();
-    window.addEventListener('resize', updateCellSize);
-
-    // Definición de paletas arcoíris con su tono base (en grados de HSL).
-    const rainbowPalettes = [
-      { name: "Red", hue: 0 },
-      { name: "Orange", hue: 30 },
-      { name: "Yellow", hue: 60 },
-      { name: "Green", hue: 120 },
-      { name: "Blue", hue: 240 },
-      { name: "Indigo", hue: 275 },
-      { name: "Violet", hue: 300 }
-    ];
-
-    // Niveles de intensidad: para cada uno se definen saturación y luminosidad (valores base pastel).
-    const intensityLevels = [
-      { level: "low", saturation: 35, lightness: 70 },
-      { level: "medium", saturation: 50, lightness: 75 },
-      { level: "high", saturation: 65, lightness: 80 }
-    ];
-
-    // Función auxiliar para introducir una variación aleatoria (±variation).
-    function vary(value, variation = 5) {
-      return value + (Math.random() * variation * 2 - variation);
-    }
-
-    // Genera 42 colores únicos basados en la distribución arcoíris.
-    // Para cada paleta (7) y cada nivel de intensidad (low, medium, high) se generan 2 variantes.
-    function generateRainbowColors() {
-      const uniqueColors = [];
-      rainbowPalettes.forEach(palette => {
-        intensityLevels.forEach(level => {
-          for (let i = 0; i < 2; i++) {
-            const sat = vary(level.saturation, 5).toFixed(0);
-            const light = vary(level.lightness, 5).toFixed(0);
-            const hue = palette.hue; // tono fijo para la paleta
-            uniqueColors.push(`hsl(${hue}, ${sat}%, ${light}%)`);
-          }
-        });
+    
+    // Función para generar los colores (44 colores distintos, que luego duplicamos para pares)
+    function generateDistinctColors() {
+      const baseHues = getBaseHues();
+      const colors = [];
+      
+      // Grupo 1: 8 colores básicos equilibrados (saturación 50%, luminosidad 50%)
+      baseHues.forEach(hue => {
+        colors.push(`hsl(${hue}, 50%, 50%)`);
       });
-      return uniqueColors; // 7 * 3 * 2 = 42 colores.
+      
+      // Grupo 2: 8 colores básicos vivos (saturación 100%, luminosidad 50%)
+      baseHues.forEach(hue => {
+        colors.push(`hsl(${hue}, 100%, 50%)`);
+      });
+      
+      // Grupo 3: 8 colores básicos pastel (saturación 40%, luminosidad 80%)
+      baseHues.forEach(hue => {
+        colors.push(`hsl(${hue}, 40%, 80%)`);
+      });
+      
+      // Grupo 4: 20 colores aleatorios cíclicos entre los 8 tonos base
+      for (let i = 0; i < 20; i++) {
+        const hue = baseHues[i % baseHues.length];
+        // Rango aleatorio para saturación y luminosidad (ajustado para dar variedad)
+        const sat = Math.floor(Math.random() * (100 - 60 + 1)) + 60; // entre 60 y 100%
+        const light = Math.floor(Math.random() * (60 - 40 + 1)) + 40; // entre 40 y 60%
+        colors.push(`hsl(${hue}, ${sat}%, ${light}%)`);
+      }
+      
+      return colors; // Total: 8+8+8+20 = 44 colores distintos.
     }
-
-    // Algoritmo Fisher-Yates para mezclar el array.
+    
+    // Función de mezcla (Fisher–Yates)
     function shuffle(array) {
       for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [array[i], array[j]] = [array[j], array[i]];
       }
     }
-
-    // Inicializa el juego:
-    // – Se generan 42 colores únicos en modo arcoíris,
-    // – Se replican para formar pares (84 celdas),
-    // – Se mezclan y se crean las celdas en el grid.
+    
+    // Ajuste del tamaño de celda según el ancho del contenedor
+    const gridContainer = document.querySelector(".grid-container");
+    const grid = document.getElementById("grid");
+    function updateCellSize() {
+      const containerWidth = gridContainer.clientWidth;
+      // Para 8 columnas: se resta un extra para considerar padding y gaps
+      const cellSize = (containerWidth - 36) / 8;
+      grid.style.setProperty('--cell-size', cellSize + 'px');
+    }
+    updateCellSize();
+    window.addEventListener("resize", updateCellSize);
+    
+    // Variables y funciones del juego
+    let firstCell = null, secondCell = null, lockBoard = false;
+    let timerInterval, timeLeft = 60, gameStarted = false;
+    const timerDisplay = document.getElementById("timer");
+    const messageDisplay = document.getElementById("message");
+    const startButton = document.getElementById("start");
+    const restartButton = document.getElementById("restart");
+    
     function initGame() {
       if (timerInterval) clearInterval(timerInterval);
       grid.innerHTML = "";
@@ -149,30 +161,30 @@
       timeLeft = 60;
       timerDisplay.textContent = timeLeft;
       gameStarted = false;
-
-      let uniqueColors = generateRainbowColors();
-      let colors = uniqueColors.concat(uniqueColors); // duplicamos para formar pares.
+      
+      // Se generan 44 colores distintos y se duplican para tener pares (88 celdas)
+      const distinctColors = generateDistinctColors();
+      let colors = distinctColors.concat(distinctColors);
       shuffle(colors);
-
-      // Se crean 84 celdas.
-      for (let i = 0; i < colors.length; i++) {
+      
+      // Se crean las 88 celdas
+      colors.forEach(color => {
         const cell = document.createElement("div");
         cell.classList.add("cell");
-        cell.style.backgroundColor = colors[i];
-        cell.dataset.color = colors[i];
+        cell.style.backgroundColor = color;
+        cell.dataset.color = color;
         cell.addEventListener("click", handleCellClick);
         grid.appendChild(cell);
-      }
+      });
     }
-
-    // Funciones del juego (temporizador, control de selección y verificación de parejas).
+    
     function startGame() {
       if (!gameStarted) {
         gameStarted = true;
         timerInterval = setInterval(updateTimer, 1000);
       }
     }
-
+    
     function updateTimer() {
       if (timeLeft > 0) {
         timeLeft--;
@@ -182,11 +194,11 @@
         endGame(false);
       }
     }
-
+    
     function handleCellClick() {
       if (!gameStarted || lockBoard || this.classList.contains("removed")) return;
       if (this === firstCell) return;
-
+      
       this.classList.add("selected");
       if (!firstCell) {
         firstCell = this;
@@ -213,30 +225,28 @@
         }
       }
     }
-
+    
     function resetSelection() {
       firstCell = null;
       secondCell = null;
       lockBoard = false;
     }
-
+    
     function checkGameEnd() {
       if (document.querySelectorAll(".cell:not(.removed)").length === 0) {
         clearInterval(timerInterval);
         endGame(true);
       }
     }
-
+    
     function endGame(win) {
       lockBoard = true;
       messageDisplay.textContent = win ? "¡Ganaste!" : "¡Perdiste!";
     }
-
-    // Eventos de los botones
+    
     restartButton.addEventListener("click", () => { initGame(); startGame(); });
     startButton.addEventListener("click", startGame);
-
-    // Inicialización
+    
     initGame();
   </script>
 </body>
