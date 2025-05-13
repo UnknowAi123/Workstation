@@ -2,234 +2,114 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Juego de Memoria de Colores - Generación Optimizada</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Juego de Memoria de Colores - Umbrales Funcionando</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     /* Reset y estilos básicos */
-    * { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; touch-action: manipulation; }
-    body { font-family: Arial, sans-serif; background: #fff; padding: 20px; text-align: center; }
-    h1 { margin-bottom: 10px; font-size: 20px; }
-    
-    /* Controles y botones */
-    .controls { margin-bottom: 10px; }
-    .button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin: 5px; }
-    .timer { font-size: 24px; margin-bottom: 10px; }
-    
-    /* Contenedor de la cuadrícula */
-    .grid-container { width: 100%; min-width: 300px; margin: 0 auto; }
-    
-    /* La cuadrícula usa la variable --cell-size para definir el tamaño de cada celda.
-       Se crean 8 columnas; el tamaño se recalcula en JS en función del ancho del contenedor. */
-    .grid {
-      width: 100%;
-      display: grid;
-      grid-template-columns: repeat(8, var(--cell-size));
-      grid-auto-rows: var(--cell-size);
-      gap: 4px;
-      padding: 4px;
-      background-color: #333;
-      margin: 0 auto;
-    }
-    
-    /* Estilos de las celdas */
-    .cell {
-      width: 100%;
-      height: 100%;
-      background: #ccc;
-      cursor: pointer;
-      transition: all 0.3s;
-    }
-    .cell.selected {
-      border: 3px solid #FFD700;
-      transform: scale(1.05);
-    }
-    .cell.wrong {
-      filter: brightness(0.5);
-    }
-    .cell.removed {
-      opacity: 0;
-      pointer-events: none;
-    }
-    
-    /* Mensaje final */
-    .message { font-size: 28px; margin-top: 20px; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { font-family: Arial, sans-serif; background: #fff; text-align: center; }
+    h1 { margin: 20px 0; font-size: 20px; }
+    .grid-container { width: 100%; max-width: 600px; margin: 20px auto; }
+    .grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
+    .cell { position: relative; background: #ccc; padding-bottom: 100%; cursor: pointer; transition: all 0.3s; }
+    .cell > div { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
+    .cell.selected { border: 3px solid #FFD700; transform: scale(1.05); }
+    .cell.removed { opacity: 0; pointer-events: none; }
   </style>
 </head>
 <body>
-  <h1>Juego de Memoria de Colores</h1>
-  <div class="controls">
-    <button class="button" id="start">Iniciar Juego</button>
-    <button class="button" id="restart">Reiniciar</button>
-    <button class="button" id="colorMode">Modo Daltónico: Desactivado</button>
-  </div>
-  <div class="timer" id="timer">60</div>
+  <h1>Juego de Memoria de Colores - Modo Hexadecimal con Umbrales</h1>
   <div class="grid-container">
     <div class="grid" id="grid"></div>
   </div>
-  <div class="message" id="message"></div>
-  
+
   <script>
-    // Referencias a los elementos del DOM.
-    const grid = document.getElementById("grid");
-    const gridContainer = document.querySelector(".grid-container");
-    const timerDisplay = document.getElementById("timer");
-    const messageDisplay = document.getElementById("message");
-    const startButton = document.getElementById("start");
-    const restartButton = document.getElementById("restart");
-    const colorModeButton = document.getElementById("colorMode");
-
-    // Modos disponibles: "normal" y tres tipos de daltonismo.
-    const modes = ["normal", "protanopia", "deuteranopia", "tritanopia"];
-    let daltonicModeIndex = 0;
-
-    let firstCell = null,
-        secondCell = null,
-        lockBoard = false,
-        timeLeft = 60,
-        timerInterval,
-        gameStarted = false;
-
-    // Ajusta el tamaño de cada celda según el ancho del contenedor.
-    function updateCellSize() {
-      const containerWidth = gridContainer.clientWidth;
-      const cellSize = (containerWidth - 36) / 8; // 8 celdas + 36px entre márgenes
-      grid.style.setProperty('--cell-size', cellSize + 'px');
-    }
-    updateCellSize();
-    window.addEventListener('resize', updateCellSize);
-
-    // Ciclo de modos daltónicos: normal → protanopia → deuteranopia → tritanopia.
-    colorModeButton.addEventListener("click", function() {
-      daltonicModeIndex = (daltonicModeIndex + 1) % modes.length;
-      const modeText = modes[daltonicModeIndex];
-      colorModeButton.textContent =
-        `Modo Daltónico: ${modeText.charAt(0).toUpperCase() + modeText.slice(1)}`;
-      initGame();
-    });
-
-    // Función para extraer hue, saturación y luminosidad de una cadena HSL.
-    function parseHSL(hslString) {
-      const regex = /hsl\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%\s*\)/;
-      const result = regex.exec(hslString);
-      if (result) {
-        return {
-          hue: parseFloat(result[1]),
-          saturation: parseFloat(result[2]),
-          lightness: parseFloat(result[3])
-        };
+    // Función para convertir valores RGB a hexadecimal
+    function rgbToHex(r, g, b) {
+      function toHex(c) {
+        const hex = c.toString(16);
+        return hex.length === 1 ? "0" + hex : hex;
       }
-      return null;
+      return "#" + toHex(r) + toHex(g) + toHex(b);
     }
-
-    // Función para determinar si dos colores son demasiado similares.
-    // Se consideran similares si:
-    //   - La diferencia en hue (teniendo en cuenta la circularidad) es menor a 15°
-    //   - La diferencia en saturación es menor a 35
-    //   - La diferencia en luminosidad es menor a 30
-    function areColorsSimilar(colorStr1, colorStr2) {
-      const c1 = parseHSL(colorStr1);
-      const c2 = parseHSL(colorStr2);
-      if (!c1 || !c2) return false;
-      let hueDiff = Math.abs(c1.hue - c2.hue);
-      hueDiff = Math.min(hueDiff, 360 - hueDiff);  // Diferencia circular
-      const satDiff = Math.abs(c1.saturation - c2.saturation);
-      const lightDiff = Math.abs(c1.lightness - c2.lightness);
-      return (hueDiff < 15 && satDiff < 35 && lightDiff < 30);
+    
+    // Genera un color pastel en RGB y lo devuelve en un objeto con propiedades r, g, b y hex.
+    function getRandomPastelHex() {
+      // Se genera un valor aleatorio y se mezcla con 255 para acercarlo a blanco, obteniendo un tono pastel.
+      const r = Math.floor((Math.random() * 256 + 255) / 2);
+      const g = Math.floor((Math.random() * 256 + 255) / 2);
+      const b = Math.floor((Math.random() * 256 + 255) / 2);
+      return { r: r, g: g, b: b, hex: rgbToHex(r, g, b) };
     }
-
-    // Genera un color aleatorio usando:
-    // - Saturación entre 20% y 80%
-    // - Luminosidad entre 40% y 80%
-    // - Hue: en modo normal se elige entre 0 y 360; en modos daltónicos se restringe el rango.
-    function getRandomColor() {
-      let hue;
-      if (modes[daltonicModeIndex] === "protanopia") {
-        hue = Math.random() * 120 + 180; // Hue entre 180 y 300
-      } else if (modes[daltonicModeIndex] === "deuteranopia") {
-        hue = Math.random() * 120;       // Hue entre 0 y 120
-      } else if (modes[daltonicModeIndex] === "tritanopia") {
-        hue = Math.random() * 120 + 60;    // Hue entre 60 y 180
-      } else {
-        hue = Math.floor(Math.random() * 360);
-      }
-      const saturation = Math.random() * (80 - 20) + 20;  // [20,80)
-      const lightness = Math.random() * (80 - 40) + 40;     // [40,80)
-      return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+    
+    // Calcula la distancia euclidiana entre dos colores en el espacio RGB.
+    function colorDistance(c1, c2) {
+      const dr = c1.r - c2.r;
+      const dg = c1.g - c2.g;
+      const db = c1.b - c2.b;
+      return Math.sqrt(dr * dr + dg * dg + db * db);
     }
-
+    
+    // Umbral para determinar si dos colores son demasiado similares.
+    // Puedes ajustar este valor para que "funcione" como deseas.
+    const rgbThreshold = 40;
+    
+    // Devuelve true si la distancia entre dos colores es menor que el umbral.
+    function areColorsSimilarRGB(color1, color2) {
+      return colorDistance(color1, color2) < rgbThreshold;
+    }
+    
     // Genera 44 colores únicos (cada uno duplicado para formar 88 celdas).
-    // Si el color generado es demasiado similar (según los nuevos umbrales) a alguno ya generado,
-    // se vuelve a generar (hasta 10 intentos).
+    // Se realizan hasta 10 intentos para que un color no sea demasiado similar a alguno ya generado.
     function generateColors() {
       const colors = [];
       for (let i = 0; i < 44; i++) {
         let color, attempt = 0;
         do {
-          color = getRandomColor();
+          color = getRandomPastelHex();
           attempt++;
-        } while (colors.some(c => areColorsSimilar(c, color)) && attempt < 10);
+        } while (colors.some(c => areColorsSimilarRGB(c, color)) && attempt < 10);
         // Se duplica el color para formar un par.
         colors.push(color, color);
       }
       return colors;
     }
-
-    // Algoritmo de shuffle (Fisher–Yates) para mezclar el array de colores.
+    
+    // Algoritmo de shuffle (Fisher-Yates) para mezclar los colores.
     function shuffle(array) {
       for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [array[i], array[j]] = [array[j], array[i]];
       }
     }
-
-    // Inicializa el juego: resetea el temporizador, la cuadrícula y genera 88 celdas.
+    
+    // Manejo de la cuadrícula y la mecánica de juego (selección de celdas).
+    const grid = document.getElementById("grid");
+    let firstCell = null, secondCell = null, lockBoard = false;
+    
     function initGame() {
-      if (timerInterval) clearInterval(timerInterval);
       grid.innerHTML = "";
-      messageDisplay.textContent = "";
-      firstCell = null;
-      secondCell = null;
-      lockBoard = false;
-      timeLeft = 60;
-      timerDisplay.textContent = timeLeft;
-      gameStarted = false;
-
       const colors = generateColors();
       shuffle(colors);
+      // Se crean 88 celdas.
       for (let i = 0; i < 88; i++) {
         const cell = document.createElement("div");
         cell.classList.add("cell");
-        cell.style.backgroundColor = colors[i];
-        cell.dataset.color = colors[i];
+        const innerDiv = document.createElement("div");
+        innerDiv.style.backgroundColor = colors[i].hex;
+        cell.dataset.color = colors[i].hex;
+        cell.appendChild(innerDiv);
         cell.addEventListener("click", handleCellClick);
         grid.appendChild(cell);
       }
     }
-
-    // Inicia el juego (arranca el temporizador).
-    function startGame() {
-      if (!gameStarted) {
-        gameStarted = true;
-        timerInterval = setInterval(updateTimer, 1000);
-      }
-    }
-
-    function updateTimer() {
-      if (timeLeft > 0) {
-        timeLeft--;
-        timerDisplay.textContent = timeLeft;
-      } else {
-        clearInterval(timerInterval);
-        endGame(false);
-      }
-    }
-
+    
     function handleCellClick() {
-      if (!gameStarted || lockBoard || this.classList.contains("removed")) return;
+      if (lockBoard || this.classList.contains("removed")) return;
       if (this === firstCell) return;
-
+      
       this.classList.add("selected");
+      
       if (!firstCell) {
         firstCell = this;
       } else {
@@ -242,42 +122,24 @@
             firstCell.classList.remove("selected");
             secondCell.classList.remove("selected");
             resetSelection();
-            checkGameEnd();
           }, 200);
         } else {
-          firstCell.classList.add("wrong");
-          secondCell.classList.add("wrong");
           setTimeout(() => {
-            firstCell.classList.remove("wrong", "selected");
-            secondCell.classList.remove("wrong", "selected");
+            firstCell.classList.remove("selected");
+            secondCell.classList.remove("selected");
             resetSelection();
           }, 200);
         }
       }
     }
-
+    
     function resetSelection() {
       firstCell = null;
       secondCell = null;
       lockBoard = false;
     }
-
-    function checkGameEnd() {
-      const remaining = document.querySelectorAll(".cell:not(.removed)").length;
-      if (remaining === 0) {
-        clearInterval(timerInterval);
-        endGame(true);
-      }
-    }
-
-    function endGame(win) {
-      lockBoard = true;
-      messageDisplay.textContent = win ? "¡Ganaste!" : "¡Perdiste!";
-    }
-
-    restartButton.addEventListener("click", () => { initGame(); startGame(); });
-    startButton.addEventListener("click", startGame);
-
+    
+    // Inicia el juego al cargar la página.
     initGame();
   </script>
 </body>
