@@ -92,7 +92,6 @@
     // Actualiza el tamaño de cada celda según el ancho del contenedor.
     function updateCellSize() {
       const containerWidth = gridContainer.clientWidth;
-      // Las cuentas: 8 celdas + 2 márgenes de 4px (padding) + 7 gaps de 4px = 36px.
       const cellSize = (containerWidth - 36) / 8;
       grid.style.setProperty('--cell-size', cellSize + 'px');
     }
@@ -108,73 +107,38 @@
       initGame();
     });
 
-    // Función para generar un color en HSL.
-    // En modo normal se cubre el espectro completo; en modos daltónicos se limita el rango del hue.
-    function getRandomColor(isPastel) {
-      let hue;
-      if (modes[daltonicModeIndex] === "protanopia") {
-        // Protanopia: se emplean tonos de azul y verde (hue entre 180 y 300)
-        hue = Math.random() * 120 + 180;
-      } else if (modes[daltonicModeIndex] === "deuteranopia") {
-        // Deuteranopia: se emplean tonos de rojo y amarillo (hue entre 0 y 120)
-        hue = Math.random() * 120;
-      } else if (modes[daltonicModeIndex] === "tritanopia") {
-        // Tritanopia: se emplean tonos de rojo y verde (hue entre 60 y 180)
-        hue = Math.random() * 120 + 60;
-      } else {
-        // Modo normal: espectro completo
-        hue = Math.floor(Math.random() * 360);
-      }
-      const saturation = isPastel ? Math.random() * 35 + 30 : Math.random() * 40 + 60;
-      const lightness = Math.random() * 25 + 60;
+    // Generación de colores con distribución 50% pastel y 50% vibrante
+    function getRandomColor() {
+      let hue = Math.floor(Math.random() * 360);
+      let isPastel = Math.random() < 0.5; // 50% pastel, 50% vibrante
+      let saturation = isPastel ? Math.random() * (60 - 30) + 30 : Math.random() * (90 - 60) + 60;
+      let lightness = isPastel ? Math.random() * (90 - 70) + 70 : Math.random() * (70 - 30) + 30;
       return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
     }
 
-    // Función auxiliar para extraer hue, saturación y luminosidad de una cadena HSL.
-    function parseHSL(hslString) {
-      const regex = /hsl\((\d+),\s*([\d\.]+)%,\s*([\d\.]+)%\)/;
-      const result = regex.exec(hslString);
-      if (result) {
-        return {
-          hue: parseInt(result[1]),
-          saturation: parseFloat(result[2]),
-          lightness: parseFloat(result[3])
-        };
-      }
-      return null;
-    }
+    // Comparación escalonada
+    function areColorsSimilar(color1, color2) {
+      const parseHSL = str => {
+        const [_, h, s, l] = str.match(/hsl\((\d+),\s*([\d\.]+)%,\s*([\d\.]+)%\)/).map(Number);
+        return { hue: h, saturation: s, lightness: l };
+      };
 
-    // Función de comparación escalonada: se evalúan hue, saturación y luminosidad por separado.
-    function areColorsSimilar(colorStr1, colorStr2) {
-      const color1 = parseHSL(colorStr1);
-      const color2 = parseHSL(colorStr2);
-      if (!color1 || !color2) return false;
-      
-      // Etapa 1: Comparar hue (20°)
-      let hueDiff = Math.abs(color1.hue - color2.hue);
-      hueDiff = Math.min(hueDiff, 360 - hueDiff); // considerar circularidad
-      if (hueDiff < 20) return true;
-      
-      // Etapa 2: Comparar saturación (20%)
-      const satDiff = Math.abs(color1.saturation - color2.saturation);
-      if (satDiff < 20) return true;
-      
-      // Etapa 3: Comparar luminosidad (30%)
-      const lightDiff = Math.abs(color1.lightness - color2.lightness);
-      if (lightDiff < 30) return true;
-      
+      let c1 = parseHSL(color1);
+      let c2 = parseHSL(color2);
+
+      if (Math.abs(c1.hue - c2.hue) < 20) return true;
+      if (Math.abs(c1.saturation - c2.saturation) < 20) return true;
+      if (Math.abs(c1.lightness - c2.lightness) < 30) return true;
+
       return false;
     }
 
-    // Genera 44 pares de colores (88 celdas) intentando filtrar colores semejantes.
-    // Se realizan hasta 100 intentos para generar un color que no sea similar a los ya generados.
     function generateColors() {
       const colors = [];
       for (let i = 0; i < 44; i++) {
-        const isPastel = true;
         let color, attempt = 0;
         do {
-          color = getRandomColor(isPastel);
+          color = getRandomColor();
           attempt++;
         } while (colors.some(c => areColorsSimilar(c, color)) && attempt < 100);
         colors.push(color, color);
@@ -182,111 +146,20 @@
       return colors;
     }
 
-    // Algoritmo de shuffle (Fisher–Yates)
-    function shuffle(array) {
-      for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-      }
-    }
-
-    // Reinicia el juego: limpia la cuadrícula, resetea el temporizador y genera nuevas celdas.
     function initGame() {
-      if (timerInterval) clearInterval(timerInterval);
       grid.innerHTML = "";
-      messageDisplay.textContent = "";
-      firstCell = null;
-      secondCell = null;
-      lockBoard = false;
-      timeLeft = 60;
-      timerDisplay.textContent = timeLeft;
-      gameStarted = false;
-
       const colors = generateColors();
-      shuffle(colors);
-      // Se crean 88 celdas.
-      for (let i = 0; i < 88; i++) {
+      colors.sort(() => Math.random() - 0.5);
+      colors.forEach(c => {
         const cell = document.createElement("div");
         cell.classList.add("cell");
-        cell.style.backgroundColor = colors[i];
-        cell.dataset.color = colors[i];
-        cell.addEventListener("click", handleCellClick);
+        cell.style.backgroundColor = c;
         grid.appendChild(cell);
-      }
+      });
     }
 
-    // Inicia el temporizador.
-    function startGame() {
-      if (!gameStarted) {
-        gameStarted = true;
-        timerInterval = setInterval(updateTimer, 1000);
-      }
-    }
-
-    function updateTimer() {
-      if (timeLeft > 0) {
-        timeLeft--;
-        timerDisplay.textContent = timeLeft;
-      } else {
-        clearInterval(timerInterval);
-        endGame(false);
-      }
-    }
-
-    function handleCellClick() {
-      if (!gameStarted || lockBoard || this.classList.contains("removed")) return;
-      if (this === firstCell) return;
-
-      this.classList.add("selected");
-
-      if (!firstCell) {
-        firstCell = this;
-      } else {
-        secondCell = this;
-        lockBoard = true;
-        if (firstCell.dataset.color === secondCell.dataset.color) {
-          setTimeout(() => {
-            firstCell.classList.add("removed");
-            secondCell.classList.add("removed");
-            firstCell.classList.remove("selected");
-            secondCell.classList.remove("selected");
-            resetSelection();
-            checkGameEnd();
-          }, 200);
-        } else {
-          firstCell.classList.add("wrong");
-          secondCell.classList.add("wrong");
-          setTimeout(() => {
-            firstCell.classList.remove("wrong", "selected");
-            secondCell.classList.remove("wrong", "selected");
-            resetSelection();
-          }, 200);
-        }
-      }
-    }
-
-    function resetSelection() {
-      firstCell = null;
-      secondCell = null;
-      lockBoard = false;
-    }
-
-    function checkGameEnd() {
-      const remaining = document.querySelectorAll(".cell:not(.removed)").length;
-      if (remaining === 0) {
-        clearInterval(timerInterval);
-        endGame(true);
-      }
-    }
-
-    function endGame(win) {
-      lockBoard = true;
-      messageDisplay.textContent = win ? "¡Ganaste!" : "¡Perdiste!";
-    }
-
-    restartButton.addEventListener("click", () => { initGame(); startGame(); });
-    startButton.addEventListener("click", startGame);
-
+    startButton.addEventListener("click", initGame);
+    restartButton.addEventListener("click", initGame);
     initGame();
   </script>
 </body>
