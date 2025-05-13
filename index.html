@@ -10,13 +10,17 @@
     html, body { margin: 0; padding: 0; touch-action: manipulation; }
     body { font-family: Arial, sans-serif; background: #fff; padding: 20px; text-align: center; }
     h1 { margin-bottom: 10px; font-size: 20px; }
+    
     /* Controles y botones */
     .controls { margin-bottom: 10px; }
     .button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin: 5px; }
     .timer { font-size: 24px; margin-bottom: 10px; }
+    
     /* Contenedor de la cuadrícula */
     .grid-container { width: 100%; min-width: 300px; margin: 0 auto; }
-    /* La cuadrícula usa la variable --cell-size; se crean 8 columnas (se recalcula en JS). */
+    
+    /* La cuadrícula usa la variable --cell-size para definir el tamaño de cada celda.
+       Se crean 8 columnas; el tamaño se recalcula en JS en función del ancho del contenedor. */
     .grid {
       width: 100%;
       display: grid;
@@ -27,6 +31,7 @@
       background-color: #333;
       margin: 0 auto;
     }
+    
     /* Estilos de las celdas */
     .cell {
       width: 100%;
@@ -46,6 +51,7 @@
       opacity: 0;
       pointer-events: none;
     }
+    
     /* Mensaje final */
     .message { font-size: 28px; margin-top: 20px; }
   </style>
@@ -73,7 +79,7 @@
     const restartButton = document.getElementById("restart");
     const colorModeButton = document.getElementById("colorMode");
 
-    // Definición de modos: "normal" y 3 tipos de daltonismo.
+    // Modos para el botón daltónico: "normal" y 3 tipos de daltonismo.
     const modes = ["normal", "protanopia", "deuteranopia", "tritanopia"];
     let daltonicModeIndex = 0;
 
@@ -93,7 +99,7 @@
     updateCellSize();
     window.addEventListener('resize', updateCellSize);
 
-    // Ciclo de modos daltónicos: normal → protanopia → deuteranopia → tritanopia.
+    // Ciclo de modo daltónico: normal → protanopia → deuteranopia → tritanopia.
     colorModeButton.addEventListener("click", function() {
       daltonicModeIndex = (daltonicModeIndex + 1) % modes.length;
       const modeText = modes[daltonicModeIndex];
@@ -116,11 +122,10 @@
       return null;
     }
 
-    // Función para comprobar si dos colores son demasiado similares.
-    // Se consideran demasiado similares si:
-    //   - La diferencia en hue es menor a 6° (teniendo en cuenta la circularidad)
-    //   - La diferencia en saturación es menor a 30
-    //   - La diferencia en luminosidad es menor a 25
+    // Compara dos colores; se consideran demasiado similares si:
+    // • La diferencia en hue (circularmente) es menor a 10°
+    // • La diferencia en saturación es menor a 35
+    // • La diferencia en luminosidad es menor a 30
     function areColorsSimilar(colorStr1, colorStr2) {
       const c1 = parseHSL(colorStr1);
       const c2 = parseHSL(colorStr2);
@@ -129,24 +134,21 @@
       hueDiff = Math.min(hueDiff, 360 - hueDiff);
       const satDiff = Math.abs(c1.saturation - c2.saturation);
       const lightDiff = Math.abs(c1.lightness - c2.lightness);
-      return (hueDiff < 6 && satDiff < 30 && lightDiff < 25);
+      return (hueDiff < 10 && satDiff < 35 && lightDiff < 30);
     }
 
-    // Función para obtener un color aleatorio usando los siguientes rangos:
-    // Hue: en modo normal se escoge entre 0 y 360; en modos daltónicos se usa un rango sugerido.
-    // Saturación: entre 20% y 80%
-    // Luminosidad: entre 40% y 80%
+    // Obtiene un color aleatorio usando los siguientes rangos:
+    // - Saturación: entre 20% y 80%
+    // - Luminosidad: entre 40% y 80%
+    // - Hue: se elige según el modo. En normal es 0-359; en modos daltónicos se restringe.
     function getRandomColor() {
       let hue;
       if (modes[daltonicModeIndex] === "protanopia") {
-        // Protanopia: tonos de azul y verde (hue entre 180 y 300)
-        hue = Math.random() * 120 + 180;
+        hue = Math.random() * 120 + 180; // Hue entre 180 y 300
       } else if (modes[daltonicModeIndex] === "deuteranopia") {
-        // Deuteranopia: tonos de rojo y amarillo (hue entre 0 y 120)
-        hue = Math.random() * 120;
+        hue = Math.random() * 120;       // Hue entre 0 y 120
       } else if (modes[daltonicModeIndex] === "tritanopia") {
-        // Tritanopia: tonos de rojo y verde (hue entre 60 y 180)
-        hue = Math.random() * 120 + 60;
+        hue = Math.random() * 120 + 60;    // Hue entre 60 y 180
       } else {
         hue = Math.floor(Math.random() * 360);
       }
@@ -155,9 +157,9 @@
       return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
     }
 
-    // Genera 44 colores únicos (cada uno se duplica para formar un par, dando 88 celdas).
-    // Se verifica que el color resultante (combinación de hue, saturación y luminosidad)
-    // no sea demasiado similar a alguno ya generado usando los nuevos umbrales.
+    // Genera 44 colores únicos (cada uno duplicado para formar pares, totalizando 88 celdas).
+    // Si el color generado es demasiado similar (según los nuevos umbrales) a alguno ya generado,
+    // se vuelve a generar (máximo 10 intentos).
     function generateColors() {
       const colors = [];
       for (let i = 0; i < 44; i++) {
@@ -166,13 +168,13 @@
           color = getRandomColor();
           attempt++;
         } while (colors.some(c => areColorsSimilar(c, color)) && attempt < 10);
-        // Se duplica el color para formar un par.
+        // Se duplica para formar un par
         colors.push(color, color);
       }
       return colors;
     }
 
-    // Función de shuffle (Fisher–Yates) para mezclar el array de colores.
+    // Algoritmo de shuffle (Fisher–Yates) para mezclar el array de colores.
     function shuffle(array) {
       for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -180,7 +182,7 @@
       }
     }
 
-    // Inicializa el juego: limpia la cuadrícula, resetea el temporizador y genera 88 celdas.
+    // Inicializa el juego: resetea el temporizador, la cuadrícula y genera 88 celdas.
     function initGame() {
       if (timerInterval) clearInterval(timerInterval);
       grid.innerHTML = "";
@@ -204,7 +206,7 @@
       }
     }
 
-    // Inicia el juego (arranca el temporizador).
+    // Inicia el juego (arranca el temporizador)
     function startGame() {
       if (!gameStarted) {
         gameStarted = true;
