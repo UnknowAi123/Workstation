@@ -2,197 +2,264 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Editor HTML Online - Alfa</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Extraer Enlaces de HTML - Ajuste Final</title>
   <style>
-    /* --- General Styles --- */
-    * { box-sizing: border-box; }
+    /* Estilos generales */
     body {
       font-family: Arial, sans-serif;
       text-align: center;
       overflow-x: hidden;
-      margin: 0;
-      padding: 0;
+      margin-bottom: 0;
+      padding-bottom: 0;
     }
-    .container {
-      max-width: 1280px;
-      margin: auto;
-      padding: 20px;
-    }
-    
-    /* --- Button Styles --- */
-    .boton-carga, button {
+    /* Para pantallas grandes (PC) */
+    @media (min-width: 769px) { body { margin: 40px; } }
+    /* Para pantallas pequeñas (Phone) */
+    @media (max-width: 768px) { body { margin: 20px; } }
+    input, button {
       width: 80%;
       padding: 10px;
-      margin: 10px auto;
-      display: block;
-      background-color: #0078D7;
-      color: white;
-      border: 2px solid #0078D7;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 16px;
-      text-align: center;
+      margin: 10px 0;
     }
-    input[type="file"] { display: none; }
-    #fileName {
-      font-size: 14px;
-      color: #555;
-      margin-bottom: 20px;
-    }
-    
-    /* --- Editor & Preview Boxes --- */
-    #editor, #preview {
-      width: 100%;
+    button { font-size: 16px; cursor: pointer; }
+    /* Estilo base para la caja de vista previa */
+    #resultado {
+      text-align: left;
+      max-width: 100%;
       margin: 20px auto;
+      border: 2px solid #ccc;
       padding: 10px;
-      border: 2px solid #0078D7;
-      border-radius: 5px;
       background: #f4f4f4;
-      display: block;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      box-sizing: border-box;
     }
-    /* Editor (Textarea) */
-    #editor {
-      height: 300px;
-      font-family: monospace;
-      resize: none;
+    /* Fallback general (para navegadores que no sean Chrome o Firefox) */
+    @media (min-width: 769px) { #resultado { font-size: 13px; } }
+    @media (max-width: 768px) { #resultado { font-size: 12px; } }
+    /* --- Para Chrome --- */
+    @media screen and (-webkit-min-device-pixel-ratio: 0) {
+      @media (min-width: 769px) { #resultado { font-size: 10px !important; } }
+      @media (max-width: 768px) { #resultado { font-size: 10px !important; } }
     }
-    /* Preview (iframe) */
-    #preview {
-      height: 300px;
-    }
-    
-    /* --- Media Queries for Editor (external styling) --- */
-    @media (min-width: 769px) { /* PC */
-      #editor { font-size: 10px; }
-    }
-    @media (max-width: 768px) { /* Phone */
-      #editor { font-size: 12px; }
-    }
-    
-    /* --- Chrome Specific for Editor --- */
-    @media screen and (-webkit-min-device-pixel-ratio:0) {
-      @media (min-width: 769px) { /* Chrome PC */
-        #editor { font-size: 16px !important; }
-      }
-      @media (max-width: 768px) { /* Chrome Phone */
-        #editor { font-size: 10px !important; }
-      }
-    }
-    
-    /* --- Firefox Specific for Editor --- */
+    /* --- Para Firefox --- */
     @-moz-document url-prefix() {
-      @media (min-width: 769px) { /* Firefox PC */
-        #editor { font-size: 16px !important; }
-      }
-      @media (max-width: 768px) { /* Firefox Phone */
-        #editor { font-size: 11px !important; }
-      }
+      @media (min-width: 769px) { #resultado { font-size: 18px !important; } }
+      @media (max-width: 768px) { #resultado { font-size: 10px !important; } }
     }
+    /* Estilos para mensajes */
+    #mensajeCargar, #mensajeExtraer, #mensajeExportar {
+      text-align: center;
+      font-weight: bold;
+      padding: 5px;
+      margin-top: 10px;
+    }
+    .positivo { color: green; }
+    .negativo { color: red; }
   </style>
 </head>
-<body onload="resetAll()"> <!-- Se resetea al cargar -->
-  <div class="container">
-    <h1>Editor HTML Online - Alfa</h1>
-    
-    <!-- --- File Load Button --- -->
-    <label for="fileInput" class="boton-carga">Cargar</label>
-    <input type="file" id="fileInput" accept=".html">
-    <div id="fileName"></div>
-    
-    <!-- --- Code Editor --- -->
-    <textarea id="editor"></textarea>
-    
-    <!-- --- Save Button --- -->
-    <button onclick="guardarHTML()">Guardar HTML</button>
-    
-    <!-- --- Preview iframe --- -->
-    <iframe id="preview"></iframe>
-  </div>
+<body>
+  <h1>Extraer Enlaces de HTML</h1>
+  <p>Sube un archivo HTML de marcadores y visualiza solo los enlaces ordenados.</p>
+  
+  <button onclick="document.getElementById('archivo').click()">CARGAR Y PROCESAR POR FECHA</button>
+  <button onclick="document.getElementById('archivoAZ').click()">CARGAR Y PROCESAR A-Z</button>
+  <input type="file" id="archivo" style="display: none;" accept=".html" onchange="validarYProcesarArchivo('fecha')">
+  <input type="file" id="archivoAZ" style="display: none;" accept=".html" onchange="validarYProcesarArchivo('az')">
+  
+  <div id="mensajeCargar"></div>
+  <div id="mensajeExtraer"></div>
+  
+  <button onclick="exportarHTML()">EXPORTAR HTML</button>
+  <div id="mensajeExportar"></div>
+  
+  <h2>Marcadores:</h2>
+  <pre id="resultado"></pre>
   
   <script>
-    // --- Variable global para guardar el contenido original ---
-    let contenidoOriginal = "";
-    
-    // --- Carga del Archivo HTML ---
-    document.getElementById('fileInput').addEventListener('change', function(event) {
-      const archivo = event.target.files[0];
-      if (archivo) {
-        document.getElementById('fileName').textContent = archivo.name;
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          contenidoOriginal = e.target.result;
-          document.getElementById('editor').value = contenidoOriginal;
-          // Se inyecta el CSS básico (customizable por media queries) en la vista previa
-          document.getElementById('preview').srcdoc = `<head>${basicCSS}</head>` + contenidoOriginal;
-        };
-        reader.readAsText(archivo);
+    function validarYProcesarArchivo(metodoOrden) {
+      const archivo = document.getElementById(metodoOrden === "fecha" ? "archivo" : "archivoAZ").files[0];
+      if (!archivo) return mostrarMensaje("Error (Ningún archivo cargado)", "mensajeCargar", "negativo");
+      if (!archivo.name.endsWith(".html")) {
+        document.getElementById(metodoOrden === "fecha" ? "archivo" : "archivoAZ").value = "";
+        return mostrarMensaje("Error (Formato incorrecto, debe ser HTML)", "mensajeCargar", "negativo");
       }
-    });
-    
-    /* --- Basic View CSS inyectado en la vista previa ---
-         Aquí se eliminó la fuente fija para poder personalizarla mediante media queries.
-         Se distinguen condiciones para PC y Phone y también se incluyen reglas específicas para Chrome y Firefox.
-    */
-    const basicCSS = `<style>
-      /* Reset básico sin fuente fija */
-      * {
-        font-weight: normal !important;
-        margin: 0;
-        padding: 0;
-        font-family: Arial, sans-serif !important;
-      }
-      /* Negrita para elementos indicados */
-      b, strong { font-weight: bold !important; }
-      /* Subrayado */
-      u { text-decoration: underline !important; }
-      
-      /* --- Fuente en dispositivos --- */
-      @media (min-width: 769px) {
-        /* PC: Valor por defecto para navegadores genéricos */
-        * { font-size: 13px !important; }
-      }
-      @media (max-width: 768px) {
-        /* Phone: Valor por defecto */
-        * { font-size: 12px !important; }
-      }
-      
-      /* --- Chrome Específico --- */
-      @media screen and (-webkit-min-device-pixel-ratio:0) {
-        @media (min-width: 769px) {
-          * { font-size: 16px !important; }  /* Chrome PC */
-        }
-        @media (max-width: 768px) {
-          * { font-size: 12px !important; }  /* Chrome Phone */
-        }
-      }
-      
-      /* --- Firefox Específico --- */
-      @-moz-document url-prefix() {
-        @media (min-width: 769px) {
-          * { font-size: 16px !important; }  /* Firefox PC */
-        }
-        @media (max-width: 768px) {
-          * { font-size: 12px !important; }  /* Firefox Phone */
-        }
-      }
-    </style>`;
-    
-    // --- Reset de la página al cargar ---
-    function resetAll() {
-      document.getElementById('editor').value = "";
-      document.getElementById('preview').srcdoc = "";
-      document.getElementById('fileName').textContent = "";
+      mostrarMensaje("Cargado y procesando...", "mensajeCargar", "positivo");
+      procesarEnlaces(archivo, metodoOrden);
     }
-    
-    // --- Función para Guardar el HTML Modificado ---
-    function guardarHTML() {
-      const contenido = document.getElementById('editor').value;
-      const blob = new Blob([contenido], { type: "text/html" });
+  
+    function procesarEnlaces(archivo, metodoOrden) {
+      const reader = new FileReader();
+      reader.onload = () => extraerEnlaces(reader.result, metodoOrden);
+      reader.onerror = () => mostrarMensaje("Error (Fallo de Lectura)", "mensajeExtraer", "negativo");
+      reader.readAsText(archivo);
+    }
+  
+    function extraerEnlaces(html, metodoOrden) {
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      let enlaces = [];
+      doc.querySelectorAll("DL > DT > H3").forEach(carpeta => {
+        const nombreCarpeta = carpeta.innerText.trim();
+        if (nombreCarpeta === "Marcadores" || nombreCarpeta === "Marcadores de móvil") return;
+        carpeta.nextElementSibling.querySelectorAll("DT > A").forEach(enlace => {
+          const titulo = enlace.innerText.trim();
+          const rawUrl = enlace.getAttribute("HREF").trim();
+          const addDate = enlace.getAttribute("ADD_DATE");
+          if (addDate) {
+            enlaces.push(formatearEnlace(addDate, rawUrl, titulo, nombreCarpeta));
+          }
+        });
+      });
+      enlaces.sort(metodoOrden === "fecha"
+        ? (a, b) => a.fecha - b.fecha
+        : (a, b) => a.dominio.localeCompare(b.dominio, "es", { numeric: true }) || a.fecha - b.fecha);
+      mostrarResultado(enlaces);
+      mostrarMensaje("Procesado!", "mensajeExtraer", "positivo");
+    }
+  
+    function formatearEnlace(addDate, url, titulo, carpeta) {
+      const fecha = new Date(parseInt(addDate) * 1000);
+      const fechaTexto = `${fecha.getDate().toString().padStart(2, "0")}/${(fecha.getMonth()+1).toString().padStart(2, "0")}/${fecha.getFullYear().toString().slice(-2)}-${fecha.toLocaleTimeString("es-ES", { hour12: false })}`;
+      
+      let hostname;
+      try { 
+        hostname = new URL(url).hostname.toLowerCase(); 
+      } catch (e) { 
+        hostname = ""; 
+      }
+      if (hostname.startsWith("www.")) 
+        hostname = hostname.substring(4);
+      
+      /* --- Procesamiento del Dominio --- */
+      let mainDomain = "";
+      const parts = hostname.split(".");
+      
+      // Si es un dominio gubernamental: si la penúltima parte es "gob"
+      if (parts.length >= 2 && parts[parts.length - 2] === "gob") {
+        if (parts.length >= 3) {
+          let candidate = parts.slice(-3);
+          const unwantedGovPrefixes = ["sede", "sife", "fistro", "home", "help"];
+          if (unwantedGovPrefixes.includes(candidate[0])) {
+            candidate = candidate.slice(1);
+          }
+          mainDomain = candidate.join(".");
+        } else {
+          mainDomain = hostname;
+        }
+      } else {
+        // Para otros dominios: lógica original con TLDs especiales
+        const multiNivel = ["co.uk", "org.br", "com.au"];
+        if (parts.length >= 3) {
+          const ultimasDos = parts.slice(-2).join(".");
+          if (multiNivel.includes(ultimasDos)) {
+            mainDomain = parts.slice(-3).join(".");
+          } else {
+            mainDomain = parts.slice(-2).join(".");
+          }
+        } else {
+          mainDomain = hostname;
+        }
+      }
+      
+      // Extraer etiquetas de subdominios reconocidos (por ejemplo, "m" o "es")
+      let etiquetas = [];
+      const reconocidos = ["m", "es"];
+      let subdominios = hostname.split(".");
+      while (subdominios.length > 2 && reconocidos.includes(subdominios[0])) {
+        etiquetas.push(subdominios[0]);
+        subdominios.shift();
+      }
+      let etiquetaFinal = "";
+      if (etiquetas.length > 0) {
+        if (etiquetas.includes("m") && etiquetas.length > 1)
+          etiquetaFinal = "M-" + etiquetas.filter(e => e !== "m").join("-").toUpperCase();
+        else
+          etiquetaFinal = etiquetas.join("-").toUpperCase();
+      }
+      const dominioConEtiquetas = mainDomain.toUpperCase() + (etiquetaFinal ? " (" + etiquetaFinal + ")" : "");
+      /* --- Fin del Procesamiento del Dominio --- */
+      
+      return {
+        fecha,
+        fechaTexto,
+        dominio: dominioConEtiquetas,
+        titulo,
+        url: `<a href="${limpiarURL(url)}" target="_blank">${limpiarURL(url)}</a>`,
+        carpeta
+      };
+    }
+  
+    function limpiarURL(url) {
+      try {
+        const parsedUrl = new URL(url);
+        const hostname = parsedUrl.hostname.toLowerCase();
+        const pathname = parsedUrl.pathname;
+  
+        // Si la URL pertenece a Amazon, aplicar reglas específicas
+        if (hostname.includes("amazon.")) {
+          // Caso 1: Homepage (cuando el pathname es "/" o vacío)
+          if (pathname === "/" || pathname === "") {
+            return parsedUrl.origin + "/";
+          }
+          // Caso 2: Producto (contiene "/dp/")
+          if (pathname.includes("/dp/")) {
+            const partes = pathname.split("/dp/");
+            const idProducto = partes[1].split("/")[0];
+            return parsedUrl.origin + partes[0] + "/dp/" + idProducto;
+          }
+          // Caso 3: Categoría (path comienza con "/b/")
+          if (pathname.startsWith("/b/")) {
+            let newSearchParams = new URLSearchParams();
+            if (parsedUrl.searchParams.has("_encoding"))
+              newSearchParams.set("_encoding", parsedUrl.searchParams.get("_encoding"));
+            if (parsedUrl.searchParams.has("node"))
+              newSearchParams.set("node", parsedUrl.searchParams.get("node"));
+            return parsedUrl.origin + pathname + (newSearchParams.toString() ? "?" + newSearchParams.toString() : "");
+          }
+          // Caso 4: Búsqueda (path comienza con "/s")
+          if (pathname.startsWith("/s")) {
+            let newSearchParams = new URLSearchParams();
+            if (parsedUrl.searchParams.has("k"))
+              newSearchParams.set("k", parsedUrl.searchParams.get("k"));
+            return parsedUrl.origin + pathname + (newSearchParams.toString() ? "?" + newSearchParams.toString() : "");
+          }
+          // Para cualquier otro caso en Amazon, se retorna el URL sin query
+          parsedUrl.search = "";
+          return parsedUrl.href;
+        }
+  
+        // Para otros dominios: se elimina la query
+        parsedUrl.search = "";
+        return parsedUrl.href;
+      } catch (error) {
+        return url;
+      }
+    }
+  
+    function mostrarResultado(enlaces) {
+      document.getElementById("resultado").innerHTML = enlaces.map(enlace =>
+        `<strong>${enlace.dominio}</strong><br>${enlace.fechaTexto}<br>${enlace.titulo}<br>${enlace.url}<br>[#${enlace.carpeta}]<br><br>`
+      ).join("");
+    }
+  
+    function exportarHTML() {
+      const contenidoHTML = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Marcadores Exportados</title></head><body>${document.getElementById("resultado").innerHTML}</body></html>`;
+      const blob = new Blob([contenidoHTML], { type: "text/html;charset=utf-8" });
+      descargarArchivo(blob, "marcadores.html");
+    }
+  
+    function descargarArchivo(blob, nombreArchivo) {
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.download = "archivo_modificado.html";
+      link.download = nombreArchivo;
       link.click();
+    }
+  
+    function mostrarMensaje(texto, elementoId, tipo) {
+      const elemento = document.getElementById(elementoId);
+      elemento.innerHTML = texto;
+      elemento.className = tipo;
     }
   </script>
 </body>
