@@ -12,7 +12,6 @@
     html, body {
       margin: 0;
       padding: 0;
-      /* Sin bloqueo de scroll en este caso */
       -ms-touch-action: manipulation;
       touch-action: manipulation;
     }
@@ -39,20 +38,11 @@
       font-size: 24px;
       margin-bottom: 10px;
     }
-    /* Contenedor de la cuadrícula sin padding para utilizar todo el ancho disponible.
-       Se establece un mínimo de 300px y se centra. */
     .grid-container {
       width: 100%;
       min-width: 300px;
       margin: 0 auto;
     }
-    /* La cuadrícula:
-         - Ocupa el 100% del ancho del contenedor.
-         - Tiene un padding de 4px (en ambos lados para formar los "gaps" exteriores).
-         - Se definen 8 columnas, usando la variable CSS --cell-size calculada vía JS.
-         - El gap interno será de 4px.
-         En total, horizontalmente: 2×4px de padding + 7×4px de gap = 8 + 28 = 36px, 
-         que es lo que se resta del ancho total para calcular el tamaño de cada celda. */
     .grid {
       width: 100%;
       display: grid;
@@ -63,7 +53,6 @@
       background-color: #333;
       margin: 0 auto;
     }
-    /* Cada celda ocupa el 100% del tamaño asignado por la cuadrícula */
     .cell {
       width: 100%;
       height: 100%;
@@ -71,16 +60,13 @@
       cursor: pointer;
       transition: background-color 0.3s, opacity 0.3s, filter 0.2s, transform 0.2s, border 0.2s;
     }
-    /* Indicador visual de selección */
     .cell.selected {
       border: 3px solid #FFD700;
       transform: scale(1.05);
     }
-    /* Efecto para celdas equivocadas */
     .cell.wrong {
       filter: brightness(0.5);
     }
-    /* Celdas removidas: se ocultan y dejan de recibir clics */
     .cell.removed {
       opacity: 0;
       pointer-events: none;
@@ -93,7 +79,6 @@
 </head>
 <body>
   <h1>Juego de Memoria de Colores</h1>
-  <!-- Botones de control en la parte superior -->
   <div class="controls">
     <button class="button" id="start">Iniciar Juego</button>
     <button class="button" id="restart">Reiniciar</button>
@@ -118,8 +103,6 @@
     let timerInterval;
     let gameStarted = false;
 
-    // Calcula el tamaño ideal de cada celda en base al ancho del contenedor.
-    // Se resta 36px: 2 * 4px de padding en .grid (izquierdo y derecho) + 7 * 4px de gap interno.
     function updateCellSize() {
       const containerWidth = gridContainer.clientWidth;
       const cellSize = (containerWidth - 36) / 8;
@@ -129,7 +112,6 @@
     updateCellSize();
     window.addEventListener('resize', updateCellSize);
 
-    // Función para generar un color aleatorio en HSL, con tonos pastel o vibrantes
     function getRandomColor(isPastel) {
       const hue = Math.floor(Math.random() * 360);
       const saturation = isPastel ? Math.random() * 30 + 40 : Math.random() * 40 + 60;
@@ -138,7 +120,6 @@
       return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
     }
 
-    // Convierte un string HSL a un objeto {hue, saturation, lightness}
     function parseHSL(hslString) {
       const regex = /hsl\((\d+),\s*([\d\.]+)%,\s*([\d\.]+)%\)/;
       const result = regex.exec(hslString);
@@ -152,7 +133,6 @@
       return null;
     }
 
-    // Comprueba si dos colores son demasiado similares (para forzar mayor contraste)
     function areColorsSimilar(colorStr1, colorStr2) {
       const color1 = parseHSL(colorStr1);
       const color2 = parseHSL(colorStr2);
@@ -163,10 +143,10 @@
       return (hueDiff < 20 && satDiff < 15 && lightDiff < 10);
     }
 
-    // Genera 32 pares de colores, es decir, 64 celdas, forzando contraste
+    // Genera 44 pares de colores, es decir, 88 celdas, forzando contraste
     function generateColors() {
       const colors = [];
-      for (let i = 0; i < 32; i++) {
+      for (let i = 0; i < 44; i++) {
         const isPastel = i % 2 === 0;
         let color;
         let attempt = 0;
@@ -179,7 +159,6 @@
       return colors;
     }
 
-    // Algoritmo Fisher-Yates para mezclar el array de colores
     function shuffle(array) {
       for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -188,7 +167,6 @@
     }
 
     function initGame() {
-      // Limpia intervalos previos
       if (timerInterval) {
         clearInterval(timerInterval);
         timerInterval = null;
@@ -204,7 +182,8 @@
 
       const colors = generateColors();
       shuffle(colors);
-      for (let i = 0; i < 64; i++) {
+      // Crea 88 celdas en lugar de 64
+      for (let i = 0; i < 88; i++) {
         const cell = document.createElement("div");
         cell.classList.add("cell");
         cell.style.backgroundColor = colors[i];
