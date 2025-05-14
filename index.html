@@ -2,265 +2,150 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Extraer Enlaces de HTML - Ajuste Final</title>
+  <title>Juego de Memoria de Colores</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <style>
-    /* Estilos generales */
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      overflow-x: hidden;
-      margin-bottom: 0;
-      padding-bottom: 0;
-    }
-    /* Para pantallas grandes (PC) */
-    @media (min-width: 769px) { body { margin: 40px; } }
-    /* Para pantallas pequeñas (Phone) */
-    @media (max-width: 768px) { body { margin: 20px; } }
-    input, button {
-      width: 80%;
-      padding: 10px;
-      margin: 10px 0;
-    }
-    button { font-size: 16px; cursor: pointer; }
-    /* Estilo base para la caja de vista previa */
-    #resultado {
-      text-align: left;
-      max-width: 100%;
-      margin: 20px auto;
-      border: 2px solid #ccc;
-      padding: 10px;
-      background: #f4f4f4;
-      white-space: pre-wrap;
-      word-wrap: break-word;
+    * {
       box-sizing: border-box;
     }
-    /* Fallback general (para navegadores que no sean Chrome o Firefox) */
-    @media (min-width: 769px) { #resultado { font-size: 13px; } }
-    @media (max-width: 768px) { #resultado { font-size: 12px; } }
-    /* --- Para Chrome --- */
-    @media screen and (-webkit-min-device-pixel-ratio: 0) {
-      @media (min-width: 769px) { #resultado { font-size: 10px !important; } }
-      @media (max-width: 768px) { #resultado { font-size: 10px !important; } }
+    html, body {
+      margin: 0;
+      padding: 0;
+      touch-action: manipulation;
     }
-    /* --- Para Firefox --- */
-    @-moz-document url-prefix() {
-      @media (min-width: 769px) { #resultado { font-size: 18px !important; } }
-      @media (max-width: 768px) { #resultado { font-size: 10px !important; } }
-    }
-    /* Estilos para mensajes */
-    #mensajeCargar, #mensajeExtraer, #mensajeExportar {
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #fff;
+      padding: 20px;
       text-align: center;
-      font-weight: bold;
-      padding: 5px;
-      margin-top: 10px;
     }
-    .positivo { color: green; }
-    .negativo { color: red; }
+    h1 {
+      margin-bottom: 10px;
+      font-size: 20px;
+    }
+    .controls {
+      margin-bottom: 10px;
+    }
+    .button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    .timer {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+    .grid-container {
+      width: 100%;
+      min-width: 300px;
+      margin: 0 auto;
+    }
+    .grid {
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(10, var(--cell-size));
+      grid-auto-rows: var(--cell-size);
+      gap: 4px;
+      padding: 4px;
+      background-color: #333;
+      margin: 0 auto;
+    }
+    .cell {
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+      transition: background-color 0.3s, opacity 0.3s, transform 0.2s;
+    }
+    .cell.selected {
+      border: 3px solid #FFD700;
+      transform: scale(1.05);
+    }
+    .cell.removed {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .message {
+      font-size: 28px;
+      margin-top: 20px;
+    }
   </style>
 </head>
 <body>
-  <h1>Extraer Enlaces de HTML</h1>
-  <p>Sube un archivo HTML de marcadores y visualiza solo los enlaces ordenados.</p>
-  
-  <button onclick="document.getElementById('archivo').click()">CARGAR Y PROCESAR POR FECHA</button>
-  <button onclick="document.getElementById('archivoAZ').click()">CARGAR Y PROCESAR A-Z</button>
-  <input type="file" id="archivo" style="display: none;" accept=".html" onchange="validarYProcesarArchivo('fecha')">
-  <input type="file" id="archivoAZ" style="display: none;" accept=".html" onchange="validarYProcesarArchivo('az')">
-  
-  <div id="mensajeCargar"></div>
-  <div id="mensajeExtraer"></div>
-  
-  <button onclick="exportarHTML()">EXPORTAR HTML</button>
-  <div id="mensajeExportar"></div>
-  
-  <h2>Marcadores:</h2>
-  <pre id="resultado"></pre>
-  
+  <h1>Juego de Memoria de Colores</h1>
+  <div class="controls">
+    <button class="button" id="start">Iniciar Juego</button>
+    <button class="button" id="restart">Reiniciar</button>
+  </div>
+  <div class="timer" id="timer">60</div>
+  <div class="grid-container">
+    <div class="grid" id="grid"></div>
+  </div>
+  <div class="message" id="message"></div>
   <script>
-    function validarYProcesarArchivo(metodoOrden) {
-      const archivo = document.getElementById(metodoOrden === "fecha" ? "archivo" : "archivoAZ").files[0];
-      if (!archivo) return mostrarMensaje("Error (Ningún archivo cargado)", "mensajeCargar", "negativo");
-      if (!archivo.name.endsWith(".html")) {
-        document.getElementById(metodoOrden === "fecha" ? "archivo" : "archivoAZ").value = "";
-        return mostrarMensaje("Error (Formato incorrecto, debe ser HTML)", "mensajeCargar", "negativo");
+    const grid = document.getElementById("grid");
+    const timerDisplay = document.getElementById("timer");
+    const messageDisplay = document.getElementById("message");
+    const startButton = document.getElementById("start");
+    const restartButton = document.getElementById("restart");
+
+    let firstCell = null;
+    let secondCell = null;
+    let lockBoard = false;
+    let timeLeft = 60;
+    let timerInterval;
+    let gameStarted = false;
+
+    const colorNames = [
+      "AliceBlue", "AntiqueWhite", "Aqua", "Aquamarine", "Azure", "Beige", "Bisque", 
+      "Black", "BlanchedAlmond", "Blue", "BlueViolet", "Brown", "BurlyWood", "CadetBlue",
+      "Chartreuse", "Chocolate", "Coral", "CornflowerBlue", "Cornsilk", "Crimson", "Cyan",
+      "DarkBlue", "DarkCyan", "DarkGoldenRod", "DarkGray", "DarkGreen", "DarkKhaki",
+      "DarkMagenta", "DarkOliveGreen", "DarkOrange", "DarkOrchid", "DarkRed",
+      "DarkSalmon", "DarkSeaGreen", "DarkSlateBlue", "DarkSlateGray", "DarkTurquoise",
+      "DarkViolet", "DeepPink", "DeepSkyBlue", "DimGray", "DodgerBlue", "FireBrick",
+      "FloralWhite", "ForestGreen", "Fuchsia", "Gainsboro", "GhostWhite", "Gold", "GoldenRod",
+      "Gray", "Green", "GreenYellow", "HoneyDew", "HotPink", "IndianRed", "Indigo",
+      "Ivory", "Khaki", "Lavender", "LavenderBlush", "LawnGreen", "LemonChiffon",
+      "LightBlue", "LightCoral", "LightCyan", "LightGoldenRodYellow", "LightGray",
+      "LightGreen", "LightPink", "LightSalmon", "LightSeaGreen", "LightSkyBlue",
+      "LightSlateGray", "LightSteelBlue", "LightYellow", "Lime", "LimeGreen",
+      "Linen", "Magenta", "Maroon", "MediumAquaMarine", "MediumBlue", "MediumOrchid",
+      "MediumPurple", "MediumSeaGreen", "MediumSlateBlue", "MediumSpringGreen",
+      "MediumTurquoise", "MediumVioletRed", "MidnightBlue", "MintCream", "MistyRose",
+      "Moccasin", "NavajoWhite", "Navy", "OldLace", "Olive", "OliveDrab", "Orange",
+      "OrangeRed", "Orchid", "PaleGoldenRod", "PaleGreen", "PaleTurquoise",
+      "PaleVioletRed", "PapayaWhip", "PeachPuff", "Peru", "Pink", "Plum", "PowderBlue",
+      "Purple", "Red", "RosyBrown", "RoyalBlue", "SaddleBrown", "Salmon", "SandyBrown",
+      "SeaGreen", "SeaShell", "Sienna", "Silver", "SkyBlue", "SlateBlue", "SlateGray",
+      "Snow", "SpringGreen", "SteelBlue", "Tan", "Teal", "Thistle", "Tomato",
+      "Turquoise", "Violet", "Wheat", "White", "WhiteSmoke", "Yellow", "YellowGreen"
+    ];
+
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
       }
-      mostrarMensaje("Cargado y procesando...", "mensajeCargar", "positivo");
-      procesarEnlaces(archivo, metodoOrden);
     }
-  
-    function procesarEnlaces(archivo, metodoOrden) {
-      const reader = new FileReader();
-      reader.onload = () => extraerEnlaces(reader.result, metodoOrden);
-      reader.onerror = () => mostrarMensaje("Error (Fallo de Lectura)", "mensajeExtraer", "negativo");
-      reader.readAsText(archivo);
-    }
-  
-    function extraerEnlaces(html, metodoOrden) {
-      const doc = new DOMParser().parseFromString(html, "text/html");
-      let enlaces = [];
-      doc.querySelectorAll("DL > DT > H3").forEach(carpeta => {
-        const nombreCarpeta = carpeta.innerText.trim();
-        if (nombreCarpeta === "Marcadores" || nombreCarpeta === "Marcadores de móvil") return;
-        carpeta.nextElementSibling.querySelectorAll("DT > A").forEach(enlace => {
-          const titulo = enlace.innerText.trim();
-          const rawUrl = enlace.getAttribute("HREF").trim();
-          const addDate = enlace.getAttribute("ADD_DATE");
-          if (addDate) {
-            enlaces.push(formatearEnlace(addDate, rawUrl, titulo, nombreCarpeta));
-          }
-        });
+
+    function initGame() {
+      grid.innerHTML = "";
+      shuffle(colorNames);
+      colorNames.forEach(color => {
+        const cell = document.createElement("div");
+        cell.classList.add("cell");
+        cell.style.backgroundColor = color;
+        cell.dataset.color = color;
+        cell.addEventListener("click", () => cell.classList.toggle("selected"));
+        grid.appendChild(cell);
       });
-      enlaces.sort(metodoOrden === "fecha"
-        ? (a, b) => a.fecha - b.fecha
-        : (a, b) => a.dominio.localeCompare(b.dominio, "es", { numeric: true }) || a.fecha - b.fecha);
-      mostrarResultado(enlaces);
-      mostrarMensaje("Procesado!", "mensajeExtraer", "positivo");
     }
-  
-    function formatearEnlace(addDate, url, titulo, carpeta) {
-      const fecha = new Date(parseInt(addDate) * 1000);
-      const fechaTexto = `${fecha.getDate().toString().padStart(2, "0")}/${(fecha.getMonth()+1).toString().padStart(2, "0")}/${fecha.getFullYear().toString().slice(-2)}-${fecha.toLocaleTimeString("es-ES", { hour12: false })}`;
-      
-      let hostname;
-      try { 
-        hostname = new URL(url).hostname.toLowerCase(); 
-      } catch (e) { 
-        hostname = ""; 
-      }
-      if (hostname.startsWith("www.")) 
-        hostname = hostname.substring(4);
-      
-      /* --- Procesamiento del Dominio --- */
-      let mainDomain = "";
-      const parts = hostname.split(".");
-      
-      // Si es un dominio gubernamental: si la penúltima parte es "gob"
-      if (parts.length >= 2 && parts[parts.length - 2] === "gob") {
-        if (parts.length >= 3) {
-          let candidate = parts.slice(-3);
-          const unwantedGovPrefixes = ["sede", "sife", "fistro", "home", "help"];
-          if (unwantedGovPrefixes.includes(candidate[0])) {
-            candidate = candidate.slice(1);
-          }
-          mainDomain = candidate.join(".");
-        } else {
-          mainDomain = hostname;
-        }
-      } else {
-        // Para otros dominios: lógica original con TLDs especiales
-        const multiNivel = ["co.uk", "org.br", "com.au"];
-        if (parts.length >= 3) {
-          const ultimasDos = parts.slice(-2).join(".");
-          if (multiNivel.includes(ultimasDos)) {
-            mainDomain = parts.slice(-3).join(".");
-          } else {
-            mainDomain = parts.slice(-2).join(".");
-          }
-        } else {
-          mainDomain = hostname;
-        }
-      }
-      
-      // Extraer etiquetas de subdominios reconocidos (por ejemplo, "m" o "es")
-      let etiquetas = [];
-      const reconocidos = ["m", "es"];
-      let subdominios = hostname.split(".");
-      while (subdominios.length > 2 && reconocidos.includes(subdominios[0])) {
-        etiquetas.push(subdominios[0]);
-        subdominios.shift();
-      }
-      let etiquetaFinal = "";
-      if (etiquetas.length > 0) {
-        if (etiquetas.includes("m") && etiquetas.length > 1)
-          etiquetaFinal = "M-" + etiquetas.filter(e => e !== "m").join("-").toUpperCase();
-        else
-          etiquetaFinal = etiquetas.join("-").toUpperCase();
-      }
-      const dominioConEtiquetas = mainDomain.toUpperCase() + (etiquetaFinal ? " (" + etiquetaFinal + ")" : "");
-      /* --- Fin del Procesamiento del Dominio --- */
-      
-      return {
-        fecha,
-        fechaTexto,
-        dominio: dominioConEtiquetas,
-        titulo,
-        url: `<a href="${limpiarURL(url)}" target="_blank">${limpiarURL(url)}</a>`,
-        carpeta
-      };
-    }
-  
-    function limpiarURL(url) {
-      try {
-        const parsedUrl = new URL(url);
-        const hostname = parsedUrl.hostname.toLowerCase();
-        const pathname = parsedUrl.pathname;
-  
-        // Si la URL pertenece a Amazon, aplicar reglas específicas
-        if (hostname.includes("amazon.")) {
-          // Caso 1: Homepage (cuando el pathname es "/" o vacío)
-          if (pathname === "/" || pathname === "") {
-            return parsedUrl.origin + "/";
-          }
-          // Caso 2: Producto (contiene "/dp/")
-          if (pathname.includes("/dp/")) {
-            const partes = pathname.split("/dp/");
-            const idProducto = partes[1].split("/")[0];
-            return parsedUrl.origin + partes[0] + "/dp/" + idProducto;
-          }
-          // Caso 3: Categoría (path comienza con "/b/")
-          if (pathname.startsWith("/b/")) {
-            let newSearchParams = new URLSearchParams();
-            if (parsedUrl.searchParams.has("_encoding"))
-              newSearchParams.set("_encoding", parsedUrl.searchParams.get("_encoding"));
-            if (parsedUrl.searchParams.has("node"))
-              newSearchParams.set("node", parsedUrl.searchParams.get("node"));
-            return parsedUrl.origin + pathname + (newSearchParams.toString() ? "?" + newSearchParams.toString() : "");
-          }
-          // Caso 4: Búsqueda (path comienza con "/s")
-          if (pathname.startsWith("/s")) {
-            let newSearchParams = new URLSearchParams();
-            if (parsedUrl.searchParams.has("k"))
-              newSearchParams.set("k", parsedUrl.searchParams.get("k"));
-            return parsedUrl.origin + pathname + (newSearchParams.toString() ? "?" + newSearchParams.toString() : "");
-          }
-          // Para cualquier otro caso en Amazon, se retorna el URL sin query
-          parsedUrl.search = "";
-          return parsedUrl.href;
-        }
-  
-        // Para otros dominios: se elimina la query
-        parsedUrl.search = "";
-        return parsedUrl.href;
-      } catch (error) {
-        return url;
-      }
-    }
-  
-    function mostrarResultado(enlaces) {
-      document.getElementById("resultado").innerHTML = enlaces.map(enlace =>
-        `<strong>${enlace.dominio}</strong><br>${enlace.fechaTexto}<br>${enlace.titulo}<br>${enlace.url}<br>[#${enlace.carpeta}]<br><br>`
-      ).join("");
-    }
-  
-    function exportarHTML() {
-      const contenidoHTML = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Marcadores Exportados</title></head><body>${document.getElementById("resultado").innerHTML}</body></html>`;
-      const blob = new Blob([contenidoHTML], { type: "text/html;charset=utf-8" });
-      descargarArchivo(blob, "marcadores.html");
-    }
-  
-    function descargarArchivo(blob, nombreArchivo) {
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = nombreArchivo;
-      link.click();
-    }
-  
-    function mostrarMensaje(texto, elementoId, tipo) {
-      const elemento = document.getElementById(elementoId);
-      elemento.innerHTML = texto;
-      elemento.className = tipo;
-    }
+
+    restartButton.addEventListener("click", initGame);
+    startButton.addEventListener("click", () => gameStarted = true);
+
+    initGame();
   </script>
 </body>
 </html>
