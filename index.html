@@ -44,7 +44,7 @@
     }
 
     function mostrarResultado(arr) {
-      let html = arr.map(bm => {
+      const html = arr.map(bm => {
         return `<strong>${bm.domain}</strong><br>${bm.fechaTexto}<br>${bm.title}<br><a href="${bm.url}" target="_blank">${bm.url}</a><br>${bm.folder}<br><br>`;
       }).join("");
       document.getElementById("resultado").innerHTML = html;
@@ -57,7 +57,7 @@
     function procesarArchivo(input, numArchivo) {
       const file = input.files[0];
       if (!file) return;
-
+      
       // Al cargar un nuevo archivo, se reinician los resultados de fusión y su visualización.
       mergedBookmarks = [];
       document.getElementById("mensajeFusion").innerHTML = "";
@@ -81,7 +81,7 @@
           bookmarks2 = marks;
         }
         mostrarMensaje(`Archivo ${numArchivo} cargado (${marks.length} enlaces)`, "mensajeCarga" + numArchivo, "positivo");
-        
+        mergedBookmarks = [];
         actualizarEstadoBotones();
       };
       reader.readAsText(file);
@@ -91,7 +91,6 @@
       const fusionarBtn = document.getElementById("fusionarBtn");
       const fusionarAZBtn = document.getElementById("fusionarAZBtn");
       const exportarBtn = document.getElementById("exportarBtn");
-      
       const archivosValidos = (bookmarks1.length > 0 && bookmarks2.length > 0);
       fusionarBtn.disabled = !archivosValidos;
       fusionarAZBtn.disabled = !archivosValidos;
@@ -103,26 +102,24 @@
       const parser = new DOMParser();
       const doc = parser.parseFromString(htmlContent, "text/html");
       const content = doc.body.innerHTML;
-
-      let blocks = content.split(/<br\s*\/?>\s*<br\s*\/?>/i);
+      const blocks = content.split(/<br\s*\/?>\s*<br\s*\/?>/i);
       blocks.forEach(block => {
         block = block.trim();
         if (block) {
-          let lines = block.split(/<br\s*\/?>/i).map(line => line.trim()).filter(line => line);
+          const lines = block.split(/<br\s*\/?>/i).map(line => line.trim()).filter(line => line);
           if (lines.length >= 4) {
-            let domain = lines[0].replace(/<\/?strong>/gi, "").trim();
-            let dateStr = lines[1].trim();
-            let parts = dateStr.split("-");
-            let dmy = parts[0].split("/");
+            const domain = lines[0].replace(/<\/?strong>/gi, "").trim();
+            const dateStr = lines[1].trim();
+            const parts = dateStr.split("-");
+            const dmy = parts[0].split("/");
             let year = parseInt(dmy[2]);
             year += (year < 70) ? 2000 : 1900;
-            let timeParts = parts[1].split(":").map(n => parseInt(n));
-            let dateObj = new Date(year, parseInt(dmy[1]) - 1, parseInt(dmy[0]), ...timeParts);
-            let title = lines[2].trim();
-            let urlMatch = lines[3].match(/href="([^"]+)"/i);
-            let url = urlMatch ? urlMatch[1] : lines[3];
-            let folder = (lines[4] && lines[4].startsWith("[#")) ? lines[4] : "";
-
+            const timeParts = parts[1].split(":").map(n => parseInt(n));
+            const dateObj = new Date(year, parseInt(dmy[1]) - 1, parseInt(dmy[0]), ...timeParts);
+            const title = lines[2].trim();
+            const urlMatch = lines[3].match(/href="([^"]+)"/i);
+            const url = urlMatch ? urlMatch[1] : lines[3];
+            const folder = (lines[4] && lines[4].startsWith("[#")) ? lines[4] : "";
             bookmarks.push({ domain, fecha: dateObj, fechaTexto: dateStr, title, url, folder });
           }
         }
@@ -134,8 +131,15 @@
       mergedBookmarks = bookmarks1.concat(bookmarks2);
       if (criterio === "fecha") {
         mergedBookmarks.sort((a, b) => a.fecha - b.fecha);
-      } else {
-        mergedBookmarks.sort((a, b) => a.domain.localeCompare(b.domain, "es", { numeric: true }));
+      } else if (criterio === "az") {
+        mergedBookmarks.sort((a, b) => {
+          const cmpDomain = a.domain.localeCompare(b.domain, "es", { numeric: true });
+          if (cmpDomain === 0) {
+            // Si el dominio es el mismo, ordena por fecha de más antiguo a más nuevo.
+            return a.fecha - b.fecha;
+          }
+          return cmpDomain;
+        });
       }
       
       mostrarResultado(mergedBookmarks);
