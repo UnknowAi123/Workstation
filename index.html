@@ -3,10 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <title>Mini Reproductor con Carátula</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Incluir la API de YouTube -->
-  <script src="https://www.youtube.com/iframe_api"></script>
+  <!-- Evitar zoom y scroll horizontal -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <style>
+    html, body {
+      overflow-x: hidden;
+    }
     /* Estilos generales */
     body {
       font-family: Arial, sans-serif;
@@ -14,13 +16,14 @@
       margin: 0;
       padding: 20px;
     }
-    /* Zona1: Mini reproductor con tamaño fijo */
+    /* Zona1: Mini reproductor */
     #miniPlayer {
       background: #fff;
       border-radius: 8px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      width: 350px;
-      height: 400px; /* Tamaño fijo */
+      max-width: 350px; /* Se adapta al contenedor */
+      width: auto;
+      height: 550px; /* Más alto para que no tape el título */
       margin: 0 auto;
       padding: 15px;
       text-align: center;
@@ -28,18 +31,26 @@
       flex-direction: column;
       justify-content: space-between;
     }
+    /* Se reemplaza el <img> por un div para la carátula */
     #coverArt {
       width: 100%;
-      height: 200px;  /* Tamaño fijo para la carátula */
-      object-fit: cover;
+      height: 200px; /* Tamaño máximo para carátulas */
       border-radius: 5px;
+      background-size: cover;
+      background-position: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #aaa;
+      font-weight: bold;
+      font-size: 16px;
     }
-    /* Zona1 - Información del track */
+    /* Zona1 - Información del track: título en una línea */
     #trackInfo {
       margin-top: 10px;
       overflow: hidden;
       white-space: nowrap;
-      text-overflow: ellipsis;  /* Una sola línea para el título */
+      text-overflow: ellipsis;
     }
     #trackTitle {
       font-size: 18px;
@@ -78,7 +89,7 @@
     #controls button:hover {
       background: #ddd;
     }
-    /* Estilo para botones activos (toggle shuffle y repeat) */
+    /* Estilo para botones activos (shuffle y repeat toggles) */
     .activeToggle {
       background: #cce5ff !important;
     }
@@ -89,23 +100,22 @@
     #volumeSlider {
       width: 80%;
     }
-    /* Zona2: Cargar pistas */
-    #loadSection {
-      text-align: center;
-      margin: 20px auto;
+    /* Zona3: Contenedor para listado scrolleable (10 pistas visibles aprox.) */
+    #playlistContainer {
       width: 350px;
+      height: 400px;  /* Altura fija para mostrar 10 ítems (según tamaño de ítem) */
+      overflow-y: auto;
+      margin: 20px auto;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      background: #fff;
+      padding: 5px;
     }
-    #loadSection input, #loadSection button {
-      margin: 5px 0;
-      font-size: 14px;
-    }
-    /* Zona3: Lista de pistas */
+    /* Zona3: Listado de pistas */
     #playlist {
       list-style: none;
       padding: 0;
-      margin-top: 20px;
-      width: 350px;
-      margin: 0 auto;
+      margin: 0;
     }
     #playlist li {
       background: #fff;
@@ -116,9 +126,11 @@
       justify-content: space-between;
       align-items: center;
       cursor: pointer;
+      border: 1px solid transparent;
     }
     #playlist li.active {
       background: #d0eaff;
+      border: 1px solid #a0c4ff;
     }
     .track-info-item {
       overflow: hidden;
@@ -131,12 +143,25 @@
       margin-left: 10px;
       color: red;
     }
+    /* Zona2: Cargar pistas (se posicionará después de Zona3) */
+    #loadSection {
+      text-align: center;
+      margin: 20px auto;
+      width: 350px;
+    }
+    #loadSection input, #loadSection button {
+      margin: 5px 0;
+      font-size: 14px;
+    }
   </style>
+  <!-- Incluir la API de YouTube -->
+  <script src="https://www.youtube.com/iframe_api"></script>
 </head>
 <body>
   <!-- Zona1: Mini Reproductor -->
   <div id="miniPlayer">
-    <img id="coverArt" src="placeholder-cover.jpg" alt="Portada">
+    <!-- Ahora es un div que se actualizará según la carátula -->
+    <div id="coverArt">No cover</div>
     <div id="trackInfo">
       <div id="trackTitle">Título de la pista</div>
       <div id="trackArtist">Artista</div>
@@ -163,7 +188,12 @@
   <audio id="audioPlayer" style="display: none;"></audio>
   <div id="youtubePlayerContainer" style="display: none;"></div>
   
-  <!-- Zona2: Cargar Pistas -->
+  <!-- Zona3: Lista de Pistas (contenedor scrolleable) -->
+  <div id="playlistContainer">
+    <ul id="playlist"></ul>
+  </div>
+  
+  <!-- Zona2: Cargar Pistas (ahora se muestra debajo de Zona3) -->
   <div id="loadSection">
     <h3>Cargar Pistas</h3>
     <input type="file" id="fileInput" accept="audio/*" multiple><br>
@@ -171,16 +201,13 @@
     <button id="addYoutubeButton">Agregar YouTube</button>
   </div>
   
-  <!-- Zona3: Lista de Pistas -->
-  <ul id="playlist"></ul>
-  
   <script>
     /* VARIABLES GLOBALES */
     // Cada pista: { type, name, url, videoId, artist, title, cover }
     let playlist = [];
     let currentIndex = 0;
     let shuffleOn = false;
-    let repeatOn = false; // Botón de repetición: false = off, true = on
+    let repeatOn = false; // false = off, true = on
     let recentHistory = [];
     
     /* REFERENCIAS AL DOM */
@@ -204,22 +231,30 @@
     const youtubePlayerContainer = document.getElementById('youtubePlayerContainer');
     let youtubePlayer;
     
-    // Zona2: Carga de pistas
+    // Zona3
+    const playlistUI = document.getElementById('playlist');
+    
+    // Zona2
     const fileInput = document.getElementById('fileInput');
     const youtubeURLInput = document.getElementById('youtubeURLInput');
     const addYoutubeButton = document.getElementById('addYoutubeButton');
-    
-    // Zona3: Playlist UI
-    const playlistUI = document.getElementById('playlist');
     
     /* Actualizar UI del Mini Reproductor */
     function updateMiniPlayerUI() {
       if (!playlist[currentIndex]) return;
       const item = playlist[currentIndex];
       if (item.type === 'youtube') {
-        coverArt.src = "https://img.youtube.com/vi/" + item.videoId + "/hqdefault.jpg";
+        // Para YouTube, usamos la miniatura
+        coverArt.style.backgroundImage = `url(https://img.youtube.com/vi/${item.videoId}/hqdefault.jpg)`;
+        coverArt.textContent = ''; // Eliminamos texto
       } else {
-        coverArt.src = item.cover ? item.cover : "placeholder-cover.jpg";
+        if (item.cover) {
+          coverArt.style.backgroundImage = `url(${item.cover})`;
+          coverArt.textContent = '';
+        } else {
+          coverArt.style.backgroundImage = 'none';
+          coverArt.textContent = 'No cover';
+        }
       }
       trackTitleElem.textContent = item.title || item.name;
       trackArtistElem.textContent = item.artist || "";
@@ -231,9 +266,7 @@
       const item = playlist[currentIndex];
       updateMiniPlayerUI();
       if (item.type === 'local') {
-        if (youtubePlayer && youtubePlayer.stopVideo) {
-          youtubePlayer.stopVideo();
-        }
+        if (youtubePlayer && youtubePlayer.stopVideo) { youtubePlayer.stopVideo(); }
         audioPlayer.src = item.url;
         audioPlayer.style.display = 'block';
         youtubePlayerContainer.style.display = 'none';
@@ -241,9 +274,7 @@
         audioPlayer.pause();
         audioPlayer.style.display = 'none';
         youtubePlayerContainer.style.display = 'block';
-        if (youtubePlayer) {
-          youtubePlayer.loadVideoById(item.videoId);
-        }
+        if (youtubePlayer) { youtubePlayer.loadVideoById(item.videoId); }
       }
     }
     
@@ -291,7 +322,7 @@
       }
     }
     
-    /* Controles: siguiente y anterior con lógica de shuffle y repeat */
+    /* Eventos para cambio de pista (shuffle y repeat) */
     function nextTrack() {
       if (shuffleOn) {
         let allowed = [];
@@ -396,6 +427,9 @@
       }
     });
     
+    /* Agregar evento para audio local al terminar la pista */
+    audioPlayer.addEventListener('ended', nextTrack);
+    
     /* YouTube IFrame API */
     function onYouTubeIframeAPIReady() {
       youtubePlayer = new YT.Player('youtubePlayerContainer', {
@@ -409,14 +443,14 @@
         }
       });
     }
-    function onYouTubePlayerReady(event) {}
+    function onYouTubePlayerReady(event) { }
     function onYouTubePlayerStateChange(event) {
       if (event.data === YT.PlayerState.ENDED) {
         nextTrack();
       }
     }
     
-    /* UI del listado (Zona3) */
+    /* Zona3: UI del listado */
     function updatePlaylistUI() {
       playlistUI.innerHTML = '';
       playlist.forEach((item, i) => {
@@ -501,7 +535,7 @@
       Array.from(files).forEach(file => {
         if (file.type.startsWith("audio")) {
           const url = URL.createObjectURL(file);
-          // Se podría extraer metadata (artist, title, cover) aquí si se desea.
+          // Se podría extraer metadata (artist, title, cover) aquí
           playlist.push({ type: 'local', name: file.name, url: url });
         }
       });
