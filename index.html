@@ -5,12 +5,14 @@
   <title>Juego de Memoria de Colores</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <style>
+    /* Global: forzamos el box-sizing para todos los elementos */
     * {
       box-sizing: border-box;
     }
     html, body {
       margin: 0;
       padding: 0;
+      -ms-touch-action: manipulation;
       touch-action: manipulation;
     }
     body {
@@ -44,7 +46,7 @@
     .grid {
       width: 100%;
       display: grid;
-      grid-template-columns: repeat(10, var(--cell-size));
+      grid-template-columns: repeat(8, var(--cell-size));
       grid-auto-rows: var(--cell-size);
       gap: 4px;
       padding: 4px;
@@ -54,12 +56,16 @@
     .cell {
       width: 100%;
       height: 100%;
+      background-color: #ccc;
       cursor: pointer;
-      transition: background-color 0.3s, opacity 0.3s, transform 0.2s;
+      transition: background-color 0.3s, opacity 0.3s, filter 0.2s, transform 0.2s, border 0.2s;
     }
     .cell.selected {
       border: 3px solid #FFD700;
       transform: scale(1.05);
+    }
+    .cell.wrong {
+      filter: brightness(0.5);
     }
     .cell.removed {
       opacity: 0;
@@ -76,7 +82,6 @@
   <div class="controls">
     <button class="button" id="start">Iniciar Juego</button>
     <button class="button" id="restart">Reiniciar</button>
-    <button class="button" id="toggleMode">Modo Daltónico</button>
   </div>
   <div class="timer" id="timer">60</div>
   <div class="grid-container">
@@ -85,11 +90,11 @@
   <div class="message" id="message"></div>
   <script>
     const grid = document.getElementById("grid");
+    const gridContainer = document.querySelector(".grid-container");
     const timerDisplay = document.getElementById("timer");
     const messageDisplay = document.getElementById("message");
     const startButton = document.getElementById("start");
     const restartButton = document.getElementById("restart");
-    const toggleModeButton = document.getElementById("toggleMode");
 
     let firstCell = null;
     let secondCell = null;
@@ -97,19 +102,52 @@
     let timeLeft = 60;
     let timerInterval;
     let gameStarted = false;
-    let daltonicMode = false;
 
-    // 🔹 Lista editable: Agrega o excluye colores aquí sin afectar el código principal
-    const customColors = [
-      "AliceBlue", "AntiqueWhite", "Aqua", "Aquamarine", "Azure", "Beige", "Bisque",
-      "Black", "BlanchedAlmond", "Blue", "BlueViolet", "Brown", "BurlyWood", "CadetBlue",
-      "Chartreuse", "Chocolate", "Coral", "CornflowerBlue", "Cornsilk", "Crimson", "Cyan",
-      "DarkBlue", "DarkCyan", "DarkGoldenRod", "DarkGray", "DarkGreen", "DarkKhaki",
-      "DarkMagenta", "DarkOliveGreen", "DarkOrange", "DarkOrchid", "DarkRed", "DarkSalmon",
-      "DarkSeaGreen", "DarkSlateBlue", "DarkSlateGray", "DarkTurquoise", "DarkViolet",
-      "DeepPink", "DeepSkyBlue", "DimGray", "DodgerBlue", "FireBrick", "FloralWhite",
-      "ForestGreen", "Fuchsia", "Gainsboro", "GhostWhite", "Gold", "GoldenRod", "Gray"
-    ];
+    function updateCellSize() {
+      const containerWidth = gridContainer.clientWidth;
+      const cellSize = (containerWidth - 36) / 8;
+      grid.style.setProperty('--cell-size', cellSize + 'px');
+    }
+
+    updateCellSize();
+    window.addEventListener('resize', updateCellSize);
+
+    // Nuevo enfoque: Generar pares de colores a partir de los 140 colores HTML.
+    function generateColors() {
+      const htmlColors = [
+        "AliceBlue", "AntiqueWhite", "Aqua", "Aquamarine", "Azure", "Beige", "Bisque", "Black",
+        "BlanchedAlmond", "Blue", "BlueViolet", "Brown", "BurlyWood", "CadetBlue", "Chartreuse",
+        "Chocolate", "Coral", "CornflowerBlue", "Cornsilk", "Crimson", "Cyan", "DarkBlue", "DarkCyan",
+        "DarkGoldenRod", "DarkGray", "DarkGreen", "DarkKhaki", "DarkMagenta", "DarkOliveGreen",
+        "DarkOrange", "DarkOrchid", "DarkRed", "DarkSalmon", "DarkSeaGreen", "DarkSlateBlue",
+        "DarkSlateGray", "DarkTurquoise", "DarkViolet", "DeepPink", "DeepSkyBlue", "DimGray",
+        "DodgerBlue", "FireBrick", "FloralWhite", "ForestGreen", "Fuchsia", "Gainsboro", "GhostWhite",
+        "Gold", "GoldenRod", "Gray", "Green", "GreenYellow", "HoneyDew", "HotPink", "IndianRed",
+        "Indigo", "Ivory", "Khaki", "Lavender", "LavenderBlush", "LawnGreen", "LemonChiffon",
+        "LightBlue", "LightCoral", "LightCyan", "LightGoldenRodYellow", "LightGray", "LightGreen",
+        "LightPink", "LightSalmon", "LightSeaGreen", "LightSkyBlue", "LightSlateGray", "LightSteelBlue",
+        "LightYellow", "Lime", "LimeGreen", "Linen", "Magenta", "Maroon", "MediumAquaMarine", "MediumBlue",
+        "MediumOrchid", "MediumPurple", "MediumSeaGreen", "MediumSlateBlue", "MediumSpringGreen",
+        "MediumTurquoise", "MediumVioletRed", "MidnightBlue", "MintCream", "MistyRose", "Moccasin",
+        "NavajoWhite", "Navy", "OldLace", "Olive", "OliveDrab", "Orange", "OrangeRed", "Orchid",
+        "PaleGoldenRod", "PaleGreen", "PaleTurquoise", "PaleVioletRed", "PapayaWhip", "PeachPuff",
+        "Peru", "Pink", "Plum", "PowderBlue", "Purple", "Red", "RosyBrown", "RoyalBlue", "SaddleBrown",
+        "Salmon", "SandyBrown", "SeaGreen", "SeaShell", "Sienna", "Silver", "SkyBlue", "SlateBlue",
+        "SlateGray", "Snow", "SpringGreen", "SteelBlue", "Tan", "Teal", "Thistle", "Tomato", "Turquoise",
+        "Violet", "Wheat", "White", "WhiteSmoke", "Yellow", "YellowGreen"
+      ];
+      // Mezclar la lista completa
+      shuffle(htmlColors);
+      // Seleccionar 44 colores únicos para crear 44 pares
+      const selected = htmlColors.slice(0, 44);
+      const colorPairs = [];
+      selected.forEach(color => {
+        colorPairs.push(color, color);
+      });
+      // Mezclar los pares para colocarlos aleatoriamente en la cuadrícula
+      shuffle(colorPairs);
+      return colorPairs;
+    }
 
     function shuffle(array) {
       for (let i = array.length - 1; i > 0; i--) {
@@ -119,26 +157,106 @@
     }
 
     function initGame() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
       grid.innerHTML = "";
-      shuffle(customColors);
-      customColors.forEach(color => {
+      messageDisplay.textContent = "";
+      firstCell = null;
+      secondCell = null;
+      lockBoard = false;
+      timeLeft = 60;
+      timerDisplay.textContent = timeLeft;
+      gameStarted = false;
+
+      const colors = generateColors();
+      // Se crean 88 celdas: 44 pares de colores
+      for (let i = 0; i < 88; i++) {
         const cell = document.createElement("div");
         cell.classList.add("cell");
-        cell.style.backgroundColor = color;
-        cell.dataset.color = color;
-        cell.addEventListener("click", () => cell.classList.toggle("selected"));
+        cell.style.backgroundColor = colors[i];
+        cell.dataset.color = colors[i];
+        cell.addEventListener("click", handleCellClick);
         grid.appendChild(cell);
-      });
+      }
     }
 
-    function toggleDaltonicMode() {
-      daltonicMode = !daltonicMode;
-      document.body.style.filter = daltonicMode ? "grayscale(1)" : "none";
+    function startGame() {
+      if (!gameStarted) {
+        gameStarted = true;
+        timerInterval = setInterval(updateTimer, 1000);
+      }
     }
 
-    restartButton.addEventListener("click", initGame);
-    startButton.addEventListener("click", () => gameStarted = true);
-    toggleModeButton.addEventListener("click", toggleDaltonicMode);
+    function updateTimer() {
+      if (timeLeft > 0) {
+        timeLeft--;
+        timerDisplay.textContent = timeLeft;
+      } else {
+        clearInterval(timerInterval);
+        endGame(false);
+      }
+    }
+
+    function handleCellClick() {
+      if (!gameStarted) return;
+      if (lockBoard || this.classList.contains("removed")) return;
+      if (this === firstCell) return;
+
+      this.classList.add("selected");
+
+      if (!firstCell) {
+        firstCell = this;
+      } else {
+        secondCell = this;
+        lockBoard = true;
+
+        if (firstCell.dataset.color === secondCell.dataset.color) {
+          setTimeout(() => {
+            firstCell.classList.add("removed");
+            secondCell.classList.add("removed");
+            firstCell.classList.remove("selected");
+            secondCell.classList.remove("selected");
+            resetSelection();
+            checkGameEnd();
+          }, 200);
+        } else {
+          firstCell.classList.add("wrong");
+          secondCell.classList.add("wrong");
+          setTimeout(() => {
+            firstCell.classList.remove("wrong", "selected");
+            secondCell.classList.remove("wrong", "selected");
+            resetSelection();
+          }, 200);
+        }
+      }
+    }
+
+    function resetSelection() {
+      firstCell = null;
+      secondCell = null;
+      lockBoard = false;
+    }
+
+    function checkGameEnd() {
+      const remaining = document.querySelectorAll(".cell:not(.removed)").length;
+      if (remaining === 0) {
+        clearInterval(timerInterval);
+        endGame(true);
+      }
+    }
+
+    function endGame(win) {
+      lockBoard = true;
+      messageDisplay.textContent = win ? "¡Ganaste!" : "¡Perdiste!";
+    }
+
+    restartButton.addEventListener("click", function() {
+      initGame();
+      startGame();
+    });
+    startButton.addEventListener("click", startGame);
 
     initGame();
   </script>
