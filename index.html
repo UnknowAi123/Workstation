@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>Reproductor Mejorado</title>
   <style>
-    /* Estilos generales */
+    /* Estilos básicos */
     body {
       font-family: sans-serif;
       margin: 20px;
@@ -12,19 +12,16 @@
     h1 {
       margin-bottom: 10px;
     }
-    /* Contenedor del reproductor (audio y/o Youtube) */
-    #playerContainer {
-      margin-bottom: 15px;
-    }
-    /* Controles básicos */
+    /* Contenedor de controles (no se modifica la estructura ni los botones) */
     #controls {
-      margin-bottom: 15px;
+      margin: 10px 0;
     }
     button {
       margin-right: 10px;
       padding: 5px 10px;
     }
-    /* Lista de pistas */
+    
+    /* Listado de pistas */
     #playlist {
       list-style: none;
       padding: 0;
@@ -38,35 +35,34 @@
       border-bottom: 1px solid #ccc;
       cursor: pointer;
     }
-    /* Punto 4: Truncamiento de nombres largos */
+    /* (Puntos 4 y 6) Para que nombres largos se trunquen de forma responsiva con puntos suspensivos  
+       Se usa un ancho máximo relativo para que se ajuste según el tamaño */
     .track-info {
       overflow: hidden;
       white-space: nowrap;
       text-overflow: ellipsis;
-      /* Se asigna un ancho dinámico: se reserva espacio para el icono de la papelera */
-      max-width: calc(100% - 40px);
+      max-width: calc(100% - 40px); /* Se reserva espacio para el ícono de borrar */
     }
     .trashIcon {
       margin-left: 10px;
       cursor: pointer;
     }
     .active {
-      background-color: #eee;
+      background-color: #ddd;
     }
   </style>
 </head>
 <body>
   <h1>Reproductor Mejorado</h1>
   
-  <!-- Contenedor del reproductor: aquí se usará un elemento audio para pistas locales y un contenedor para YouTube -->
+  <!-- Contenedor del reproductor: Se incluye un elemento audio para pistas locales
+       y un contenedor para videos de YouTube. -->
   <div id="playerContainer">
-    <audio id="localAudio" controls style="display: none;"></audio>
-    <div id="youtubeContainer" style="display: none;">
-      <div id="youtubePlayer"></div>
-    </div>
+    <audio id="localPlayer" controls style="display: none;"></audio>
+    <div id="youtubePlayerContainer" style="display: none;"></div>
   </div>
   
-  <!-- Controles del reproductor -->
+  <!-- Controles (respetando la estructura y botones originales) -->
   <div id="controls">
     <button id="prevBtn">Anterior</button>
     <button id="playPauseBtn">Play</button>
@@ -77,91 +73,70 @@
   <!-- Listado de pistas -->
   <ul id="playlist"></ul>
   
-  <!-- Se carga la API de YouTube para manejar videos -->
+  <!-- Se carga la API de YouTube (necesaria para la integración de Media Session y controles en el mini reproductor) -->
   <script src="https://www.youtube.com/iframe_api"></script>
   <script>
-    /********************
+    /****************************
      * Variables Globales
-     ********************/
+     ****************************/
+    // Playlist con valores de ejemplo (placeholders).  
+    // Reemplaza las rutas o IDs por los tuyos; aquí no se usan links reales.
     let playlist = [
-      // Ejemplos de pistas; algunas son locales y otras de YouTube.
+      // Pista 1: Archivo local (coloca aquí la ruta de tu audio)
       { 
         type: 'local', 
-        name: 'Canción Local Corto', 
-        url: 'song1.mp3', 
-        artist: 'Artista Local', 
-        title: 'Canción 1' 
+        name: 'Pista 1 - Archivo Local', 
+        url: 'ruta/a/tu/audio1.mp3', 
+        artist: 'Artista 1', 
+        title: 'Título 1' 
       },
+      // Pista 2: Video de YouTube. Reemplaza "TU_ID_DE_YOUTUBE" por tu ID (no se usa link real)
       { 
         type: 'youtube', 
-        name: 'Video de YouTube', 
-        url: 'dQw4w9WgXcQ', 
+        name: 'Pista 2 - Video de YouTube', 
+        url: 'TU_ID_DE_YOUTUBE', 
         artist: 'Artista YT', 
-        title: 'Canción YT' 
+        title: 'Título YT' 
       },
+      // Pista 3: Pista local con nombre muy extenso para probar el truncamiento
       { 
         type: 'local', 
-        name: 'Canción Local con Nombre Muy Largo que debería truncarse en vista responsiva', 
-        url: 'song2.mp3', 
-        artist: 'Artista Largo', 
-        title: 'Una Canción Increíblemente Larga de Nombre' 
-      },
-      { 
-        type: 'local', 
-        name: 'Otra Canción', 
-        url: 'song3.mp3', 
-        artist: 'Otro Artista', 
-        title: 'Otra Canción' 
-      },
-      { 
-        type: 'youtube', 
-        name: 'Otro Video de YouTube', 
-        url: '9bZkp7q19f0', 
-        artist: 'Gangnam Style', 
-        title: 'Gangnam Style' 
-      },
-      { 
-        type: 'local', 
-        name: 'Canción 4', 
-        url: 'song4.mp3', 
-        artist: 'Artista 4', 
-        title: 'Canción 4' 
-      },
-      { 
-        type: 'local', 
-        name: 'Canción 5', 
-        url: 'song5.mp3', 
-        artist: 'Artista 5', 
-        title: 'Canción 5' 
+        name: 'Pista 3 - Archivo Local con nombre muy extenso que debe truncarse al mostrarse en el listado', 
+        url: 'ruta/a/tu/audio2.mp3', 
+        artist: 'Artista 3', 
+        title: 'Título 3' 
       }
     ];
     
     let currentIndex = 0;
     let shuffleMode = false;
-    let recentHistory = [];  // (Punto 1) Historial de las últimas 6 canciones reproducidas en modo shuffle.
-    let userPaused = false;  // Flag para distinguir pausas intencionadas por el usuario.
+    let recentHistory = [];  // (Punto 1) Historial para evitar repetir hasta que se hayan reproducido 6 pistas distintas
+    let userPaused = false;  // Flag para distinguir pausas intencionadas por el usuario
     
-    // Referencias a elementos del DOM
+    // Referencias a elementos DOM
     const playlistUI = document.getElementById('playlist');
     const playPauseBtn = document.getElementById('playPauseBtn');
     const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
     const shuffleBtn = document.getElementById('shuffleBtn');
-    const localAudio = document.getElementById('localAudio');
-    const youtubeContainer = document.getElementById('youtubeContainer');
-    let youtubePlayer = null; // Se inicializará mediante la API de YouTube.
-
-    /*********************************
-     * Integración con Media Session API
-     *********************************/
+    const localPlayer = document.getElementById('localPlayer');
+    const youtubePlayerContainer = document.getElementById('youtubePlayerContainer');
+    
+    let youtubePlayer = null; // Se inicializa mediante la API de YouTube
+    
+    /************************************
+     * (Punto 3) Integración con Media Session API
+     * Se actualiza la metadata para que el mini reproductor muestre
+     * información (artista y título) y permita los controles de play, pause, anterior y siguiente.
+     ************************************/
     function updateMediaSession() {
       if ('mediaSession' in navigator) {
-        const currentItem = playlist[currentIndex];
+        const track = playlist[currentIndex];
         navigator.mediaSession.metadata = new MediaMetadata({
-          title: currentItem.title || currentItem.name,
-          artist: currentItem.artist || '',
+          title: track.title || track.name,
+          artist: track.artist || '',
           album: '',
-          artwork: [] // Si ya se obtiene la carátula automáticamente, se puede dejar vacía.
+          artwork: [] // Si ya se extrae artwork, se puede integrar aquí
         });
         navigator.mediaSession.setActionHandler('play', playCurrentTrack);
         navigator.mediaSession.setActionHandler('pause', pauseCurrentTrack);
@@ -169,248 +144,208 @@
         navigator.mediaSession.setActionHandler('nexttrack', nextTrack);
       }
     }
-
-    /****************************
-     * Carga y reproductor actual
-     ****************************/
+    
+    /************************************
+     * Función para cargar la pista actual
+     * Se muestra el reproductor correspondiente según el tipo (local o YouTube)
+     ************************************/
     function loadCurrentTrack() {
       const track = playlist[currentIndex];
-
-      // Ocultamos ambos reproductores antes de mostrar el adecuado.
-      localAudio.style.display = 'none';
-      youtubeContainer.style.display = 'none';
-
+      // Se ocultan ambos reproductores antes de mostrar el adecuado.
+      localPlayer.style.display = 'none';
+      youtubePlayerContainer.style.display = 'none';
+      
       if (track.type === 'local') {
-        localAudio.src = track.url;
-        localAudio.style.display = 'block';
+        localPlayer.src = track.url;
+        localPlayer.style.display = 'block';
       } else if (track.type === 'youtube') {
-        youtubeContainer.style.display = 'block';
-        // Si ya hay un reproductor de YouTube, se carga el video; de lo contrario, se cargará al inicializar la API.
-        if (youtubePlayer && typeof youtubePlayer.loadVideoById === 'function') {
+        youtubePlayerContainer.style.display = 'block';
+        if (youtubePlayer && typeof youtubePlayer.loadVideoById === 'function')
           youtubePlayer.loadVideoById(track.url);
-        }
       }
       updateMediaSession();
       updatePlaylistUI();
     }
-
+    
+    /************************************
+     * Reproducción y pausa
+     ************************************/
     function playCurrentTrack() {
       userPaused = false;
       const track = playlist[currentIndex];
       if (track.type === 'local') {
-        localAudio.play();
+        localPlayer.play();
       } else if (track.type === 'youtube') {
-        if (youtubePlayer && typeof youtubePlayer.playVideo === 'function') {
+        if (youtubePlayer && typeof youtubePlayer.playVideo === 'function')
           youtubePlayer.playVideo();
-        }
       }
       playPauseBtn.textContent = 'Pause';
     }
-
+    
     function pauseCurrentTrack() {
       userPaused = true;
       const track = playlist[currentIndex];
       if (track.type === 'local') {
-        localAudio.pause();
+        localPlayer.pause();
       } else if (track.type === 'youtube') {
-        if (youtubePlayer && typeof youtubePlayer.pauseVideo === 'function') {
+        if (youtubePlayer && typeof youtubePlayer.pauseVideo === 'function')
           youtubePlayer.pauseVideo();
-        }
       }
       playPauseBtn.textContent = 'Play';
     }
-
-    /**************************************
-     * (Punto 1) Modo Shuffle sin repetición
-     **************************************/
+    
+    /************************************
+     * (Punto 1) Modo Shuffle sin repetición inmediata
+     * Se obtiene un índice aleatorio de las pistas que NO sean la actual
+     * ni se encuentren en el historial de las últimas 6.
+     ************************************/
     function getNextShuffleIndex() {
-      let allowedIndices = [];
-      playlist.forEach((item, i) => {
-        // Se excluye la pista actual y las que ya figuran en el historial reciente.
-        if(i !== currentIndex && recentHistory.indexOf(i) === -1) {
-          allowedIndices.push(i);
-        }
+      const allowed = [];
+      playlist.forEach((_, i) => {
+        if(i !== currentIndex && !recentHistory.includes(i))
+          allowed.push(i);
       });
-      // Si no hay índices permitidos, se resetea el historial (excepto cuando la playlist es muy corta)
-      if (allowedIndices.length === 0) {
-        if (playlist.length > 1) {
-          recentHistory = [];
-          allowedIndices = playlist.map((_, i) => i).filter(i => i !== currentIndex);
-        } else {
-          return currentIndex; // Solo hay una pista.
-        }
+      if (allowed.length === 0) {
+        // Si ya se han reproducido todas, se resetea el historial (exceptuando la actual)
+        recentHistory = [];
+        const all = playlist.map((_, i) => i).filter(i => i !== currentIndex);
+        return all[Math.floor(Math.random()*all.length)];
       }
-      return allowedIndices[Math.floor(Math.random() * allowedIndices.length)];
+      return allowed[Math.floor(Math.random() * allowed.length)];
     }
-
+    
+    /************************************
+     * Siguiente y anterior
+     * Se tiene en cuenta el modo shuffle y se actualiza el historial
+     ************************************/
     function nextTrack() {
-      if (shuffleMode) {
+      if(shuffleMode) {
         currentIndex = getNextShuffleIndex();
         recentHistory.push(currentIndex);
-        if (recentHistory.length > 6) {
+        if(recentHistory.length > 6)
           recentHistory.shift();
-        }
       } else {
         currentIndex = (currentIndex + 1) % playlist.length;
       }
       loadCurrentTrack();
       playCurrentTrack();
     }
-
+    
     function prevTrack() {
-      if (shuffleMode) {
-        // En modo shuffle se puede utilizar la misma lógica que para "siguiente"
+      if(shuffleMode) {
         currentIndex = getNextShuffleIndex();
         recentHistory.push(currentIndex);
-        if (recentHistory.length > 6) {
+        if(recentHistory.length > 6)
           recentHistory.shift();
-        }
       } else {
         currentIndex = (currentIndex - 1 + playlist.length) % playlist.length;
       }
       loadCurrentTrack();
       playCurrentTrack();
     }
-
-    /*************************************
+    
+    /************************************
      * (Punto 2) Eliminación de pistas
-     *************************************/
+     * Si se elimina la pista actual, se detiene la reproducción y no se activa la siguiente.
+     * Si es otra pista, continúa la reproducción.
+     ************************************/
     function removeFromPlaylist(index) {
       playlist.splice(index, 1);
-      if (index === currentIndex) {
-        // Si se elimina la pista actual, se detiene la reproducción
+      if(index === currentIndex) {
         pauseCurrentTrack();
-        if (playlist.length > 0) {
-          // Se ajusta el índice (por ejemplo, se toma la pista siguiente)
+        if(playlist.length > 0) {
           currentIndex = index % playlist.length;
           loadCurrentTrack();
         } else {
-          // Sin pistas, se detiene y limpia el reproductor.
-          localAudio.pause();
-          localAudio.src = "";
-          if (youtubePlayer) {
-            youtubePlayer.stopVideo();
-          }
+          localPlayer.pause();
+          if(youtubePlayer) youtubePlayer.stopVideo();
         }
-      } else if (index < currentIndex) {
-        currentIndex--; // Se ajusta el índice si se elimina una pista anterior a la actual.
+      } else if(index < currentIndex) {
+        currentIndex--;
       }
       updatePlaylistUI();
     }
-
-    /**********************************************
-     * (Puntos 3 y 6) Actualización del listado de pistas
-     **********************************************/
+    
+    /************************************
+     * (Puntos 3 y 5) Actualización del listado
+     * Se muestra “Artista – Título” cuando se dispone de esos datos, 
+     * y se utiliza el truncamiento responsivo para los nombres largos.
+     ************************************/
     function updatePlaylistUI() {
       playlistUI.innerHTML = '';
-      playlist.forEach((item, index) => {
+      playlist.forEach((track, i) => {
         const li = document.createElement('li');
-
-        // Se encapsula la información en un span que aplicará el truncamiento responsivo.
+        
         const trackInfo = document.createElement('span');
-        trackInfo.classList.add('track-info');
-        if (item.artist && item.title) {
-          trackInfo.textContent = item.artist + " - " + item.title;
-        } else {
-          trackInfo.textContent = item.name;
-        }
+        trackInfo.className = 'track-info';
+        trackInfo.textContent = (track.artist && track.title) ? 
+                                (track.artist + " - " + track.title) : track.name;
         li.appendChild(trackInfo);
-
-        // Ícono de papelera para eliminar la pista (Punto 2)
+        
         const trash = document.createElement('span');
-        trash.textContent = " 🗑️";
-        trash.classList.add("trashIcon");
+        trash.className = 'trashIcon';
+        trash.textContent = '🗑️';
         trash.addEventListener('click', (e) => {
           e.stopPropagation();
-          removeFromPlaylist(index);
+          removeFromPlaylist(i);
         });
         li.appendChild(trash);
-
+        
         li.addEventListener('click', () => {
-          currentIndex = index;
+          currentIndex = i;
           loadCurrentTrack();
           playCurrentTrack();
         });
-        if (index === currentIndex) {
+        if(i === currentIndex)
           li.classList.add('active');
-        }
         playlistUI.appendChild(li);
       });
     }
-
-    /*********************************
-     * Eventos de Controles del Reproductor
-     *********************************/
+    
+    /************************************
+     * Eventos de los controles
+     ************************************/
     playPauseBtn.addEventListener('click', () => {
       const track = playlist[currentIndex];
-      if (track.type === 'local') {
-        if (localAudio.paused) {
-          playCurrentTrack();
-        } else {
-          pauseCurrentTrack();
-        }
-      } else if (track.type === 'youtube') {
-        // Semántica basada en el texto del botón
-        if (playPauseBtn.textContent === 'Play') {
-          playCurrentTrack();
-        } else {
-          pauseCurrentTrack();
-        }
+      if(track.type === 'local') {
+        localPlayer.paused ? playCurrentTrack() : pauseCurrentTrack();
+      } else if(track.type === 'youtube') {
+        playPauseBtn.textContent === 'Play' ? playCurrentTrack() : pauseCurrentTrack();
       }
     });
-
     prevBtn.addEventListener('click', prevTrack);
     nextBtn.addEventListener('click', nextTrack);
-
     shuffleBtn.addEventListener('click', () => {
       shuffleMode = !shuffleMode;
       shuffleBtn.textContent = shuffleMode ? 'Shuffle On' : 'Shuffle Off';
-      // Al activar/desactivar shuffle se resetea el historial
       recentHistory = [];
     });
-
-    /******************************
-     * Integración con la API de YouTube
-     ******************************/
+    
+    /************************************
+     * (Integración opcional) YouTube IFrame API
+     * Para pistas de tipo YouTube, se crea el reproductor en el contenedor.
+     ************************************/
     function onYouTubeIframeAPIReady() {
-      youtubePlayer = new YT.Player('youtubePlayer', {
-        height: '360',
-        width: '640',
+      youtubePlayer = new YT.Player('youtubePlayerContainer', {
+        height: '200',
+        width: '320',
         videoId: (playlist[currentIndex].type === 'youtube' ? playlist[currentIndex].url : ''),
+        playerVars: { playsinline: 1, autoplay: 0, controls: 1 },
         events: {
-          'onReady': onPlayerReady,
-          'onStateChange': onPlayerStateChange
-        },
-        playerVars: {
-          'playsinline': 1,
-          'autoplay': 0,
-          'controls': 1
+          'onReady': () => {},
+          'onStateChange': (event) => {
+            if(event.data === YT.PlayerState.ENDED)
+              nextTrack();
+          }
         }
       });
     }
-
-    function onPlayerReady(event) {
-      // Puede reproducirse automáticamente o esperar acción
-    }
-
-    function onPlayerStateChange(event) {
-      // Si el video termina, se avanza a la siguiente pista.
-      if (event.data === YT.PlayerState.ENDED) {
-        nextTrack();
-      }
-    }
-
+    
     /************************************
-     * Inicialización al cargar la página
+     * Inicialización
      ************************************/
     loadCurrentTrack();
     updatePlaylistUI();
-
-    /* 
-      Notar que respecto a la continuidad de la reproducción al salir/entrar a Firefox,
-      decidimos no intervenir directamente en los eventos de visibilidad para evitar breves pausas.
-      El comportamiento se mantiene de manera fluida mientras no se cierre el navegador o la pantalla.
-    */
   </script>
 </body>
 </html>
