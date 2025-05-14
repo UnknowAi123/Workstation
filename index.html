@@ -5,22 +5,44 @@
   <title>Juego de Memoria de Colores</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <style>
-    /* Reset global y estilos básicos */
-    * { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; -ms-touch-action: manipulation; touch-action: manipulation; }
-    body { font-family: Arial, sans-serif; background-color: #fff; padding: 20px; text-align: center; }
-    h1 { margin-bottom: 10px; font-size: 20px; }
-    
-    /* Controles y botones */
-    .controls { margin-bottom: 10px; }
-    .button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin: 5px; }
-    .timer { font-size: 24px; margin-bottom: 10px; }
-    
-    /* Contenedor de la cuadrícula */
-    .grid-container { width: 100%; min-width: 300px; margin: 0 auto; }
-    
-    /* La cuadrícula usa una variable --cell-size para definir el tamaño de cada celda.
-       Se definen 8 columnas; el tamaño se recalcula en JS en función del ancho del contenedor. */
+    /* Global: forzamos el box-sizing para todos los elementos */
+    * {
+      box-sizing: border-box;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      -ms-touch-action: manipulation;
+      touch-action: manipulation;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #fff;
+      padding: 20px;
+      text-align: center;
+    }
+    h1 {
+      margin-bottom: 10px;
+      font-size: 20px;
+    }
+    .controls {
+      margin-bottom: 10px;
+    }
+    .button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    .timer {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+    .grid-container {
+      width: 100%;
+      min-width: 300px;
+      margin: 0 auto;
+    }
     .grid {
       width: 100%;
       display: grid;
@@ -31,14 +53,12 @@
       background-color: #333;
       margin: 0 auto;
     }
-    
-    /* Estilos de cada celda */
     .cell {
       width: 100%;
       height: 100%;
       background-color: #ccc;
       cursor: pointer;
-      transition: all 0.3s;
+      transition: background-color 0.3s, opacity 0.3s, filter 0.2s, transform 0.2s, border 0.2s;
     }
     .cell.selected {
       border: 3px solid #FFD700;
@@ -51,9 +71,10 @@
       opacity: 0;
       pointer-events: none;
     }
-    
-    /* Mensaje final */
-    .message { font-size: 28px; margin-top: 20px; }
+    .message {
+      font-size: 28px;
+      margin-top: 20px;
+    }
   </style>
 </head>
 <body>
@@ -61,14 +82,12 @@
   <div class="controls">
     <button class="button" id="start">Iniciar Juego</button>
     <button class="button" id="restart">Reiniciar</button>
-    <button class="button" id="colorMode">Modo Daltónico: Desactivado</button>
   </div>
   <div class="timer" id="timer">60</div>
   <div class="grid-container">
     <div class="grid" id="grid"></div>
   </div>
   <div class="message" id="message"></div>
-  
   <script>
     const grid = document.getElementById("grid");
     const gridContainer = document.querySelector(".grid-container");
@@ -76,37 +95,23 @@
     const messageDisplay = document.getElementById("message");
     const startButton = document.getElementById("start");
     const restartButton = document.getElementById("restart");
-    const colorModeButton = document.getElementById("colorMode");
 
-    // Modo daltónico: Cicla entre "normal", "protanopia", "deuteranopia" y "tritanopia"
-    const modes = ["normal", "protanopia", "deuteranopia", "tritanopia"];
-    let daltonicModeIndex = 0;
-
-    let firstCell = null,
-        secondCell = null,
-        lockBoard = false,
-        timeLeft = 60,
-        timerInterval,
-        gameStarted = false;
+    let firstCell = null;
+    let secondCell = null;
+    let lockBoard = false;
+    let timeLeft = 60;
+    let timerInterval;
+    let gameStarted = false;
 
     // Actualiza el tamaño de cada celda según el ancho del contenedor.
     function updateCellSize() {
       const containerWidth = gridContainer.clientWidth;
-      // Cálculo: 8 celdas + 2 márgenes de 4px (padding) + 7 gaps de 4px = 36px.
+      // 8 celdas más márgenes y gaps = 36px (ajustable)
       const cellSize = (containerWidth - 36) / 8;
       grid.style.setProperty('--cell-size', cellSize + 'px');
     }
     updateCellSize();
     window.addEventListener('resize', updateCellSize);
-
-    // Al pulsar el botón, se cicla el modo daltónico y se actualiza la etiqueta.
-    colorModeButton.addEventListener("click", function() {
-      daltonicModeIndex = (daltonicModeIndex + 1) % modes.length;
-      const modeText = modes[daltonicModeIndex];
-      colorModeButton.textContent =
-        `Modo Daltónico: ${modeText.charAt(0).toUpperCase() + modeText.slice(1)}`;
-      initGame();
-    });
 
     // LISTADO PERSONALIZABLE: Los 140 colores HTML.
     // Puedes agregar, quitar o incluir colores en formato hexadecimal.
@@ -141,7 +146,7 @@
       "Wheat", "White", "WhiteSmoke", "Yellow", "YellowGreen"
     ];
 
-    // Genera 44 pares de colores (88 celdas) a partir del listado personalizable.
+    // Genera 44 pares de colores (88 celdas) a partir del listado personalizado.
     function generateColors() {
       let availableColors = customColorList.slice();
       shuffle(availableColors);
@@ -162,9 +167,11 @@
       }
     }
 
-    // Reinicia el juego: limpia la cuadrícula, resetea el reloj y genera nuevas celdas.
     function initGame() {
-      if (timerInterval) clearInterval(timerInterval);
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
       grid.innerHTML = "";
       messageDisplay.textContent = "";
       firstCell = null;
@@ -187,7 +194,6 @@
       }
     }
 
-    // Inicia el temporizador.
     function startGame() {
       if (!gameStarted) {
         gameStarted = true;
@@ -256,7 +262,10 @@
       messageDisplay.textContent = win ? "¡Ganaste!" : "¡Perdiste!";
     }
 
-    restartButton.addEventListener("click", () => { initGame(); startGame(); });
+    restartButton.addEventListener("click", function() {
+      initGame();
+      startGame();
+    });
     startButton.addEventListener("click", startGame);
 
     initGame();
