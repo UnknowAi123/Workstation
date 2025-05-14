@@ -5,7 +5,7 @@
   <title>Juego de Memoria de Colores</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <style>
-    /* Global: Forzamos el box-sizing para todos los elementos */
+    /* Global: forzamos el box-sizing para todos los elementos */
     * {
       box-sizing: border-box;
     }
@@ -82,7 +82,6 @@
   <div class="controls">
     <button class="button" id="start">Iniciar Juego</button>
     <button class="button" id="restart">Reiniciar</button>
-    <button class="button" id="toggleDaltonic">Modo Daltonico</button>
   </div>
   <div class="timer" id="timer">60</div>
   <div class="grid-container">
@@ -90,31 +89,12 @@
   </div>
   <div class="message" id="message"></div>
   <script>
-    // CONFIGURACIÓN DE COLORES:
-    // Edita la siguiente lista para agregar o quitar colores del juego.
-    // Puedes incluir colores por nombre (de los 140) o en formato hexadecimal (ej.: "#FF5733").
-    const customColorList = [
-      "AliceBlue", "AntiqueWhite", "Aqua", "Aquamarine", "Azure", "Beige", "Bisque", "Black",
-      "BlanchedAlmond", "Blue", "BlueViolet", "Brown", "BurlyWood", "CadetBlue", "Chartreuse",
-      "Chocolate", "Coral", "CornflowerBlue", "Cornsilk", "Crimson", "Cyan", "DarkBlue", "DarkCyan",
-      "DarkGoldenRod", "DarkGray", "DarkGreen", "DarkKhaki", "DarkMagenta", "DarkOliveGreen",
-      "DarkOrange", "DarkOrchid", "DarkRed", "DarkSalmon", "DarkSeaGreen", "DarkSlateBlue",
-      "DarkSlateGray", "DarkTurquoise", "DarkViolet", "DeepPink", "DeepSkyBlue", "DimGray",
-      "DodgerBlue", "FireBrick", "FloralWhite", "ForestGreen", "Fuchsia", "Gainsboro", "GhostWhite",
-      "Gold", "GoldenRod", "Gray", "Green", "GreenYellow", "HoneyDew", "HotPink", "IndianRed",
-      "Indigo", "Ivory", "Khaki", "Lavender", "LavenderBlush", "LawnGreen", "LemonChiffon",
-      // Ejemplos de colores en formato hexadecimal:
-      "#FF5733", "#4A90E2", "#27AE60", "#F1C40F", "#8E44AD"
-    ];
-    // Fin de la sección de configuración de colores
-
     const grid = document.getElementById("grid");
     const gridContainer = document.querySelector(".grid-container");
     const timerDisplay = document.getElementById("timer");
     const messageDisplay = document.getElementById("message");
     const startButton = document.getElementById("start");
     const restartButton = document.getElementById("restart");
-    const toggleDaltonicButton = document.getElementById("toggleDaltonic");
 
     let firstCell = null;
     let secondCell = null;
@@ -122,7 +102,6 @@
     let timeLeft = 60;
     let timerInterval;
     let gameStarted = false;
-    let daltonicMode = false;
 
     function updateCellSize() {
       const containerWidth = gridContainer.clientWidth;
@@ -133,16 +112,51 @@
     updateCellSize();
     window.addEventListener('resize', updateCellSize);
 
-    // Nuevo enfoque para generar pares con la lista de colores configurados.
+    function getRandomColor(isPastel) {
+      const hue = Math.floor(Math.random() * 360);
+      const saturation = isPastel ? Math.random() * 30 + 40 : Math.random() * 40 + 60;
+      let lightness = isPastel ? Math.random() * 30 + 65 : Math.random() * 30 + 50;
+      if (lightness > 85) lightness = 82;
+      return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+    }
+
+    function parseHSL(hslString) {
+      const regex = /hsl\((\d+),\s*([\d\.]+)%,\s*([\d\.]+)%\)/;
+      const result = regex.exec(hslString);
+      if (result) {
+        return {
+          hue: parseInt(result[1]),
+          saturation: parseFloat(result[2]),
+          lightness: parseFloat(result[3])
+        };
+      }
+      return null;
+    }
+
+    function areColorsSimilar(colorStr1, colorStr2) {
+      const color1 = parseHSL(colorStr1);
+      const color2 = parseHSL(colorStr2);
+      if (!color1 || !color2) return false;
+      const hueDiff = Math.abs(color1.hue - color2.hue);
+      const satDiff = Math.abs(color1.saturation - color2.saturation);
+      const lightDiff = Math.abs(color1.lightness - color2.lightness);
+      return (hueDiff < 20 && satDiff < 15 && lightDiff < 10);
+    }
+
+    // Genera 44 pares de colores, es decir, 88 celdas, forzando contraste
     function generateColors() {
-      let colorPairs = [];
-      // Duplicar cada color para formar pares.
-      customColorList.forEach(color => {
-        colorPairs.push(color, color);
-      });
-      // Mezclar los pares.
-      shuffle(colorPairs);
-      return colorPairs;
+      const colors = [];
+      for (let i = 0; i < 44; i++) {
+        const isPastel = i % 2 === 0;
+        let color;
+        let attempt = 0;
+        do {
+          color = getRandomColor(isPastel);
+          attempt++;
+        } while (colors.some(c => areColorsSimilar(c, color)) && attempt < 10);
+        colors.push(color, color);
+      }
+      return colors;
     }
 
     function shuffle(array) {
@@ -167,15 +181,16 @@
       gameStarted = false;
 
       const colors = generateColors();
-      // Se crean 2 x (número de colores) celdas
-      colors.forEach(color => {
+      shuffle(colors);
+      // Crea 88 celdas en lugar de 64
+      for (let i = 0; i < 88; i++) {
         const cell = document.createElement("div");
         cell.classList.add("cell");
-        cell.style.backgroundColor = color;
-        cell.dataset.color = color;
+        cell.style.backgroundColor = colors[i];
+        cell.dataset.color = colors[i];
         cell.addEventListener("click", handleCellClick);
         grid.appendChild(cell);
-      });
+      }
     }
 
     function startGame() {
@@ -248,17 +263,11 @@
       messageDisplay.textContent = win ? "¡Ganaste!" : "¡Perdiste!";
     }
 
-    function toggleDaltonicMode() {
-      daltonicMode = !daltonicMode;
-      document.body.style.filter = daltonicMode ? "grayscale(1)" : "none";
-    }
-
     restartButton.addEventListener("click", function() {
       initGame();
       startGame();
     });
     startButton.addEventListener("click", startGame);
-    toggleDaltonicButton.addEventListener("click", toggleDaltonicMode);
 
     initGame();
   </script>
