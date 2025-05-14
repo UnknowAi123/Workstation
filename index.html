@@ -4,22 +4,31 @@
   <meta charset="UTF-8">
   <title>Reproductor de Música HTML</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Incluimos la API de YouTube -->
+  <script src="https://www.youtube.com/iframe_api"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
       margin: 20px;
     }
-    #controls {
-      margin-bottom: 15px;
+    h1, h2 {
+      margin-bottom: 10px;
+    }
+    #localFileSection, #youtubeSection {
+      margin-bottom: 20px;
     }
     button {
       padding: 10px 15px;
       margin: 5px;
       font-size: 16px;
     }
+    #controls {
+      margin-bottom: 15px;
+    }
     #playlist {
       list-style: none;
       padding: 0;
+      margin-top: 20px;
     }
     #playlist li {
       padding: 5px;
@@ -28,41 +37,51 @@
     #playlist li.active {
       background-color: #ddd;
     }
-    /* Contenedor para el visor de tiempo y barra de reproducción */
-    #timeContainer {
+    #timeContainer, #volumeContainer {
       margin: 10px 0;
     }
-    /* Barra de búsqueda (timeline) y barra de volumen */
     #progressBar, #volumeSlider {
       width: 100%;
     }
-    #volumeContainer {
-      margin: 10px 0;
+    /* El reproductor de YouTube se mantiene oculto (pequeño y sin controles visibles) */
+    #youtubePlayerContainer {
+      display: none;
     }
   </style>
 </head>
 <body>
-  <h1>Reproductor de Música</h1>
+  <h1>Reproductor de Música HTML</h1>
   
-  <div id="fileSelection">
-    <!-- Permite seleccionar archivos o carpetas; se aceptan solo audio -->
-    <input type="file" id="fileInput" multiple webkitdirectory accept="audio/*">
+  <!-- Sección para cargar archivos locales -->
+  <div id="localFileSection">
+    <h2>Archivos Locales</h2>
+    <label>Seleccionar carpeta: </label>
+    <input type="file" id="fileInputFolder" multiple webkitdirectory accept="audio/*"><br>
+    <label>Seleccionar archivo: </label>
+    <input type="file" id="fileInputSingle" accept="audio/*">
   </div>
   
+  <!-- Sección para importar enlaces de YouTube -->
+  <div id="youtubeSection">
+    <h2>Enlaces de YouTube</h2>
+    <label>Importar lista de enlaces (archivo TXT): </label>
+    <input type="file" id="youtubeFileInput" accept=".txt">
+  </div>
+  
+  <!-- Controles de reproducción -->
   <div id="controls">
     <button id="prevButton">Anterior</button>
     <button id="playButton">Play</button>
     <button id="pauseButton">Pause</button>
     <button id="nextButton">Siguiente</button>
     <button id="shuffleToggle">Shuffle Off</button>
-    <button id="exportPlaylist">Exportar Playlist</button>
+    <button id="exportPlaylist">Exportar Playlist (HTML)</button>
   </div>
   
-  <!-- Visor de tiempo (actual / duración) -->
+  <!-- Visor de tiempo y barra de progreso -->
   <div id="timeContainer">
     <span id="currentTime">00:00</span> / <span id="duration">00:00</span>
   </div>
-  <!-- Barra de reproducción (timeline) -->
   <input type="range" id="progressBar" min="0" value="0" step="1">
   
   <!-- Barra de volumen -->
@@ -71,33 +90,62 @@
     <input type="range" id="volumeSlider" min="0" max="100" value="100">
   </div>
   
+  <!-- Lista de reproducción -->
   <ul id="playlist"></ul>
   
-  <!-- Elemento de audio sin controles nativos para personalizar la interfaz -->
+  <!-- Elemento de audio para archivos locales -->
   <audio id="audioPlayer"></audio>
+  <!-- Contenedor para el reproductor de YouTube (usando la API, se mantiene oculto) -->
+  <div id="youtubePlayerContainer"></div>
   
   <script>
-    // Variables globales
-    let playlist = []; // Array de objetos { name, url }
+    // Variables globales: la playlist contendrá items con { type, name, url, videoId }
+    let playlist = [];
     let currentIndex = 0;
     let shuffleOn = false;
     
-    // Referencias a elementos DOM
-    const audioPlayer       = document.getElementById('audioPlayer');
-    const fileInput         = document.getElementById('fileInput');
-    const playlistUI        = document.getElementById('playlist');
-    const playButton        = document.getElementById('playButton');
-    const pauseButton       = document.getElementById('pauseButton');
-    const prevButton        = document.getElementById('prevButton');
-    const nextButton        = document.getElementById('nextButton');
-    const shuffleToggle     = document.getElementById('shuffleToggle');
+    // Referencias a elementos del DOM
+    const audioPlayer = document.getElementById('audioPlayer');
+    const fileInputFolder = document.getElementById('fileInputFolder');
+    const fileInputSingle = document.getElementById('fileInputSingle');
+    const youtubeFileInput = document.getElementById('youtubeFileInput');
+    const playlistUI = document.getElementById('playlist');
+    const playButton = document.getElementById('playButton');
+    const pauseButton = document.getElementById('pauseButton');
+    const prevButton = document.getElementById('prevButton');
+    const nextButton = document.getElementById('nextButton');
+    const shuffleToggle = document.getElementById('shuffleToggle');
     const exportPlaylistBtn = document.getElementById('exportPlaylist');
-    const currentTimeDisplay= document.getElementById('currentTime');
-    const durationDisplay   = document.getElementById('duration');
-    const progressBar       = document.getElementById('progressBar');
-    const volumeSlider      = document.getElementById('volumeSlider');
+    const currentTimeDisplay = document.getElementById('currentTime');
+    const durationDisplay = document.getElementById('duration');
+    const progressBar = document.getElementById('progressBar');
+    const volumeSlider = document.getElementById('volumeSlider');
+    const youtubePlayerContainer = document.getElementById('youtubePlayerContainer');
     
-    // Función para actualizar la visualización de la playlist
+    // Variable para el reproductor de YouTube (se crea mediante la IFrame API)
+    let youtubePlayer;
+    
+    // Función requerida por la API de YouTube
+    function onYouTubeIframeAPIReady() {
+      youtubePlayer = new YT.Player('youtubePlayerContainer', {
+        height: '0',
+        width: '0',
+        videoId: '',
+        playerVars: { 'autoplay': 0, 'controls': 0 },
+        events: {
+          'onReady': onYouTubePlayerReady,
+          'onStateChange': onYouTubePlayerStateChange
+        }
+      });
+    }
+    function onYouTubePlayerReady(event) { }
+    function onYouTubePlayerStateChange(event) {
+      if (event.data === YT.PlayerState.ENDED) {
+        nextTrack();
+      }
+    }
+    
+    // Actualiza la lista en la interfaz
     function updatePlaylistUI() {
       playlistUI.innerHTML = '';
       playlist.forEach((item, index) => {
@@ -115,21 +163,48 @@
       });
     }
     
-    // Función para cargar el track actual en el reproductor
+    // Carga la pista actual; según el tipo, se usa el reproductor local o el de YouTube
     function loadCurrentTrack() {
-      if (playlist[currentIndex]) {
-        audioPlayer.src = playlist[currentIndex].url;
+      if (!playlist[currentIndex]) return;
+      const currentItem = playlist[currentIndex];
+      if (currentItem.type === 'local') {
+        if (youtubePlayer && youtubePlayer.stopVideo) {
+          youtubePlayer.stopVideo();
+        }
+        audioPlayer.src = currentItem.url;
+        audioPlayer.style.display = 'block';
+        youtubePlayerContainer.style.display = 'none';
+      } else if (currentItem.type === 'youtube') {
+        audioPlayer.pause();
+        audioPlayer.style.display = 'none';
+        youtubePlayerContainer.style.display = 'block';
+        if (youtubePlayer) {
+          youtubePlayer.loadVideoById(currentItem.videoId);
+        }
       }
     }
     
-    // Funciones básicas de reproducción
+    // Reproduce la pista actual
     function playCurrentTrack() {
-      audioPlayer.play();
+      const currentItem = playlist[currentIndex];
+      if (currentItem.type === 'local') {
+        audioPlayer.play();
+      } else if (currentItem.type === 'youtube' && youtubePlayer) {
+        youtubePlayer.playVideo();
+      }
       updatePlaylistUI();
     }
+    // Pausa la reproducción
     function pauseCurrentTrack() {
-      audioPlayer.pause();
+      const currentItem = playlist[currentIndex];
+      if (currentItem.type === 'local') {
+        audioPlayer.pause();
+      } else if (currentItem.type === 'youtube' && youtubePlayer) {
+        youtubePlayer.pauseVideo();
+      }
     }
+    
+    // Cambia a la siguiente pista
     function nextTrack() {
       if (shuffleOn) {
         currentIndex = Math.floor(Math.random() * playlist.length);
@@ -139,6 +214,7 @@
       loadCurrentTrack();
       playCurrentTrack();
     }
+    // Cambia a la pista anterior
     function prevTrack() {
       if (shuffleOn) {
         currentIndex = Math.floor(Math.random() * playlist.length);
@@ -149,16 +225,54 @@
       playCurrentTrack();
     }
     
-    // Convierte segundos a formato mm:ss
+    // Convierte segundos al formato mm:ss
     function formatTime(seconds) {
       const minutes = Math.floor(seconds / 60);
       const secs = Math.floor(seconds % 60);
-      return (minutes < 10 ? "0" + minutes : minutes) + ":" + (secs < 10 ? "0" + secs : secs);
+      return (minutes < 10 ? '0' + minutes : minutes) + ':' + (secs < 10 ? '0' + secs : secs);
     }
     
-    // Asignación de event listeners a botones
+    // Actualizador del visor de tiempo y barra de progreso (timeline)
+    function updateTime() {
+      if (!playlist[currentIndex]) return;
+      const currentItem = playlist[currentIndex];
+      let current = 0, duration = 0;
+      if (currentItem.type === 'local') {
+        current = audioPlayer.currentTime;
+        duration = audioPlayer.duration || 0;
+      } else if (currentItem.type === 'youtube' && youtubePlayer && youtubePlayer.getCurrentTime) {
+        current = youtubePlayer.getCurrentTime();
+        duration = youtubePlayer.getDuration();
+      }
+      currentTimeDisplay.textContent = formatTime(current);
+      durationDisplay.textContent = formatTime(duration);
+      progressBar.max = duration;
+      progressBar.value = current;
+    }
+    setInterval(updateTime, 500);
+    
+    // Permite buscar (seek) dentro de la pista
+    progressBar.addEventListener('input', () => {
+      const currentItem = playlist[currentIndex];
+      if (currentItem.type === 'local') {
+        audioPlayer.currentTime = progressBar.value;
+      } else if (currentItem.type === 'youtube' && youtubePlayer) {
+        youtubePlayer.seekTo(progressBar.value, true);
+      }
+    });
+    
+    // Control del volumen para ambos reproductores
+    volumeSlider.addEventListener('input', () => {
+      const vol = volumeSlider.value; // 0 a 100
+      audioPlayer.volume = vol / 100;
+      if (youtubePlayer && youtubePlayer.setVolume) {
+        youtubePlayer.setVolume(vol);
+      }
+    });
+    
+    // Event listeners para los botones de control
     playButton.addEventListener('click', () => {
-      if (!audioPlayer.src && playlist.length > 0) {
+      if (!playlist[currentIndex] && playlist.length > 0) {
         loadCurrentTrack();
       }
       playCurrentTrack();
@@ -166,13 +280,10 @@
     pauseButton.addEventListener('click', pauseCurrentTrack);
     nextButton.addEventListener('click', nextTrack);
     prevButton.addEventListener('click', prevTrack);
-    
     shuffleToggle.addEventListener('click', () => {
       shuffleOn = !shuffleOn;
       shuffleToggle.textContent = shuffleOn ? 'Shuffle On' : 'Shuffle Off';
     });
-    
-    // Exporta la playlist en formato HTML
     exportPlaylistBtn.addEventListener('click', () => {
       if (playlist.length === 0) return;
       const htmlContent = `
@@ -205,42 +316,33 @@
       document.body.removeChild(a);
     });
     
-    // Cuando finaliza la pista, se avanza automáticamente a la siguiente
-    audioPlayer.addEventListener('ended', nextTrack);
+    // Función auxiliar para extraer el ID de video de un enlace de YouTube
+    function extractYouTubeID(url) {
+      let videoId = null;
+      const regExp = /[?&]v=([^&#]+)/;
+      const match = url.match(regExp);
+      if (match && match[1]) {
+        videoId = match[1];
+      } else {
+        // Para enlaces cortos (youtu.be)
+        const shortRegExp = /youtu\.be\/([^?&#]+)/;
+        const shortMatch = url.match(shortRegExp);
+        if (shortMatch && shortMatch[1]) {
+          videoId = shortMatch[1];
+        }
+      }
+      return videoId;
+    }
     
-    // Actualización del visor de tiempo y la barra de progreso
-    audioPlayer.addEventListener('timeupdate', () => {
-      currentTimeDisplay.textContent = formatTime(audioPlayer.currentTime);
-      progressBar.value = audioPlayer.currentTime;
-    });
-    
-    // Cuando se cargan los metadatos, se actualiza la duración y el máximo de la barra de progreso
-    audioPlayer.addEventListener('loadedmetadata', () => {
-      durationDisplay.textContent = formatTime(audioPlayer.duration);
-      progressBar.max = audioPlayer.duration;
-    });
-    
-    // Permite al usuario buscar dentro de la pista (timeline)
-    progressBar.addEventListener('input', () => {
-      audioPlayer.currentTime = progressBar.value;
-    });
-    
-    // Control del volumen: utiliza el valor de 0 a 100 y lo convierte a [0, 1]
-    volumeSlider.addEventListener('input', () => {
-      audioPlayer.volume = volumeSlider.value / 100;
-    });
-    
-    // Al seleccionar archivos (o carpeta), se crea la playlist y se filtran solo los archivos de audio
-    fileInput.addEventListener('change', (event) => {
+    // Manejo de la selección de carpeta (archivos locales)
+    fileInputFolder.addEventListener('change', (event) => {
       const files = event.target.files;
-      playlist = [];
       Array.from(files).forEach(file => {
         if (file.type.startsWith("audio")) {
           const url = URL.createObjectURL(file);
-          playlist.push({ name: file.name, url });
+          playlist.push({ type: 'local', name: file.name, url: url });
         }
       });
-      // Se reinicia el índice actual y se actualiza la interfaz
       currentIndex = 0;
       updatePlaylistUI();
       if (playlist.length > 0) {
@@ -248,14 +350,48 @@
       }
     });
     
-    // (Opcional) Algoritmo de shuffle para la playlist si se desea mezclar al cargar
-    function shuffleArray(array) {
-      for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
+    // Manejo de la selección de un solo archivo local
+    fileInputSingle.addEventListener('change', (event) => {
+      const files = event.target.files;
+      Array.from(files).forEach(file => {
+        if (file.type.startsWith("audio")) {
+          const url = URL.createObjectURL(file);
+          playlist.push({ type: 'local', name: file.name, url: url });
+        }
+      });
+      currentIndex = 0;
+      updatePlaylistUI();
+      if (playlist.length > 0) {
+        loadCurrentTrack();
       }
-    }
+    });
     
+    // Importa un archivo TXT con enlaces de YouTube y añade cada enlace a la playlist
+    youtubeFileInput.addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const text = e.target.result;
+          const lines = text.split('\n');
+          lines.forEach(line => {
+            const url = line.trim();
+            if(url) {
+              const videoId = extractYouTubeID(url);
+              if(videoId) {
+                playlist.push({ type: 'youtube', name: "YouTube: " + videoId, url: url, videoId: videoId });
+              }
+            }
+          });
+          currentIndex = 0;
+          updatePlaylistUI();
+          if (playlist.length > 0) {
+            loadCurrentTrack();
+          }
+        };
+        reader.readAsText(file);
+      }
+    });
   </script>
 </body>
 </html>
