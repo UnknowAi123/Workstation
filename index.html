@@ -3,162 +3,263 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fusionar Marcadores Refinados</title>
+  <title>Extraer Enlaces de HTML - Ajuste Final</title>
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; margin: 40px; }
-    button { padding: 10px; margin: 10px; font-size: 16px; cursor: pointer; }
-    #resultado { text-align: left; max-width: 90%; margin: auto; white-space: pre-wrap; border: 1px solid #ccc; padding: 10px; background: #f4f4f4; }
-    .mensaje { font-weight: bold; margin-top: 10px; }
+    /* Estilos generales */
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      overflow-x: hidden;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+    /* Para pantallas grandes (PC) */
+    @media (min-width: 769px) { body { margin: 40px; } }
+    /* Para pantallas pequeñas (Phone) */
+    @media (max-width: 768px) { body { margin: 20px; } }
+    input, button {
+      width: 80%;
+      padding: 10px;
+      margin: 10px 0;
+    }
+    button { font-size: 16px; cursor: pointer; }
+    /* Estilo base para la caja de vista previa */
+    #resultado {
+      text-align: left;
+      max-width: 100%;
+      margin: 20px auto;
+      border: 2px solid #ccc;
+      padding: 10px;
+      background: #f4f4f4;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      box-sizing: border-box;
+    }
+    /* Fallback general (para navegadores que no sean Chrome o Firefox) */
+    @media (min-width: 769px) { #resultado { font-size: 13px; } }
+    @media (max-width: 768px) { #resultado { font-size: 12px; } }
+    /* --- Para Chrome --- */
+    @media screen and (-webkit-min-device-pixel-ratio: 0) {
+      @media (min-width: 769px) { #resultado { font-size: 10px !important; } }
+      @media (max-width: 768px) { #resultado { font-size: 10px !important; } }
+    }
+    /* --- Para Firefox --- */
+    @-moz-document url-prefix() {
+      @media (min-width: 769px) { #resultado { font-size: 18px !important; } }
+      @media (max-width: 768px) { #resultado { font-size: 10px !important; } }
+    }
+    /* Estilos para mensajes */
+    #mensajeCargar, #mensajeExtraer, #mensajeExportar {
+      text-align: center;
+      font-weight: bold;
+      padding: 5px;
+      margin-top: 10px;
+    }
     .positivo { color: green; }
     .negativo { color: red; }
   </style>
 </head>
 <body>
-  <h1>Fusionar Marcadores Refinados</h1>
-  <p>Carga dos archivos HTML refinados para fusionarlos ordenados por fecha o dominio (A–Z).</p>
+  <h1>Extraer Enlaces de HTML</h1>
+  <p>Sube un archivo HTML de marcadores y visualiza solo los enlaces ordenados.</p>
   
-  <button onclick="document.getElementById('archivo1').click()">Cargar Archivo 1</button>
-  <input type="file" id="archivo1" style="display: none;" accept=".html" onchange="procesarArchivo(this, 1)">
+  <button onclick="document.getElementById('archivo').click()">CARGAR Y PROCESAR POR FECHA</button>
+  <button onclick="document.getElementById('archivoAZ').click()">CARGAR Y PROCESAR A-Z</button>
+  <input type="file" id="archivo" style="display: none;" accept=".html" onchange="validarYProcesarArchivo('fecha')">
+  <input type="file" id="archivoAZ" style="display: none;" accept=".html" onchange="validarYProcesarArchivo('az')">
   
-  <button onclick="document.getElementById('archivo2').click()">Cargar Archivo 2</button>
-  <input type="file" id="archivo2" style="display: none;" accept=".html" onchange="procesarArchivo(this, 2)">
+  <div id="mensajeCargar"></div>
+  <div id="mensajeExtraer"></div>
   
-  <div id="mensajeCarga1" class="mensaje"></div>
-  <div id="mensajeCarga2" class="mensaje"></div>
-  <div id="mensajeFusion" class="mensaje"></div>
+  <button onclick="exportarHTML()">EXPORTAR HTML</button>
+  <div id="mensajeExportar"></div>
   
-  <button id="fusionarBtn" onclick="fusionarYOrdenar('fecha')" disabled>Fusionar y Ordenar por Fecha</button>
-  <button id="fusionarAZBtn" onclick="fusionarYOrdenar('az')" disabled>Fusionar y Ordenar por Dominio (A–Z)</button>
-  <button id="exportarBtn" onclick="exportarHTML()" disabled>Exportar HTML</button>
-  
-  <h2>Marcadores Fusionados:</h2>
+  <h2>Marcadores:</h2>
   <pre id="resultado"></pre>
-
+  
   <script>
-    function mostrarMensaje(texto, elementoId, tipo) {
-      const elemento = document.getElementById(elementoId);
-      if (elemento) {
-        elemento.innerHTML = texto;
-        elemento.className = tipo;
+    function validarYProcesarArchivo(metodoOrden) {
+      const archivo = document.getElementById(metodoOrden === "fecha" ? "archivo" : "archivoAZ").files[0];
+      if (!archivo) return mostrarMensaje("Error (Ningún archivo cargado)", "mensajeCargar", "negativo");
+      if (!archivo.name.endsWith(".html")) {
+        document.getElementById(metodoOrden === "fecha" ? "archivo" : "archivoAZ").value = "";
+        return mostrarMensaje("Error (Formato incorrecto, debe ser HTML)", "mensajeCargar", "negativo");
       }
+      mostrarMensaje("Cargado y procesando...", "mensajeCargar", "positivo");
+      procesarEnlaces(archivo, metodoOrden);
     }
-
-    function mostrarResultado(arr) {
-      const html = arr.map(bm => {
-        return `<strong>${bm.domain}</strong><br>${bm.fechaTexto}<br>${bm.title}<br><a href="${bm.url}" target="_blank">${bm.url}</a><br>${bm.folder}<br><br>`;
-      }).join("");
-      document.getElementById("resultado").innerHTML = html;
-    }
-
-    let bookmarks1 = [];
-    let bookmarks2 = [];
-    let mergedBookmarks = [];
-
-    function procesarArchivo(input, numArchivo) {
-      const file = input.files[0];
-      if (!file) return;
-      
-      // Al cargar un nuevo archivo, se reinician los resultados de fusión y su visualización.
-      mergedBookmarks = [];
-      document.getElementById("mensajeFusion").innerHTML = "";
-      document.getElementById("resultado").innerHTML = "";
-      
-      if (!file.name.endsWith(".html")) {
-        mostrarMensaje(`Archivo ${numArchivo} incompatible (Debe ser HTML)`, "mensajeCarga" + numArchivo, "negativo");
-        if (numArchivo === 1) bookmarks1 = [];
-        if (numArchivo === 2) bookmarks2 = [];
-        actualizarEstadoBotones();
-        return;
-      }
-
+  
+    function procesarEnlaces(archivo, metodoOrden) {
       const reader = new FileReader();
-      reader.onload = function(e) {
-        const contenido = e.target.result;
-        const marks = extraerBookmarks(contenido);
-        if (numArchivo === 1) {
-          bookmarks1 = marks;
-        } else {
-          bookmarks2 = marks;
-        }
-        mostrarMensaje(`Archivo ${numArchivo} cargado (${marks.length} enlaces)`, "mensajeCarga" + numArchivo, "positivo");
-        mergedBookmarks = [];
-        actualizarEstadoBotones();
-      };
-      reader.readAsText(file);
+      reader.onload = () => extraerEnlaces(reader.result, metodoOrden);
+      reader.onerror = () => mostrarMensaje("Error (Fallo de Lectura)", "mensajeExtraer", "negativo");
+      reader.readAsText(archivo);
     }
-
-    function actualizarEstadoBotones() {
-      const fusionarBtn = document.getElementById("fusionarBtn");
-      const fusionarAZBtn = document.getElementById("fusionarAZBtn");
-      const exportarBtn = document.getElementById("exportarBtn");
-      const archivosValidos = (bookmarks1.length > 0 && bookmarks2.length > 0);
-      fusionarBtn.disabled = !archivosValidos;
-      fusionarAZBtn.disabled = !archivosValidos;
-      exportarBtn.disabled = mergedBookmarks.length === 0;
-    }
-
-    function extraerBookmarks(htmlContent) {
-      let bookmarks = [];
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(htmlContent, "text/html");
-      const content = doc.body.innerHTML;
-      const blocks = content.split(/<br\s*\/?>\s*<br\s*\/?>/i);
-      blocks.forEach(block => {
-        block = block.trim();
-        if (block) {
-          const lines = block.split(/<br\s*\/?>/i).map(line => line.trim()).filter(line => line);
-          if (lines.length >= 4) {
-            const domain = lines[0].replace(/<\/?strong>/gi, "").trim();
-            const dateStr = lines[1].trim();
-            const parts = dateStr.split("-");
-            const dmy = parts[0].split("/");
-            let year = parseInt(dmy[2]);
-            year += (year < 70) ? 2000 : 1900;
-            const timeParts = parts[1].split(":").map(n => parseInt(n));
-            const dateObj = new Date(year, parseInt(dmy[1]) - 1, parseInt(dmy[0]), ...timeParts);
-            const title = lines[2].trim();
-            const urlMatch = lines[3].match(/href="([^"]+)"/i);
-            const url = urlMatch ? urlMatch[1] : lines[3];
-            const folder = (lines[4] && lines[4].startsWith("[#")) ? lines[4] : "";
-            bookmarks.push({ domain, fecha: dateObj, fechaTexto: dateStr, title, url, folder });
+  
+    function extraerEnlaces(html, metodoOrden) {
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      let enlaces = [];
+      doc.querySelectorAll("DL > DT > H3").forEach(carpeta => {
+        const nombreCarpeta = carpeta.innerText.trim();
+        if (nombreCarpeta === "Marcadores" || nombreCarpeta === "Marcadores de móvil") return;
+        carpeta.nextElementSibling.querySelectorAll("DT > A").forEach(enlace => {
+          const titulo = enlace.innerText.trim();
+          const rawUrl = enlace.getAttribute("HREF").trim();
+          const addDate = enlace.getAttribute("ADD_DATE");
+          if (addDate) {
+            enlaces.push(formatearEnlace(addDate, rawUrl, titulo, nombreCarpeta));
           }
-        }
-      });
-      return bookmarks;
-    }
-
-    function fusionarYOrdenar(criterio) {
-      mergedBookmarks = bookmarks1.concat(bookmarks2);
-      if (criterio === "fecha") {
-        mergedBookmarks.sort((a, b) => a.fecha - b.fecha);
-      } else if (criterio === "az") {
-        mergedBookmarks.sort((a, b) => {
-          const cmpDomain = a.domain.localeCompare(b.domain, "es", { numeric: true });
-          if (cmpDomain === 0) {
-            // Si el dominio es el mismo, ordena por fecha de más antiguo a más nuevo.
-            return a.fecha - b.fecha;
-          }
-          return cmpDomain;
         });
+      });
+      enlaces.sort(metodoOrden === "fecha"
+        ? (a, b) => a.fecha - b.fecha
+        : (a, b) => a.dominio.localeCompare(b.dominio, "es", { numeric: true }) || a.fecha - b.fecha);
+      mostrarResultado(enlaces);
+      mostrarMensaje("Procesado!", "mensajeExtraer", "positivo");
+    }
+  
+    function formatearEnlace(addDate, url, titulo, carpeta) {
+      const fecha = new Date(parseInt(addDate) * 1000);
+      const fechaTexto = `${fecha.getDate().toString().padStart(2, "0")}/${(fecha.getMonth()+1).toString().padStart(2, "0")}/${fecha.getFullYear().toString().slice(-2)}-${fecha.toLocaleTimeString("es-ES", { hour12: false })}`;
+      
+      let hostname;
+      try { 
+        hostname = new URL(url).hostname.toLowerCase(); 
+      } catch (e) { 
+        hostname = ""; 
+      }
+      if (hostname.startsWith("www.")) 
+        hostname = hostname.substring(4);
+      
+      /* --- Procesamiento del Dominio --- */
+      let mainDomain = "";
+      const parts = hostname.split(".");
+      
+      // Si es un dominio gubernamental: si la penúltima parte es "gob"
+      if (parts.length >= 2 && parts[parts.length - 2] === "gob") {
+        if (parts.length >= 3) {
+          let candidate = parts.slice(-3);
+          const unwantedGovPrefixes = ["sede", "sife", "fistro", "home", "help"];
+          if (unwantedGovPrefixes.includes(candidate[0])) {
+            candidate = candidate.slice(1);
+          }
+          mainDomain = candidate.join(".");
+        } else {
+          mainDomain = hostname;
+        }
+      } else {
+        // Para otros dominios: lógica original con TLDs especiales
+        const multiNivel = ["co.uk", "org.br", "com.au"];
+        if (parts.length >= 3) {
+          const ultimasDos = parts.slice(-2).join(".");
+          if (multiNivel.includes(ultimasDos)) {
+            mainDomain = parts.slice(-3).join(".");
+          } else {
+            mainDomain = parts.slice(-2).join(".");
+          }
+        } else {
+          mainDomain = hostname;
+        }
       }
       
-      mostrarResultado(mergedBookmarks);
-      mostrarMensaje(`Archivo 1 cargado (${bookmarks1.length} enlaces)`, "mensajeCarga1", "positivo");
-      mostrarMensaje(`Archivo 2 cargado (${bookmarks2.length} enlaces)`, "mensajeCarga2", "positivo");
-      mostrarMensaje(`Archivos fusionados (${mergedBookmarks.length} enlaces)`, "mensajeFusion", "positivo");
-
-      actualizarEstadoBotones();
+      // Extraer etiquetas de subdominios reconocidos (por ejemplo, "m" o "es")
+      let etiquetas = [];
+      const reconocidos = ["m", "es"];
+      let subdominios = hostname.split(".");
+      while (subdominios.length > 2 && reconocidos.includes(subdominios[0])) {
+        etiquetas.push(subdominios[0]);
+        subdominios.shift();
+      }
+      let etiquetaFinal = "";
+      if (etiquetas.length > 0) {
+        if (etiquetas.includes("m") && etiquetas.length > 1)
+          etiquetaFinal = "M-" + etiquetas.filter(e => e !== "m").join("-").toUpperCase();
+        else
+          etiquetaFinal = etiquetas.join("-").toUpperCase();
+      }
+      const dominioConEtiquetas = mainDomain.toUpperCase() + (etiquetaFinal ? " (" + etiquetaFinal + ")" : "");
+      /* --- Fin del Procesamiento del Dominio --- */
+      
+      return {
+        fecha,
+        fechaTexto,
+        dominio: dominioConEtiquetas,
+        titulo,
+        url: `<a href="${limpiarURL(url)}" target="_blank">${limpiarURL(url)}</a>`,
+        carpeta
+      };
     }
-
+  
+    function limpiarURL(url) {
+      try {
+        const parsedUrl = new URL(url);
+        const hostname = parsedUrl.hostname.toLowerCase();
+        const pathname = parsedUrl.pathname;
+  
+        // Si la URL pertenece a Amazon, aplicar reglas específicas
+        if (hostname.includes("amazon.")) {
+          // Caso 1: Homepage (cuando el pathname es "/" o vacío)
+          if (pathname === "/" || pathname === "") {
+            return parsedUrl.origin + "/";
+          }
+          // Caso 2: Producto (contiene "/dp/")
+          if (pathname.includes("/dp/")) {
+            const partes = pathname.split("/dp/");
+            const idProducto = partes[1].split("/")[0];
+            return parsedUrl.origin + partes[0] + "/dp/" + idProducto;
+          }
+          // Caso 3: Categoría (path comienza con "/b/")
+          if (pathname.startsWith("/b/")) {
+            let newSearchParams = new URLSearchParams();
+            if (parsedUrl.searchParams.has("_encoding"))
+              newSearchParams.set("_encoding", parsedUrl.searchParams.get("_encoding"));
+            if (parsedUrl.searchParams.has("node"))
+              newSearchParams.set("node", parsedUrl.searchParams.get("node"));
+            return parsedUrl.origin + pathname + (newSearchParams.toString() ? "?" + newSearchParams.toString() : "");
+          }
+          // Caso 4: Búsqueda (path comienza con "/s")
+          if (pathname.startsWith("/s")) {
+            let newSearchParams = new URLSearchParams();
+            if (parsedUrl.searchParams.has("k"))
+              newSearchParams.set("k", parsedUrl.searchParams.get("k"));
+            return parsedUrl.origin + pathname + (newSearchParams.toString() ? "?" + newSearchParams.toString() : "");
+          }
+          // Para cualquier otro caso en Amazon, se retorna el URL sin query
+          parsedUrl.search = "";
+          return parsedUrl.href;
+        }
+  
+        // Para otros dominios: se elimina la query
+        parsedUrl.search = "";
+        return parsedUrl.href;
+      } catch (error) {
+        return url;
+      }
+    }
+  
+    function mostrarResultado(enlaces) {
+      document.getElementById("resultado").innerHTML = enlaces.map(enlace =>
+        `<strong>${enlace.dominio}</strong><br>${enlace.fechaTexto}<br>${enlace.titulo}<br>${enlace.url}<br>[#${enlace.carpeta}]<br><br>`
+      ).join("");
+    }
+  
     function exportarHTML() {
-      if (mergedBookmarks.length === 0) return;
-      const resultado = document.getElementById("resultado").innerHTML;
-      const contenidoHTML = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Marcadores Fusionados</title></head><body>${resultado}</body></html>`;
+      const contenidoHTML = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Marcadores Exportados</title></head><body>${document.getElementById("resultado").innerHTML}</body></html>`;
       const blob = new Blob([contenidoHTML], { type: "text/html;charset=utf-8" });
+      descargarArchivo(blob, "marcadores.html");
+    }
+  
+    function descargarArchivo(blob, nombreArchivo) {
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.download = "marcadores_fusionados.html";
+      link.download = nombreArchivo;
       link.click();
+    }
+  
+    function mostrarMensaje(texto, elementoId, tipo) {
+      const elemento = document.getElementById(elementoId);
+      elemento.innerHTML = texto;
+      elemento.className = tipo;
     }
   </script>
 </body>
