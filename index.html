@@ -76,6 +76,7 @@
   <div class="controls">
     <button class="button" id="start">Iniciar Juego</button>
     <button class="button" id="restart">Reiniciar</button>
+    <button class="button" id="toggleMode">Modo Daltónico</button>
   </div>
   <div class="timer" id="timer">60</div>
   <div class="grid-container">
@@ -88,6 +89,7 @@
     const messageDisplay = document.getElementById("message");
     const startButton = document.getElementById("start");
     const restartButton = document.getElementById("restart");
+    const toggleModeButton = document.getElementById("toggleMode");
 
     let firstCell = null;
     let secondCell = null;
@@ -95,31 +97,18 @@
     let timeLeft = 60;
     let timerInterval;
     let gameStarted = false;
+    let daltonicMode = false;
 
-    const colorNames = [
-      "AliceBlue", "AntiqueWhite", "Aqua", "Aquamarine", "Azure", "Beige", "Bisque", 
+    // 🔹 Lista editable: Agrega o excluye colores aquí sin afectar el código principal
+    const customColors = [
+      "AliceBlue", "AntiqueWhite", "Aqua", "Aquamarine", "Azure", "Beige", "Bisque",
       "Black", "BlanchedAlmond", "Blue", "BlueViolet", "Brown", "BurlyWood", "CadetBlue",
       "Chartreuse", "Chocolate", "Coral", "CornflowerBlue", "Cornsilk", "Crimson", "Cyan",
       "DarkBlue", "DarkCyan", "DarkGoldenRod", "DarkGray", "DarkGreen", "DarkKhaki",
-      "DarkMagenta", "DarkOliveGreen", "DarkOrange", "DarkOrchid", "DarkRed",
-      "DarkSalmon", "DarkSeaGreen", "DarkSlateBlue", "DarkSlateGray", "DarkTurquoise",
-      "DarkViolet", "DeepPink", "DeepSkyBlue", "DimGray", "DodgerBlue", "FireBrick",
-      "FloralWhite", "ForestGreen", "Fuchsia", "Gainsboro", "GhostWhite", "Gold", "GoldenRod",
-      "Gray", "Green", "GreenYellow", "HoneyDew", "HotPink", "IndianRed", "Indigo",
-      "Ivory", "Khaki", "Lavender", "LavenderBlush", "LawnGreen", "LemonChiffon",
-      "LightBlue", "LightCoral", "LightCyan", "LightGoldenRodYellow", "LightGray",
-      "LightGreen", "LightPink", "LightSalmon", "LightSeaGreen", "LightSkyBlue",
-      "LightSlateGray", "LightSteelBlue", "LightYellow", "Lime", "LimeGreen",
-      "Linen", "Magenta", "Maroon", "MediumAquaMarine", "MediumBlue", "MediumOrchid",
-      "MediumPurple", "MediumSeaGreen", "MediumSlateBlue", "MediumSpringGreen",
-      "MediumTurquoise", "MediumVioletRed", "MidnightBlue", "MintCream", "MistyRose",
-      "Moccasin", "NavajoWhite", "Navy", "OldLace", "Olive", "OliveDrab", "Orange",
-      "OrangeRed", "Orchid", "PaleGoldenRod", "PaleGreen", "PaleTurquoise",
-      "PaleVioletRed", "PapayaWhip", "PeachPuff", "Peru", "Pink", "Plum", "PowderBlue",
-      "Purple", "Red", "RosyBrown", "RoyalBlue", "SaddleBrown", "Salmon", "SandyBrown",
-      "SeaGreen", "SeaShell", "Sienna", "Silver", "SkyBlue", "SlateBlue", "SlateGray",
-      "Snow", "SpringGreen", "SteelBlue", "Tan", "Teal", "Thistle", "Tomato",
-      "Turquoise", "Violet", "Wheat", "White", "WhiteSmoke", "Yellow", "YellowGreen"
+      "DarkMagenta", "DarkOliveGreen", "DarkOrange", "DarkOrchid", "DarkRed", "DarkSalmon",
+      "DarkSeaGreen", "DarkSlateBlue", "DarkSlateGray", "DarkTurquoise", "DarkViolet",
+      "DeepPink", "DeepSkyBlue", "DimGray", "DodgerBlue", "FireBrick", "FloralWhite",
+      "ForestGreen", "Fuchsia", "Gainsboro", "GhostWhite", "Gold", "GoldenRod", "Gray"
     ];
 
     function shuffle(array) {
@@ -131,8 +120,8 @@
 
     function initGame() {
       grid.innerHTML = "";
-      shuffle(colorNames);
-      colorNames.forEach(color => {
+      shuffle(customColors);
+      customColors.forEach(color => {
         const cell = document.createElement("div");
         cell.classList.add("cell");
         cell.style.backgroundColor = color;
@@ -142,8 +131,14 @@
       });
     }
 
+    function toggleDaltonicMode() {
+      daltonicMode = !daltonicMode;
+      document.body.style.filter = daltonicMode ? "grayscale(1)" : "none";
+    }
+
     restartButton.addEventListener("click", initGame);
     startButton.addEventListener("click", () => gameStarted = true);
+    toggleModeButton.addEventListener("click", toggleDaltonicMode);
 
     initGame();
   </script>
