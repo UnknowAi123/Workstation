@@ -2,317 +2,188 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Juego de Memoria de Colores</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Reproductor de Música HTML</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    /* Global: forzamos el box-sizing para todos los elementos */
-    * {
-      box-sizing: border-box;
-    }
-    html, body {
-      margin: 0;
-      padding: 0;
-      -ms-touch-action: manipulation;
-      touch-action: manipulation;
-    }
     body {
       font-family: Arial, sans-serif;
-      background-color: #fff;
-      padding: 20px;
-      text-align: center;
+      margin: 20px;
     }
-    h1 {
-      margin-bottom: 10px;
-      font-size: 20px;
+    #controls {
+      margin-bottom: 15px;
     }
-    .controls {
-      margin-bottom: 10px;
-    }
-    .button {
-      padding: 10px 20px;
-      font-size: 16px;
-      cursor: pointer;
+    button {
+      padding: 10px 15px;
       margin: 5px;
+      font-size: 16px;
     }
-    .timer {
-      font-size: 24px;
-      margin-bottom: 10px;
+    #playlist {
+      list-style: none;
+      padding: 0;
     }
-    .grid-container {
-      width: 100%;
-      min-width: 300px;
-      margin: 0 auto;
-    }
-    .grid {
-      width: 100%;
-      display: grid;
-      grid-template-columns: repeat(8, var(--cell-size));
-      grid-auto-rows: var(--cell-size);
-      gap: 4px;
-      padding: 4px;
-      background-color: #333;
-      margin: 0 auto;
-    }
-    .cell {
-      width: 100%;
-      height: 100%;
-      background-color: #ccc;
+    #playlist li {
+      padding: 5px;
       cursor: pointer;
-      transition: background-color 0.3s, opacity 0.3s, filter 0.2s, transform 0.2s, border 0.2s;
-      position: relative; /* Para posicionar la etiqueta del modo daltónico */
     }
-    .cell.selected {
-      border: 3px solid #FFD700;
-      transform: scale(1.05);
-    }
-    .cell.wrong {
-      filter: brightness(0.5);
-    }
-    .cell.removed {
-      opacity: 0;
-      pointer-events: none;
-    }
-    .message {
-      font-size: 28px;
-      margin-top: 20px;
+    #playlist li.active {
+      background-color: #ddd;
     }
   </style>
 </head>
 <body>
-  <h1>Juego de Memoria de Colores</h1>
-  <div class="controls">
-    <button class="button" id="start">Iniciar Juego</button>
-    <button class="button" id="restart">Reiniciar</button>
-    <button class="button" id="toggleDaltonic">Modo Daltonico</button>
+  <h1>Reproductor de Música</h1>
+  
+  <div id="fileSelection">
+    <!-- Permite seleccionar archivos o carpetas -->
+    <input type="file" id="fileInput" multiple webkitdirectory accept="audio/*">
   </div>
-  <div class="timer" id="timer">60</div>
-  <div class="grid-container">
-    <div class="grid" id="grid"></div>
+  
+  <div id="controls">
+    <button id="prevButton">Anterior</button>
+    <button id="playButton">Play</button>
+    <button id="pauseButton">Pause</button>
+    <button id="nextButton">Siguiente</button>
+    <button id="shuffleToggle">Shuffle Off</button>
+    <button id="exportPlaylist">Exportar Playlist</button>
   </div>
-  <div class="message" id="message"></div>
+  
+  <ul id="playlist"></ul>
+  
+  <!-- Elemento de audio (sin controles nativos para personalizar la interfaz) -->
+  <audio id="audioPlayer"></audio>
+  
   <script>
-    // CONFIGURACIÓN DE COLORES:
-    // La lista a continuación contiene los 140 colores HTML.
-    // Puedes editar este array para agregar, quitar o incluir colores en formato hexadecimal.
-    const customColorList = [
-      "AliceBlue", "AntiqueWhite", "Aqua", "Aquamarine", "Azure",
-      "Beige", "Bisque", "Black", "BlanchedAlmond", "Blue",
-      "BlueViolet", "Brown", "BurlyWood", "CadetBlue", "Chartreuse",
-      "Chocolate", "Coral", "CornflowerBlue", "Cornsilk", "Crimson",
-      "Cyan", "DarkBlue", "DarkCyan", "DarkGoldenRod", "DarkGray",
-      "DarkGreen", "DarkKhaki", "DarkMagenta", "DarkOliveGreen", "DarkOrange",
-      "DarkOrchid", "DarkRed", "DarkSalmon", "DarkSeaGreen", "DarkSlateBlue",
-      "DarkSlateGray", "DarkTurquoise", "DarkViolet", "DeepPink", "DeepSkyBlue",
-      "DimGray", "DodgerBlue", "FireBrick", "FloralWhite", "ForestGreen",
-      "Fuchsia", "Gainsboro", "GhostWhite", "Gold", "GoldenRod",
-      "Gray", "Green", "GreenYellow", "HoneyDew", "HotPink",
-      "IndianRed", "Indigo", "Ivory", "Khaki", "Lavender",
-      "LavenderBlush", "LawnGreen", "LemonChiffon", "LightBlue", "LightCoral",
-      "LightCyan", "LightGoldenRodYellow", "LightGray", "LightGreen", "LightPink",
-      "LightSalmon", "LightSeaGreen", "LightSkyBlue", "LightSlateGray", "LightSteelBlue",
-      "LightYellow", "Lime", "LimeGreen", "Linen", "Magenta",
-      "Maroon", "MediumAquaMarine", "MediumBlue", "MediumOrchid", "MediumPurple",
-      "MediumSeaGreen", "MediumSlateBlue", "MediumSpringGreen", "MediumTurquoise", "MediumVioletRed",
-      "MidnightBlue", "MintCream", "MistyRose", "Moccasin", "NavajoWhite",
-      "Navy", "OldLace", "Olive", "OliveDrab", "Orange",
-      "OrangeRed", "Orchid", "PaleGoldenRod", "PaleGreen", "PaleTurquoise",
-      "PaleVioletRed", "PapayaWhip", "PeachPuff", "Peru", "Pink",
-      "Plum", "PowderBlue", "Purple", "Red", "RosyBrown",
-      "RoyalBlue", "SaddleBrown", "Salmon", "SandyBrown", "SeaGreen",
-      "SeaShell", "Sienna", "Silver", "SkyBlue", "SlateBlue",
-      "SlateGray", "Snow", "SpringGreen", "SteelBlue", "Tan",
-      "Teal", "Thistle", "Tomato", "Turquoise", "Violet",
-      "Wheat", "White", "WhiteSmoke", "Yellow", "YellowGreen"
-    ];
-
-    const grid = document.getElementById("grid");
-    const gridContainer = document.querySelector(".grid-container");
-    const timerDisplay = document.getElementById("timer");
-    const messageDisplay = document.getElementById("message");
-    const startButton = document.getElementById("start");
-    const restartButton = document.getElementById("restart");
-    const toggleDaltonicButton = document.getElementById("toggleDaltonic");
-
-    let firstCell = null;
-    let secondCell = null;
-    let lockBoard = false;
-    let timeLeft = 60;
-    let timerInterval;
-    let gameStarted = false;
-    let daltonicMode = false;
-
-    function updateCellSize() {
-      const containerWidth = gridContainer.clientWidth;
-      const cellSize = (containerWidth - 36) / 8;
-      grid.style.setProperty('--cell-size', cellSize + 'px');
-    }
-    updateCellSize();
-    window.addEventListener('resize', updateCellSize);
-
-    // Generar 44 pares (88 celdas) usando colores de la lista personalizada.
-    // Se seleccionan 44 colores aleatorios de los 140, se duplican y se mezclan.
-    function generateColors() {
-      let availableColors = customColorList.slice();
-      shuffle(availableColors);
-      let selectedColors = availableColors.slice(0, 44);
-      let colorPairs = [];
-      selectedColors.forEach(color => {
-        colorPairs.push(color, color);
+    // Variables globales
+    let playlist = []; // Array de objetos {name, url}
+    let currentIndex = 0;
+    let shuffleOn = false;
+    const audioPlayer = document.getElementById('audioPlayer');
+    const fileInput = document.getElementById('fileInput');
+    const playlistUI = document.getElementById('playlist');
+    const playButton = document.getElementById('playButton');
+    const pauseButton = document.getElementById('pauseButton');
+    const prevButton = document.getElementById('prevButton');
+    const nextButton = document.getElementById('nextButton');
+    const shuffleToggle = document.getElementById('shuffleToggle');
+    const exportPlaylistButton = document.getElementById('exportPlaylist');
+    
+    // Función para actualizar la visualización de la lista
+    function updatePlaylistUI() {
+      playlistUI.innerHTML = '';
+      playlist.forEach((item, index) => {
+        const li = document.createElement('li');
+        li.textContent = item.name;
+        li.dataset.index = index;
+        if (index === currentIndex) li.classList.add('active');
+        li.addEventListener('click', () => {
+          currentIndex = index;
+          loadCurrentTrack();
+          playCurrentTrack();
+          updatePlaylistUI();
+        });
+        playlistUI.appendChild(li);
       });
-      shuffle(colorPairs);
-      return colorPairs;
     }
-
-    function shuffle(array) {
+    
+    // Función para cargar el track actual en el reproductor
+    function loadCurrentTrack() {
+      if(playlist[currentIndex]){
+        audioPlayer.src = playlist[currentIndex].url;
+      }
+    }
+    
+    // Funciones de control de reproducción
+    function playCurrentTrack() {
+      audioPlayer.play();
+      updatePlaylistUI();
+    }
+    
+    function pauseCurrentTrack() {
+      audioPlayer.pause();
+    }
+    
+    function nextTrack() {
+      if (shuffleOn) {
+        currentIndex = Math.floor(Math.random() * playlist.length);
+      } else {
+        currentIndex = (currentIndex + 1) % playlist.length;
+      }
+      loadCurrentTrack();
+      playCurrentTrack();
+    }
+    
+    function prevTrack() {
+      if (shuffleOn) {
+        currentIndex = Math.floor(Math.random() * playlist.length);
+      } else {
+        currentIndex = (currentIndex - 1 + playlist.length) % playlist.length;
+      }
+      loadCurrentTrack();
+      playCurrentTrack();
+    }
+    
+    // Event listeners para los botones de control
+    playButton.addEventListener('click', () => {
+      if (!audioPlayer.src && playlist.length > 0) {
+        loadCurrentTrack();
+      }
+      playCurrentTrack();
+    });
+    
+    pauseButton.addEventListener('click', pauseCurrentTrack);
+    nextButton.addEventListener('click', nextTrack);
+    prevButton.addEventListener('click', prevTrack);
+    
+    shuffleToggle.addEventListener('click', () => {
+      shuffleOn = !shuffleOn;
+      shuffleToggle.textContent = shuffleOn ? 'Shuffle On' : 'Shuffle Off';
+    });
+    
+    // Exportar lista de reproducción (nombre de archivos, separados por saltos de línea)
+    exportPlaylistButton.addEventListener('click', () => {
+      if (playlist.length === 0) return;
+      const playlistText = playlist.map(item => item.name).join('\n');
+      const blob = new Blob([playlistText], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'playlist.txt';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    });
+    
+    // Cuando el track termina, avanza al siguiente
+    audioPlayer.addEventListener('ended', nextTrack);
+    
+    // Al seleccionar archivos, se crea la playlist
+    fileInput.addEventListener('change', (event) => {
+      const files = event.target.files;
+      playlist = [];
+      // Se recorre la selección y se crean URLs para cada archivo de audio
+      Array.from(files).forEach(file => {
+        // Opcional: filtrar por extensión o tipo MIME (audio/*)
+        const url = URL.createObjectURL(file);
+        playlist.push({ name: file.name, url });
+      });
+      // Orden natural (si shuffle está activado se podría mezclar automáticamente)
+      if (shuffleOn) {
+        shuffleArray(playlist);
+      }
+      currentIndex = 0;
+      updatePlaylistUI();
+      if (playlist.length > 0) {
+        loadCurrentTrack();
+      }
+    });
+    
+    // Función auxiliar de shuffle (Fisher-Yates)
+    function shuffleArray(array) {
       for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [array[i], array[j]] = [array[j], array[i]];
       }
     }
-
-    function initGame() {
-      if (timerInterval) {
-        clearInterval(timerInterval);
-        timerInterval = null;
-      }
-      grid.innerHTML = "";
-      messageDisplay.textContent = "";
-      firstCell = null;
-      secondCell = null;
-      lockBoard = false;
-      timeLeft = 60;
-      timerDisplay.textContent = timeLeft;
-      gameStarted = false;
-
-      const colors = generateColors();
-      shuffle(colors);
-      // Crear 88 celdas (44 pares) en la cuadrícula de 8 columnas x 11 filas.
-      for (let i = 0; i < 88; i++) {
-        const cell = document.createElement("div");
-        cell.classList.add("cell");
-        cell.style.backgroundColor = colors[i];
-        cell.dataset.color = colors[i];
-        cell.addEventListener("click", handleCellClick);
-        grid.appendChild(cell);
-      }
-      // Si el modo daltónico está activo, actualiza las etiquetas en cada celda.
-      if (daltonicMode) {
-        updateDaltonicOverlays();
-      }
-    }
-
-    function startGame() {
-      if (!gameStarted) {
-        gameStarted = true;
-        timerInterval = setInterval(updateTimer, 1000);
-      }
-    }
-
-    function updateTimer() {
-      if (timeLeft > 0) {
-        timeLeft--;
-        timerDisplay.textContent = timeLeft;
-      } else {
-        clearInterval(timerInterval);
-        endGame(false);
-      }
-    }
-
-    function handleCellClick() {
-      if (!gameStarted) return;
-      if (lockBoard || this.classList.contains("removed")) return;
-      if (this === firstCell) return;
-
-      this.classList.add("selected");
-
-      if (!firstCell) {
-        firstCell = this;
-      } else {
-        secondCell = this;
-        lockBoard = true;
-
-        if (firstCell.dataset.color === secondCell.dataset.color) {
-          setTimeout(() => {
-            firstCell.classList.add("removed");
-            secondCell.classList.add("removed");
-            firstCell.classList.remove("selected");
-            secondCell.classList.remove("selected");
-            resetSelection();
-            checkGameEnd();
-          }, 200);
-        } else {
-          firstCell.classList.add("wrong");
-          secondCell.classList.add("wrong");
-          setTimeout(() => {
-            firstCell.classList.remove("wrong", "selected");
-            secondCell.classList.remove("wrong", "selected");
-            resetSelection();
-          }, 200);
-        }
-      }
-    }
-
-    function resetSelection() {
-      firstCell = null;
-      secondCell = null;
-      lockBoard = false;
-    }
-
-    function checkGameEnd() {
-      const remaining = document.querySelectorAll(".cell:not(.removed)").length;
-      if (remaining === 0) {
-        clearInterval(timerInterval);
-        endGame(true);
-      }
-    }
-
-    function endGame(win) {
-      lockBoard = true;
-      messageDisplay.textContent = win ? "¡Ganaste!" : "¡Perdiste!";
-    }
-
-    // Funciones para el modo daltónico:
-    // Al activarlo, se añade en cada celda una etiqueta con el valor del color.
-    function toggleDaltonicMode() {
-      daltonicMode = !daltonicMode;
-      updateDaltonicOverlays();
-    }
-
-    function updateDaltonicOverlays() {
-      const cells = document.querySelectorAll(".cell");
-      cells.forEach(cell => {
-        if (daltonicMode) {
-          if (!cell.querySelector(".daltonic-label")) {
-            const label = document.createElement("span");
-            label.className = "daltonic-label";
-            label.textContent = cell.dataset.color;
-            label.style.position = "absolute";
-            label.style.bottom = "2px";
-            label.style.left = "2px";
-            label.style.fontSize = "10px";
-            label.style.backgroundColor = "rgba(255,255,255,0.7)";
-            label.style.color = "#000";
-            label.style.padding = "1px 3px";
-            label.style.borderRadius = "3px";
-            cell.appendChild(label);
-          }
-        } else {
-          const label = cell.querySelector(".daltonic-label");
-          if (label) {
-            label.remove();
-          }
-        }
-      });
-    }
-
-    restartButton.addEventListener("click", function() {
-      initGame();
-      startGame();
-    });
-    startButton.addEventListener("click", startGame);
-    toggleDaltonicButton.addEventListener("click", toggleDaltonicMode);
-
-    initGame();
   </script>
 </body>
 </html>
