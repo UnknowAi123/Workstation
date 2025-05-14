@@ -113,47 +113,89 @@
     updateCellSize();
     window.addEventListener('resize', updateCellSize);
 
-    // LISTADO PERSONALIZABLE: Los 140 colores HTML.
-    // Puedes agregar, quitar o incluir colores en formato hexadecimal.
-    const customColorList = [
-      "AliceBlue", "AntiqueWhite", "Aqua", "Aquamarine", "Azure",
-      "Beige", "Bisque", "Black", "BlanchedAlmond", "Blue",
-      "BlueViolet", "Brown", "BurlyWood", "CadetBlue", "Chartreuse",
-      "Chocolate", "Coral", "CornflowerBlue", "Cornsilk", "Crimson",
-      "Cyan", "DarkBlue", "DarkCyan", "DarkGoldenRod", "DarkGray",
-      "DarkGreen", "DarkKhaki", "DarkMagenta", "DarkOliveGreen", "DarkOrange",
-      "DarkOrchid", "DarkRed", "DarkSalmon", "DarkSeaGreen", "DarkSlateBlue",
-      "DarkSlateGray", "DarkTurquoise", "DarkViolet", "DeepPink", "DeepSkyBlue",
-      "DimGray", "DodgerBlue", "FireBrick", "FloralWhite", "ForestGreen",
-      "Fuchsia", "Gainsboro", "GhostWhite", "Gold", "GoldenRod",
-      "Gray", "Green", "GreenYellow", "HoneyDew", "HotPink",
-      "IndianRed", "Indigo", "Ivory", "Khaki", "Lavender",
-      "LavenderBlush", "LawnGreen", "LemonChiffon", "LightBlue", "LightCoral",
-      "LightCyan", "LightGoldenRodYellow", "LightGray", "LightGreen", "LightPink",
-      "LightSalmon", "LightSeaGreen", "LightSkyBlue", "LightSlateGray", "LightSteelBlue",
-      "LightYellow", "Lime", "LimeGreen", "Linen", "Magenta",
-      "Maroon", "MediumAquaMarine", "MediumBlue", "MediumOrchid", "MediumPurple",
-      "MediumSeaGreen", "MediumSlateBlue", "MediumSpringGreen", "MediumTurquoise", "MediumVioletRed",
-      "MidnightBlue", "MintCream", "MistyRose", "Moccasin", "NavajoWhite",
-      "Navy", "OldLace", "Olive", "OliveDrab", "Orange",
-      "OrangeRed", "Orchid", "PaleGoldenRod", "PaleGreen", "PaleTurquoise",
-      "PaleVioletRed", "PapayaWhip", "PeachPuff", "Peru", "Pink",
-      "Plum", "PowderBlue", "Purple", "Red", "RosyBrown",
-      "RoyalBlue", "SaddleBrown", "Salmon", "SandyBrown", "SeaGreen",
-      "SeaShell", "Sienna", "Silver", "SkyBlue", "SlateBlue",
-      "SlateGray", "Snow", "SpringGreen", "SteelBlue", "Tan",
-      "Teal", "Thistle", "Tomato", "Turquoise", "Violet",
-      "Wheat", "White", "WhiteSmoke", "Yellow", "YellowGreen"
-    ];
+    // Definición de grupos de colores.
+    // - El grupo "basic" se considera exento del filtrado (pero el mismo color no se repetirá)
+    // - Otros grupos (por ejemplo, "Verde Hierba" y "Verde Pastel") se agruparán, permitiendo solo un representante.
+    const colorGroups = {
+      basic: [
+        "AliceBlue", "AntiqueWhite", "Aqua", "Aquamarine", "Azure",
+        "Beige", "Bisque", "Black", "BlanchedAlmond", "Blue",
+        "BlueViolet", "Brown", "BurlyWood", "CadetBlue", "Chartreuse",
+        "Chocolate", "Coral", "CornflowerBlue", "Cornsilk", "Crimson",
+        "Cyan", "DarkBlue", "DarkCyan", "DarkGoldenRod", "DarkGray",
+        "DarkGreen", "DarkKhaki", "DarkMagenta", "DarkOliveGreen", "DarkOrange",
+        "DarkOrchid", "DarkRed", "DarkSalmon", "DarkSeaGreen", "DarkSlateBlue",
+        "DarkSlateGray", "DarkTurquoise", "DarkViolet", "DeepPink", "DeepSkyBlue",
+        "DimGray", "DodgerBlue", "FireBrick", "FloralWhite", "ForestGreen",
+        "Fuchsia", "Gainsboro", "GhostWhite", "Gold", "GoldenRod",
+        "Gray", "Green", "GreenYellow", "HoneyDew", "HotPink",
+        "IndianRed", "Indigo", "Ivory", "Khaki", "Lavender",
+        "LavenderBlush", "LawnGreen", "LemonChiffon", "LightBlue", "LightCoral",
+        "LightCyan", "LightGoldenRodYellow", "LightGray", "LightGreen", "LightPink",
+        "LightSalmon", "LightSeaGreen", "LightSkyBlue", "LightSlateGray", "LightSteelBlue",
+        "LightYellow", "Lime", "LimeGreen", "Linen", "Magenta",
+        "Maroon", "MediumAquaMarine", "MediumBlue", "MediumOrchid", "MediumPurple",
+        "MediumSeaGreen", "MediumSlateBlue", "MediumSpringGreen", "MediumTurquoise", "MediumVioletRed",
+        "MidnightBlue", "MintCream", "MistyRose", "Moccasin", "NavajoWhite",
+        "Navy", "OldLace", "Olive", "OliveDrab", "Orange",
+        "OrangeRed", "Orchid", "PaleGoldenRod", "PaleGreen", "PaleTurquoise",
+        "PaleVioletRed", "PapayaWhip", "PeachPuff", "Peru", "Pink",
+        "Plum", "PowderBlue", "Purple", "Red", "RosyBrown",
+        "RoyalBlue", "SaddleBrown", "Salmon", "SandyBrown", "SeaGreen",
+        "SeaShell", "Sienna", "Silver", "SkyBlue", "SlateBlue",
+        "SlateGray", "Snow", "SpringGreen", "SteelBlue", "Tan",
+        "Teal", "Thistle", "Tomato", "Turquoise", "Violet",
+        "Wheat", "White", "WhiteSmoke", "Yellow", "YellowGreen"
+      ],
+      "Verde Hierba": [
+        "#228B22", "#2E8B57"
+      ],
+      "Verde Pastel": [
+        "#77DD77", "#C1E1C1"
+      ]
+    };
 
-    // Genera 44 pares de colores (88 celdas) a partir del listado personalizado.
+    // Genera 44 pares de colores (88 celdas) a partir de los grupos.
     function generateColors() {
-      let availableColors = customColorList.slice();
-      shuffle(availableColors);
-      let selectedColors = availableColors.slice(0, 44);
+      let pool = [];
+      // Procesamos cada grupo.
+      for (let group in colorGroups) {
+        if (group === "basic") {
+          // Del grupo basic se añaden TODOS los colores (cada uno como candidato separado).
+          colorGroups[group].forEach(color => {
+            pool.push({ group, color });
+          });
+        } else {
+          // Para los grupos no basic, se selecciona UN color (representante) al azar del grupo.
+          let groupColors = colorGroups[group];
+          let randomIndex = Math.floor(Math.random() * groupColors.length);
+          pool.push({ group, color: groupColors[randomIndex] });
+        }
+      }
+      // Si el total de candidatos es menor a 44, rellenamos con colores adicionales del grupo basic,
+      // asegurando no repetir el mismo color.
+      if (pool.length < 44) {
+        let basicCandidates = colorGroups["basic"].slice();
+        // Quitar del pool los colores ya seleccionados de basic.
+        pool.forEach(candidate => {
+          if (candidate.group === "basic") {
+            let idx = basicCandidates.indexOf(candidate.color);
+            if (idx > -1) basicCandidates.splice(idx, 1);
+          }
+        });
+        while (pool.length < 44 && basicCandidates.length > 0) {
+          let randomIdx = Math.floor(Math.random() * basicCandidates.length);
+          pool.push({ group: "basic", color: basicCandidates[randomIdx] });
+          basicCandidates.splice(randomIdx, 1);
+        }
+      }
+      // Ahora, barajamos el pool y tomamos 44 candidatos.
+      shuffle(pool);
+      let selectedCandidates = pool.slice(0, 44);
       let colorPairs = [];
-      selectedColors.forEach(color => {
-        colorPairs.push(color, color);
+      // Duplicamos cada candidato para formar un par.
+      selectedCandidates.forEach(candidate => {
+        colorPairs.push(candidate.color, candidate.color);
       });
       shuffle(colorPairs);
       return colorPairs;
@@ -182,7 +224,6 @@
       gameStarted = false;
 
       const colors = generateColors();
-      shuffle(colors);
       // Se crean 88 celdas (44 pares).
       for (let i = 0; i < 88; i++) {
         const cell = document.createElement("div");
