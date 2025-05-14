@@ -14,6 +14,7 @@
     h1, h2 {
       margin-bottom: 10px;
     }
+    /* Secciones para carga de archivos */
     #localFileSection, #youtubeSection {
       margin-bottom: 20px;
     }
@@ -25,6 +26,7 @@
     #controls {
       margin-bottom: 15px;
     }
+    /* Listado de la playlist */
     #playlist {
       list-style: none;
       padding: 0;
@@ -41,15 +43,20 @@
     #playlist li.active {
       background-color: #ddd;
     }
+    /* Contenedores para tiempo y volumen */
     #timeContainer, #volumeContainer {
       margin: 10px 0;
     }
     #progressBar, #volumeSlider {
       width: 100%;
     }
-    /* El reproductor de YouTube se mantiene oculto */
+    /* Reproductor de YouTube visible con dimensiones fijas */
     #youtubePlayerContainer {
-      display: none;
+      width: 320px;
+      height: 180px;
+      margin-bottom: 10px;
+      border: 1px solid #aaa;
+      display: none; /* Se muestra solo cuando el track es youtube */
     }
     .trashIcon {
       cursor: pointer;
@@ -62,20 +69,19 @@
 <body>
   <h1>Reproductor de Música HTML</h1>
   
-  <!-- Sección para carga de archivos locales -->
+  <!-- Sección de carga de archivos locales -->
   <div id="localFileSection">
     <h2>Archivos Locales</h2>
     <label>Seleccionar carpeta: </label>
-    <input type="file" id="fileInputFolder" multiple webkitdirectory accept="audio/*">
-    <br>
+    <input type="file" id="fileInputFolder" multiple webkitdirectory accept="audio/*"><br>
     <label>Seleccionar archivo individual: </label>
     <input type="file" id="fileInputSingle" accept="audio/*">
   </div>
   
-  <!-- Sección para importar documento de Google Docs con enlaces de YouTube -->
+  <!-- Sección para importar documento con enlaces de YouTube -->
   <div id="youtubeSection">
     <h2>Enlaces de YouTube</h2>
-    <label>Importar documento de Google Docs con enlaces de YouTube: </label>
+    <label>Importar documento de Google Docs con enlaces (DOC, DOCX o TXT): </label>
     <input type="file" id="youtubeFileInput" accept=".doc,.docx,.txt">
   </div>
   
@@ -90,7 +96,7 @@
     <button id="clearPlaylist">Limpiar Lista</button>
   </div>
   
-  <!-- Visor de tiempo y barra de progreso -->
+  <!-- Visor de tiempo y barra de progreso do timeline -->
   <div id="timeContainer">
     <span id="currentTime">00:00</span> / <span id="duration">00:00</span>
   </div>
@@ -102,17 +108,18 @@
     <input type="range" id="volumeSlider" min="0" max="100" value="100">
   </div>
   
-  <!-- Listado de canciones -->
+  <!-- Listado de la playlist -->
   <ul id="playlist"></ul>
   
-  <!-- Reproductor local -->
+  <!-- Reproductor para archivos locales -->
   <audio id="audioPlayer"></audio>
-  <!-- Contenedor para el reproductor de YouTube, usando IFrame API (se mantiene oculto) -->
+  
+  <!-- Contenedor para el reproductor de YouTube visible -->
   <div id="youtubePlayerContainer"></div>
   
   <script>
     /* VARIABLES GLOBALES */
-    // Cada elemento de la playlist tendrá: { type, name, url, videoId }
+    // Cada elemento en la playlist tendrá: { type, name, url, videoId }
     let playlist = [];
     let currentIndex = 0;
     let shuffleOn = false;
@@ -140,42 +147,42 @@
     let youtubePlayer;
     function onYouTubeIframeAPIReady() {
       youtubePlayer = new YT.Player('youtubePlayerContainer', {
-        height: '0',
-        width: '0',
+        height: '180',
+        width: '320',
         videoId: '',
-        playerVars: { 'autoplay': 0, 'controls': 0 },
+        playerVars: { autoplay: 0, controls: 1 },
         events: {
           'onReady': onYouTubePlayerReady,
           'onStateChange': onYouTubePlayerStateChange
         }
       });
     }
-    function onYouTubePlayerReady(event) { }
+    function onYouTubePlayerReady(event) {
+      // Opcional: ajustar configuración inicial si fuera necesario
+    }
     function onYouTubePlayerStateChange(event) {
       if (event.data === YT.PlayerState.ENDED) {
         nextTrack();
       }
     }
     
-    /* FUNCIONES PARA ACTUALIZAR EL LISTADO DE LA PLAYLIST */
+    /* ACTUALIZAR EL LISTADO DE LA PLAYLIST */
     function updatePlaylistUI() {
       playlistUI.innerHTML = '';
       playlist.forEach((item, index) => {
         const li = document.createElement('li');
-        // Se muestra el nombre de la pista
         li.textContent = item.name;
         
-        // Se añade el icono de papelera para eliminar el ítem
+        // Ícono de papelera para eliminar el ítem
         const trash = document.createElement('span');
         trash.textContent = " 🗑️";
         trash.classList.add("trashIcon");
         trash.addEventListener('click', (e) => {
-          e.stopPropagation(); // Evita disparar el evento de click del li
+          e.stopPropagation();
           removeFromPlaylist(index);
         });
         li.appendChild(trash);
         
-        // Al hacer click sobre el ítem (excluyendo el icono de papelera), se reproduce la pista
         li.addEventListener('click', () => {
           currentIndex = index;
           loadCurrentTrack();
@@ -198,12 +205,15 @@
           }
           loadCurrentTrack();
         } else {
-          // Si se elimina el último ítem, se para la reproducción
+          // No hay pistas en la lista
           audioPlayer.pause();
           audioPlayer.src = "";
           if (youtubePlayer && youtubePlayer.stopVideo) {
             youtubePlayer.stopVideo();
           }
+          progressBar.value = 0;
+          durationDisplay.textContent = "00:00";
+          currentTimeDisplay.textContent = "00:00";
         }
       }
       updatePlaylistUI();
@@ -367,6 +377,9 @@
       if (youtubePlayer && youtubePlayer.stopVideo) {
         youtubePlayer.stopVideo();
       }
+      progressBar.value = 0;
+      currentTimeDisplay.textContent = "00:00";
+      durationDisplay.textContent = "00:00";
     });
     
     /* IMPORTACIÓN DE ARCHIVOS */
@@ -379,6 +392,8 @@
           playlist.push({ type: 'local', name: file.name, url: url });
         }
       });
+      // Resetear input para permitir recargar los mismos archivos en el futuro
+      fileInputFolder.value = "";
       currentIndex = 0;
       updatePlaylistUI();
       if (playlist.length > 0) {
@@ -395,6 +410,7 @@
           playlist.push({ type: 'local', name: file.name, url: url });
         }
       });
+      fileInputSingle.value = "";
       currentIndex = 0;
       updatePlaylistUI();
       if (playlist.length > 0) {
@@ -402,14 +418,14 @@
       }
     });
     
-    // Importar documento de Google Docs con enlaces de YouTube
+    // Importar documento con enlaces de YouTube (de Google Docs exportado a TXT, DOC o DOCX)
     youtubeFileInput.addEventListener('change', (event) => {
       const file = event.target.files[0];
       if (file) {
         const reader = new FileReader();
         reader.onload = function(e) {
           const text = e.target.result;
-          // Separamos por líneas
+          // Separar por líneas, extraer cada enlace
           const lines = text.split('\n');
           lines.forEach(line => {
             const url = line.trim();
@@ -420,6 +436,7 @@
               }
             }
           });
+          youtubeFileInput.value = "";
           currentIndex = 0;
           updatePlaylistUI();
           if (playlist.length > 0) {
