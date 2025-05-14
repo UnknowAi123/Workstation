@@ -23,7 +23,7 @@
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
       max-width: 350px; /* Se adapta al contenedor */
       width: auto;
-      height: 550px; /* Más alto para que no tape el título */
+      height: 480px; /* Más alto para que no tape el título */
       margin: 0 auto;
       padding: 15px;
       text-align: center;
@@ -102,7 +102,8 @@
     }
     /* Zona3: Contenedor para listado scrolleable (10 pistas visibles aprox.) */
     #playlistContainer {
-      width: 350px;
+      max-width: 350px
+      width: auto;
       height: 400px;  /* Altura fija para mostrar 10 ítems (según tamaño de ítem) */
       overflow-y: auto;
       margin: 20px auto;
