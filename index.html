@@ -5,44 +5,22 @@
   <title>Juego de Memoria de Colores</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <style>
-    /* Global: forzamos el box-sizing para todos los elementos */
-    * {
-      box-sizing: border-box;
-    }
-    html, body {
-      margin: 0;
-      padding: 0;
-      -ms-touch-action: manipulation;
-      touch-action: manipulation;
-    }
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #fff;
-      padding: 20px;
-      text-align: center;
-    }
-    h1 {
-      margin-bottom: 10px;
-      font-size: 20px;
-    }
-    .controls {
-      margin-bottom: 10px;
-    }
-    .button {
-      padding: 10px 20px;
-      font-size: 16px;
-      cursor: pointer;
-      margin: 5px;
-    }
-    .timer {
-      font-size: 24px;
-      margin-bottom: 10px;
-    }
-    .grid-container {
-      width: 100%;
-      min-width: 300px;
-      margin: 0 auto;
-    }
+    /* Reset global y estilos básicos */
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; -ms-touch-action: manipulation; touch-action: manipulation; }
+    body { font-family: Arial, sans-serif; background-color: #fff; padding: 20px; text-align: center; }
+    h1 { margin-bottom: 10px; font-size: 20px; }
+    
+    /* Controles y botones */
+    .controls { margin-bottom: 10px; }
+    .button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin: 5px; }
+    .timer { font-size: 24px; margin-bottom: 10px; }
+    
+    /* Contenedor de la cuadrícula */
+    .grid-container { width: 100%; min-width: 300px; margin: 0 auto; }
+    
+    /* La cuadrícula usa una variable --cell-size para definir el tamaño de cada celda.
+       Se definen 8 columnas; el tamaño se recalcula en JS en función del ancho del contenedor. */
     .grid {
       width: 100%;
       display: grid;
@@ -53,13 +31,14 @@
       background-color: #333;
       margin: 0 auto;
     }
+    
+    /* Estilos de cada celda */
     .cell {
       width: 100%;
       height: 100%;
       background-color: #ccc;
       cursor: pointer;
-      transition: background-color 0.3s, opacity 0.3s, filter 0.2s, transform 0.2s, border 0.2s;
-      position: relative; /* Para posicionar la etiqueta del modo daltónico */
+      transition: all 0.3s;
     }
     .cell.selected {
       border: 3px solid #FFD700;
@@ -72,10 +51,9 @@
       opacity: 0;
       pointer-events: none;
     }
-    .message {
-      font-size: 28px;
-      margin-top: 20px;
-    }
+    
+    /* Mensaje final */
+    .message { font-size: 28px; margin-top: 20px; }
   </style>
 </head>
 <body>
@@ -83,17 +61,55 @@
   <div class="controls">
     <button class="button" id="start">Iniciar Juego</button>
     <button class="button" id="restart">Reiniciar</button>
-    <button class="button" id="toggleDaltonic">Modo Daltonico</button>
+    <button class="button" id="colorMode">Modo Daltónico: Desactivado</button>
   </div>
   <div class="timer" id="timer">60</div>
   <div class="grid-container">
     <div class="grid" id="grid"></div>
   </div>
   <div class="message" id="message"></div>
+  
   <script>
-    // CONFIGURACIÓN DE COLORES:
-    // La lista a continuación contiene los 140 colores HTML.
-    // Puedes editar este array para agregar, quitar o incluir colores en formato hexadecimal.
+    const grid = document.getElementById("grid");
+    const gridContainer = document.querySelector(".grid-container");
+    const timerDisplay = document.getElementById("timer");
+    const messageDisplay = document.getElementById("message");
+    const startButton = document.getElementById("start");
+    const restartButton = document.getElementById("restart");
+    const colorModeButton = document.getElementById("colorMode");
+
+    // Modo daltónico: Cicla entre "normal", "protanopia", "deuteranopia" y "tritanopia"
+    const modes = ["normal", "protanopia", "deuteranopia", "tritanopia"];
+    let daltonicModeIndex = 0;
+
+    let firstCell = null,
+        secondCell = null,
+        lockBoard = false,
+        timeLeft = 60,
+        timerInterval,
+        gameStarted = false;
+
+    // Actualiza el tamaño de cada celda según el ancho del contenedor.
+    function updateCellSize() {
+      const containerWidth = gridContainer.clientWidth;
+      // Cálculo: 8 celdas + 2 márgenes de 4px (padding) + 7 gaps de 4px = 36px.
+      const cellSize = (containerWidth - 36) / 8;
+      grid.style.setProperty('--cell-size', cellSize + 'px');
+    }
+    updateCellSize();
+    window.addEventListener('resize', updateCellSize);
+
+    // Al pulsar el botón, se cicla el modo daltónico y se actualiza la etiqueta.
+    colorModeButton.addEventListener("click", function() {
+      daltonicModeIndex = (daltonicModeIndex + 1) % modes.length;
+      const modeText = modes[daltonicModeIndex];
+      colorModeButton.textContent =
+        `Modo Daltónico: ${modeText.charAt(0).toUpperCase() + modeText.slice(1)}`;
+      initGame();
+    });
+
+    // LISTADO PERSONALIZABLE: Los 140 colores HTML.
+    // Puedes agregar, quitar o incluir colores en formato hexadecimal.
     const customColorList = [
       "AliceBlue", "AntiqueWhite", "Aqua", "Aquamarine", "Azure",
       "Beige", "Bisque", "Black", "BlanchedAlmond", "Blue",
@@ -125,32 +141,7 @@
       "Wheat", "White", "WhiteSmoke", "Yellow", "YellowGreen"
     ];
 
-    const grid = document.getElementById("grid");
-    const gridContainer = document.querySelector(".grid-container");
-    const timerDisplay = document.getElementById("timer");
-    const messageDisplay = document.getElementById("message");
-    const startButton = document.getElementById("start");
-    const restartButton = document.getElementById("restart");
-    const toggleDaltonicButton = document.getElementById("toggleDaltonic");
-
-    let firstCell = null;
-    let secondCell = null;
-    let lockBoard = false;
-    let timeLeft = 60;
-    let timerInterval;
-    let gameStarted = false;
-    let daltonicMode = false;
-
-    function updateCellSize() {
-      const containerWidth = gridContainer.clientWidth;
-      const cellSize = (containerWidth - 36) / 8;
-      grid.style.setProperty('--cell-size', cellSize + 'px');
-    }
-    updateCellSize();
-    window.addEventListener('resize', updateCellSize);
-
-    // Generar 44 pares (88 celdas) usando colores de la lista personalizada.
-    // Se seleccionan 44 colores aleatorios de los 140, se duplican y se mezclan.
+    // Genera 44 pares de colores (88 celdas) a partir del listado personalizable.
     function generateColors() {
       let availableColors = customColorList.slice();
       shuffle(availableColors);
@@ -163,6 +154,7 @@
       return colorPairs;
     }
 
+    // Algoritmo de shuffle (Fisher-Yates)
     function shuffle(array) {
       for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -170,11 +162,9 @@
       }
     }
 
+    // Reinicia el juego: limpia la cuadrícula, resetea el reloj y genera nuevas celdas.
     function initGame() {
-      if (timerInterval) {
-        clearInterval(timerInterval);
-        timerInterval = null;
-      }
+      if (timerInterval) clearInterval(timerInterval);
       grid.innerHTML = "";
       messageDisplay.textContent = "";
       firstCell = null;
@@ -186,7 +176,7 @@
 
       const colors = generateColors();
       shuffle(colors);
-      // Crear 88 celdas (44 pares) en la cuadrícula de 8 columnas x 11 filas.
+      // Se crean 88 celdas (44 pares).
       for (let i = 0; i < 88; i++) {
         const cell = document.createElement("div");
         cell.classList.add("cell");
@@ -195,12 +185,9 @@
         cell.addEventListener("click", handleCellClick);
         grid.appendChild(cell);
       }
-      // Si el modo daltónico está activo, actualiza las etiquetas en cada celda.
-      if (daltonicMode) {
-        updateDaltonicOverlays();
-      }
     }
 
+    // Inicia el temporizador.
     function startGame() {
       if (!gameStarted) {
         gameStarted = true;
@@ -219,8 +206,7 @@
     }
 
     function handleCellClick() {
-      if (!gameStarted) return;
-      if (lockBoard || this.classList.contains("removed")) return;
+      if (!gameStarted || lockBoard || this.classList.contains("removed")) return;
       if (this === firstCell) return;
 
       this.classList.add("selected");
@@ -230,7 +216,6 @@
       } else {
         secondCell = this;
         lockBoard = true;
-
         if (firstCell.dataset.color === secondCell.dataset.color) {
           setTimeout(() => {
             firstCell.classList.add("removed");
@@ -271,46 +256,8 @@
       messageDisplay.textContent = win ? "¡Ganaste!" : "¡Perdiste!";
     }
 
-    // Funciones para el modo daltónico:
-    // Al activarlo, se añade en cada celda una etiqueta con el valor del color.
-    function toggleDaltonicMode() {
-      daltonicMode = !daltonicMode;
-      updateDaltonicOverlays();
-    }
-
-    function updateDaltonicOverlays() {
-      const cells = document.querySelectorAll(".cell");
-      cells.forEach(cell => {
-        if (daltonicMode) {
-          if (!cell.querySelector(".daltonic-label")) {
-            const label = document.createElement("span");
-            label.className = "daltonic-label";
-            label.textContent = cell.dataset.color;
-            label.style.position = "absolute";
-            label.style.bottom = "2px";
-            label.style.left = "2px";
-            label.style.fontSize = "10px";
-            label.style.backgroundColor = "rgba(255,255,255,0.7)";
-            label.style.color = "#000";
-            label.style.padding = "1px 3px";
-            label.style.borderRadius = "3px";
-            cell.appendChild(label);
-          }
-        } else {
-          const label = cell.querySelector(".daltonic-label");
-          if (label) {
-            label.remove();
-          }
-        }
-      });
-    }
-
-    restartButton.addEventListener("click", function() {
-      initGame();
-      startGame();
-    });
+    restartButton.addEventListener("click", () => { initGame(); startGame(); });
     startButton.addEventListener("click", startGame);
-    toggleDaltonicButton.addEventListener("click", toggleDaltonicMode);
 
     initGame();
   </script>
