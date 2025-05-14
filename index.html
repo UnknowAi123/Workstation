@@ -28,13 +28,18 @@
     #playlist li.active {
       background-color: #ddd;
     }
+    #volumeControl {
+      margin: 10px 0;
+    }
   </style>
+  
+  <!-- Librería jsmediatags para leer metadatos (ID3) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.7/jsmediatags.min.js"></script>
 </head>
 <body>
   <h1>Reproductor de Música</h1>
-  
   <div id="fileSelection">
-    <!-- Permite seleccionar archivos o carpetas -->
+    <!-- Se permite seleccionar archivos o carpetas (webkitdirectory en navegadores basados en Chromium) -->
     <input type="file" id="fileInput" multiple webkitdirectory accept="audio/*">
   </div>
   
@@ -44,7 +49,12 @@
     <button id="pauseButton">Pause</button>
     <button id="nextButton">Siguiente</button>
     <button id="shuffleToggle">Shuffle Off</button>
-    <button id="exportPlaylist">Exportar Playlist</button>
+    <button id="exportPlaylist">Exportar Playlist (HTML)</button>
+  </div>
+  
+  <div id="volumeControl">
+    <label for="volumeSlider">Volumen: </label>
+    <input type="range" id="volumeSlider" min="0" max="100" value="100">
   </div>
   
   <ul id="playlist"></ul>
@@ -54,7 +64,7 @@
   
   <script>
     // Variables globales
-    let playlist = []; // Array de objetos {name, url}
+    let playlist = []; // Array de objetos: { name, url, artist, album }
     let currentIndex = 0;
     let shuffleOn = false;
     const audioPlayer = document.getElementById('audioPlayer');
@@ -66,13 +76,19 @@
     const nextButton = document.getElementById('nextButton');
     const shuffleToggle = document.getElementById('shuffleToggle');
     const exportPlaylistButton = document.getElementById('exportPlaylist');
+    const volumeSlider = document.getElementById('volumeSlider');
     
-    // Función para actualizar la visualización de la lista
+    // Actualiza la visualización de la playlist
     function updatePlaylistUI() {
       playlistUI.innerHTML = '';
       playlist.forEach((item, index) => {
         const li = document.createElement('li');
-        li.textContent = item.name;
+        // Si se han leído los metadatos, se muestran; sino, se usa el nombre del archivo
+        let displayText = item.name;
+        if (item.artist || item.album) {
+          displayText = `${item.name} - ${item.artist || 'Desconocido'} - ${item.album || 'Desconocido'}`;
+        }
+        li.textContent = displayText;
         li.dataset.index = index;
         if (index === currentIndex) li.classList.add('active');
         li.addEventListener('click', () => {
@@ -85,9 +101,9 @@
       });
     }
     
-    // Función para cargar el track actual en el reproductor
+    // Cargar la pista actual en el reproductor
     function loadCurrentTrack() {
-      if(playlist[currentIndex]){
+      if (playlist[currentIndex]) {
         audioPlayer.src = playlist[currentIndex].url;
       }
     }
@@ -122,7 +138,7 @@
       playCurrentTrack();
     }
     
-    // Event listeners para los botones de control
+    // Event listeners de botones de controles
     playButton.addEventListener('click', () => {
       if (!audioPlayer.src && playlist.length > 0) {
         loadCurrentTrack();
@@ -139,51 +155,102 @@
       shuffleToggle.textContent = shuffleOn ? 'Shuffle On' : 'Shuffle Off';
     });
     
-    // Exportar lista de reproducción (nombre de archivos, separados por saltos de línea)
+    // Exportar la playlist en formato HTML
     exportPlaylistButton.addEventListener('click', () => {
       if (playlist.length === 0) return;
-      const playlistText = playlist.map(item => item.name).join('\n');
-      const blob = new Blob([playlistText], { type: 'text/plain' });
+      let htmlContent = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Playlist Exportada</title>
+  <style>
+    body { font-family: Arial, sans-serif; }
+    h1 { text-align: center; }
+    ul { list-style: none; padding: 0; }
+    li { padding: 5px; }
+  </style>
+</head>
+<body>
+  <h1>Playlist Exportada</h1>
+  <ul>
+    ${playlist
+      .map(
+        item =>
+          `<li>${item.name} - ${item.artist || 'Desconocido'} - ${item.album || 'Desconocido'}</li>`
+      )
+      .join('')}
+  </ul>
+</body>
+</html>`;
+      const blob = new Blob([htmlContent], { type: 'text/html' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'playlist.txt';
+      a.download = 'playlist.html';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
     });
     
-    // Cuando el track termina, avanza al siguiente
+    // Reproducir siguiente pista al terminar la actual
     audioPlayer.addEventListener('ended', nextTrack);
     
-    // Al seleccionar archivos, se crea la playlist
-    fileInput.addEventListener('change', (event) => {
-      const files = event.target.files;
-      playlist = [];
-      // Se recorre la selección y se crean URLs para cada archivo de audio
-      Array.from(files).forEach(file => {
-        // Opcional: filtrar por extensión o tipo MIME (audio/*)
-        const url = URL.createObjectURL(file);
-        playlist.push({ name: file.name, url });
-      });
-      // Orden natural (si shuffle está activado se podría mezclar automáticamente)
-      if (shuffleOn) {
-        shuffleArray(playlist);
-      }
-      currentIndex = 0;
-      updatePlaylistUI();
-      if (playlist.length > 0) {
-        loadCurrentTrack();
-      }
+    // Control del volumen. El valor del slider (0 a 100) se convierte a [0,1]
+    volumeSlider.addEventListener('input', () => {
+      audioPlayer.volume = volumeSlider.value / 100;
     });
     
-    // Función auxiliar de shuffle (Fisher-Yates)
+    // Función auxiliar para barajar un array (algoritmo Fisher-Yates)
     function shuffleArray(array) {
       for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [array[i], array[j]] = [array[j], array[i]];
       }
     }
+    
+    // Al seleccionar archivos, se crea la playlist
+    fileInput.addEventListener('change', (event) => {
+      const files = event.target.files;
+      playlist = [];
+      currentIndex = 0;
+      // Filtramos: solo se dejan los archivos cuyo tipo comienza con "audio"
+      const audioFiles = Array.from(files).filter(file => file.type.startsWith('audio'));
+      
+      audioFiles.forEach(file => {
+        const url = URL.createObjectURL(file);
+        // Objeto con información básica; se actualizará con los metadatos si están disponibles.
+        const song = {
+          name: file.name,
+          artist: '',
+          album: '',
+          url: url
+        };
+        // Usar jsmediatags para leer las etiquetas ID3 y actualizar la información si es posible
+        jsmediatags.read(file, {
+          onSuccess: function(tag) {
+            const tags = tag.tags;
+            if (tags.title) song.name = tags.title;
+            if (tags.artist) song.artist = tags.artist;
+            if (tags.album) song.album = tags.album;
+            updatePlaylistUI();
+          },
+          onError: function(error) {
+            console.log('Error leyendo ID3 tags: ', error);
+          }
+        });
+        playlist.push(song);
+      });
+      
+      if (shuffleOn) {
+        shuffleArray(playlist);
+      }
+      updatePlaylistUI();
+      if (playlist.length > 0) {
+        loadCurrentTrack();
+      }
+    });
+    
   </script>
 </body>
 </html>
