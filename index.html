@@ -21,9 +21,9 @@
       background: #fff;
       border-radius: 8px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      max-width: 350px; /* Se adapta al contenedor */
-      width: auto;
-      height: 480px; /* Más alto para que no tape el título */
+      max-width: 350px;
+      width: 100%;
+      min-height: 600px;
       margin: 0 auto;
       padding: 15px;
       text-align: center;
@@ -31,30 +31,38 @@
       flex-direction: column;
       justify-content: space-between;
     }
-    /* Se reemplaza el <img> por un div para la carátula */
+    /* Cover: tamaño fijo 260x260 */
     #coverArt {
-      width: 100%;
-      height: 200px; /* Tamaño máximo para carátulas */
+      width: 260px;
+      height: 260px;
       border-radius: 5px;
       background-size: cover;
       background-position: center;
+      margin: 0 auto;
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #aaa;
       font-weight: bold;
       font-size: 16px;
     }
-    /* Zona1 - Información del track: título en una línea */
+    /* Si no hay cover (archivo local): fondo DodgerBlue, texto blanco, borde 2px negro */
+    .noCover {
+      background-color: #1E90FF;
+      color: white;
+      border: 2px solid black;
+    }
+    /* Zona1 - Información del track */
     #trackInfo {
       margin-top: 10px;
+    }
+    /* Contenedor para el título (una línea) */
+    #trackTitleContainer {
       overflow: hidden;
       white-space: nowrap;
-      text-overflow: ellipsis;
     }
+    /* El título se mostrará como un inline-block para permitir animación */
     #trackTitle {
-      font-size: 18px;
-      font-weight: bold;
+      display: inline-block;
     }
     #trackArtist {
       font-size: 14px;
@@ -75,6 +83,7 @@
       align-items: center;
       gap: 5px;
     }
+    /* Nuevo orden: Shuffle, Anterior, Play/Pause, Siguiente, Repeat */
     #controls button {
       padding: 8px;
       font-size: 18px;
@@ -89,7 +98,7 @@
     #controls button:hover {
       background: #ddd;
     }
-    /* Estilo para botones activos (shuffle y repeat toggles) */
+    /* Botones toggle activos */
     .activeToggle {
       background: #cce5ff !important;
     }
@@ -100,11 +109,10 @@
     #volumeSlider {
       width: 80%;
     }
-    /* Zona3: Contenedor para listado scrolleable (10 pistas visibles aprox.) */
+    /* Zona3: Contenedor para listado scrolleable */
     #playlistContainer {
-      max-width: 350px
-      width: auto;
-      height: 400px;  /* Altura fija para mostrar 10 ítems (según tamaño de ítem) */
+      width: 350px;
+      height: 400px;
       overflow-y: auto;
       margin: 20px auto;
       border: 1px solid #ccc;
@@ -144,7 +152,7 @@
       margin-left: 10px;
       color: red;
     }
-    /* Zona2: Cargar pistas (se posicionará después de Zona3) */
+    /* Zona2: Cargar pistas (se mostrará debajo del listado) */
     #loadSection {
       text-align: center;
       margin: 20px auto;
@@ -161,10 +169,11 @@
 <body>
   <!-- Zona1: Mini Reproductor -->
   <div id="miniPlayer">
-    <!-- Ahora es un div que se actualizará según la carátula -->
     <div id="coverArt">No cover</div>
     <div id="trackInfo">
-      <div id="trackTitle">Título de la pista</div>
+      <div id="trackTitleContainer">
+        <div id="trackTitle">Título de la pista</div>
+      </div>
       <div id="trackArtist">Artista</div>
     </div>
     <div id="timeDisplay">
@@ -172,11 +181,10 @@
     </div>
     <input type="range" id="progressBar" min="0" value="0" step="1">
     <div id="controls">
-      <button id="prevButton" title="Anterior">⏮</button>
-      <button id="stopButton" title="Stop">⏹</button>
-      <button id="playPauseButton" title="Play">▶</button>
-      <button id="nextButton" title="Siguiente">⏭</button>
       <button id="shuffleButton" title="Shuffle">🔀</button>
+      <button id="prevButton" title="Anterior">⏮️</button>
+      <button id="playPauseButton" title="Play">⏯️</button>
+      <button id="nextButton" title="Siguiente">⏭️</button>
       <button id="repeatButton" title="Repetir">🔁</button>
     </div>
     <div id="volumeContainer">
@@ -194,7 +202,7 @@
     <ul id="playlist"></ul>
   </div>
   
-  <!-- Zona2: Cargar Pistas (ahora se muestra debajo de Zona3) -->
+  <!-- Zona2: Cargar Pistas (se muestra debajo del listado) -->
   <div id="loadSection">
     <h3>Cargar Pistas</h3>
     <input type="file" id="fileInput" accept="audio/*" multiple><br>
@@ -210,18 +218,19 @@
     let shuffleOn = false;
     let repeatOn = false; // false = off, true = on
     let recentHistory = [];
+    let titleAnimationTimeout; // para controlar la animación del título
     
     /* REFERENCIAS AL DOM */
     // Zona1
     const coverArt = document.getElementById('coverArt');
     const trackTitleElem = document.getElementById('trackTitle');
+    const trackTitleContainer = document.getElementById('trackTitleContainer');
     const trackArtistElem = document.getElementById('trackArtist');
     const currentTimeElem = document.getElementById('currentTime');
     const durationElem = document.getElementById('duration');
     const progressBar = document.getElementById('progressBar');
     const playPauseButton = document.getElementById('playPauseButton');
     const prevButton = document.getElementById('prevButton');
-    const stopButton = document.getElementById('stopButton');
     const nextButton = document.getElementById('nextButton');
     const shuffleButton = document.getElementById('shuffleButton');
     const repeatButton = document.getElementById('repeatButton');
@@ -244,21 +253,51 @@
     function updateMiniPlayerUI() {
       if (!playlist[currentIndex]) return;
       const item = playlist[currentIndex];
+      
       if (item.type === 'youtube') {
-        // Para YouTube, usamos la miniatura
+        // Para YouTube: usar miniatura sin franjas (cover con background-size cover)
         coverArt.style.backgroundImage = `url(https://img.youtube.com/vi/${item.videoId}/hqdefault.jpg)`;
-        coverArt.textContent = ''; // Eliminamos texto
+        coverArt.classList.remove('noCover');
+        coverArt.textContent = '';
       } else {
         if (item.cover) {
           coverArt.style.backgroundImage = `url(${item.cover})`;
+          coverArt.classList.remove('noCover');
           coverArt.textContent = '';
         } else {
+          // Sin cover: establecer cover virtual
           coverArt.style.backgroundImage = 'none';
+          coverArt.classList.add('noCover');
           coverArt.textContent = 'No cover';
         }
       }
+      
+      // Actualizar título y artista
       trackTitleElem.textContent = item.title || item.name;
       trackArtistElem.textContent = item.artist || "";
+      
+      // Reiniciar animación del título (cancelar si exista)
+      trackTitleElem.style.transition = '';
+      trackTitleElem.style.transform = '';
+      clearTimeout(titleAnimationTimeout);
+      titleAnimationTimeout = setTimeout(animateTitle, 3000);
+    }
+    
+    /* Función para animar el título (desplazamiento) si es más ancho que su contenedor */
+    function animateTitle() {
+      const containerWidth = trackTitleContainer.offsetWidth;
+      const textWidth = trackTitleElem.scrollWidth;
+      if (textWidth > containerWidth) {
+        const distance = textWidth - containerWidth;
+        // Animar para revelar el texto completo en 5 segundos
+        trackTitleElem.style.transition = 'transform 5s linear';
+        trackTitleElem.style.transform = `translateX(-${distance}px)`;
+        // Después de 5 segundos (más un pequeño retardo), volver al primer estado
+        setTimeout(() => {
+          trackTitleElem.style.transition = 'transform 1s linear';
+          trackTitleElem.style.transform = 'translateX(0)';
+        }, 5500);
+      }
     }
     
     /* Cargar y reproducir pista actual */
@@ -287,7 +326,7 @@
       } else if (item.type === 'youtube' && youtubePlayer) {
         youtubePlayer.playVideo();
       }
-      playPauseButton.textContent = '⏸';
+      playPauseButton.textContent = '⏸️';
     }
     
     function pauseCurrentTrack() {
@@ -298,32 +337,18 @@
       } else if (item.type === 'youtube' && youtubePlayer) {
         youtubePlayer.pauseVideo();
       }
-      playPauseButton.textContent = '▶';
-    }
-    
-    function stopTrack() {
-      const item = playlist[currentIndex];
-      if (!item) return;
-      if (item.type === 'local') {
-        audioPlayer.pause();
-        audioPlayer.currentTime = 0;
-      } else if (item.type === 'youtube' && youtubePlayer) {
-        youtubePlayer.stopVideo();
-      }
-      playPauseButton.textContent = '▶';
-      progressBar.value = 0;
-      currentTimeElem.textContent = "00:00";
+      playPauseButton.textContent = '⏯️';
     }
     
     function togglePlayPause() {
-      if (playPauseButton.textContent === '▶') {
+      if (playPauseButton.textContent === '⏯️') {
         playCurrentTrack();
       } else {
         pauseCurrentTrack();
       }
     }
     
-    /* Eventos para cambio de pista (shuffle y repeat) */
+    /* Controles: Siguiente y Anterior (con lógica de shuffle y repeat) */
     function nextTrack() {
       if (shuffleOn) {
         let allowed = [];
@@ -342,10 +367,11 @@
         if (currentIndex < playlist.length - 1) {
           currentIndex++;
         } else {
+          // Si se llegó al final
           if (playlist.length === 1 || repeatOn) {
             currentIndex = 0;
           } else {
-            stopTrack();
+            pauseCurrentTrack();
             return;
           }
         }
@@ -376,7 +402,7 @@
           if (repeatOn) {
             currentIndex = playlist.length - 1;
           } else {
-            stopTrack();
+            pauseCurrentTrack();
             return;
           }
         }
@@ -428,7 +454,7 @@
       }
     });
     
-    /* Agregar evento para audio local al terminar la pista */
+    /* Cuando el audio local termine, pasar automáticamente a la siguiente pista */
     audioPlayer.addEventListener('ended', nextTrack);
     
     /* YouTube IFrame API */
@@ -451,7 +477,7 @@
       }
     }
     
-    /* Zona3: UI del listado */
+    /* Zona3: UI del listado de pistas */
     function updatePlaylistUI() {
       playlistUI.innerHTML = '';
       playlist.forEach((item, i) => {
@@ -510,24 +536,15 @@
     playPauseButton.addEventListener('click', togglePlayPause);
     prevButton.addEventListener('click', prevTrack);
     nextButton.addEventListener('click', nextTrack);
-    stopButton.addEventListener('click', stopTrack);
     
     shuffleButton.addEventListener('click', () => {
       shuffleOn = !shuffleOn;
-      if (shuffleOn) {
-        shuffleButton.classList.add('activeToggle');
-      } else {
-        shuffleButton.classList.remove('activeToggle');
-      }
+      shuffleOn ? shuffleButton.classList.add('activeToggle') : shuffleButton.classList.remove('activeToggle');
     });
     
     repeatButton.addEventListener('click', () => {
       repeatOn = !repeatOn;
-      if (repeatOn) {
-        repeatButton.classList.add('activeToggle');
-      } else {
-        repeatButton.classList.remove('activeToggle');
-      }
+      repeatOn ? repeatButton.classList.add('activeToggle') : repeatButton.classList.remove('activeToggle');
     });
     
     /* Zona2: Cargar pistas locales */
@@ -536,7 +553,7 @@
       Array.from(files).forEach(file => {
         if (file.type.startsWith("audio")) {
           const url = URL.createObjectURL(file);
-          // Se podría extraer metadata (artist, title, cover) aquí
+          // Aquí podrías extraer metadata (artist, title, cover) si lo deseas.
           playlist.push({ type: 'local', name: file.name, url: url });
         }
       });
