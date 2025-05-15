@@ -43,7 +43,7 @@
       font-size: 18px;
       font-weight: bold;
     }
-    /* Nuevo: Se agrega "trackAlbum" para mostrar el álbum */
+    /* Nuevo: Mostrar álbum debajo del título */
     #trackAlbum {
       font-size: 16px;
       color: #666;
@@ -90,7 +90,7 @@
       overflow-y: auto;
       max-height: 250px;
     }
-    /* Listado de la playlist: se muestran Artista, Canción y Duración (con ícono de eliminación) */
+    /* Listado de la playlist: Artista, Canción y Duración (con papelera) */
     #playlist {
       list-style: none;
       padding: 0;
@@ -153,7 +153,7 @@
     </div>
   </div>
   
-  <!-- Jugadores ocultos -->
+  <!-- Jugadores ocultos para la reproducción -->
   <audio id="audioPlayer" style="display: none;"></audio>
   <div id="youtubePlayerContainer" style="display: none;"></div>
   
@@ -165,6 +165,8 @@
     <button id="addYoutubeButton">Agregar YouTube</button>
     <button id="importHtmlButton">Importar desde HTML</button>
     <button id="importPlaylistButton">Importar desde YouTube</button>
+    <!-- Input oculto para elegir archivo HTML -->
+    <input type="file" id="htmlFileInput" accept=".html" style="display: none;">
   </div>
   
   <!-- CONTENEDOR DE PLAYLIST -->
@@ -200,6 +202,7 @@
     const youtubeURLInput = document.getElementById('youtubeURLInput');
     const addYoutubeButton = document.getElementById('addYoutubeButton');
     const playlistUI = document.getElementById('playlist');
+    const htmlFileInput = document.getElementById('htmlFileInput');
     
     /* Función para actualizar el mini reproductor (carátula, título, álbum, artista) */
     function updateMiniPlayerUI() {
@@ -380,7 +383,7 @@
       playlist.forEach((item, i) => {
         const li = document.createElement('li');
         const infoSpan = document.createElement('span');
-        // Se muestra: Artista, Canción y (duración) por defecto "00:00"
+        // Mostrar: Artista, Canción y Duración (por defecto "00:00")
         const durationStr = "00:00";
         infoSpan.textContent = (item.artist ? item.artist + " - " : "") + (item.title || item.name) + " (" + durationStr + ")";
         li.appendChild(infoSpan);
@@ -486,25 +489,33 @@
       return videoId;
     }
     
-    /* Lógica para importar desde HTML */
+    /* Lógica para importar desde archivo HTML */
+    // Al pulsar el botón, se abre el diálogo para elegir archivo HTML
     document.getElementById("importHtmlButton").addEventListener("click", () => {
-      fetch("enlaces.html")
-        .then(response => response.text())
-        .then(data => {
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(data, "text/html");
-          const links = doc.querySelectorAll("tr");
-          links.forEach(row => {
-            const artist = row.querySelector("td.artist")?.textContent || "";
-            const title = row.querySelector("td.title")?.textContent || "";
-            const album = row.querySelector("td.album")?.textContent || "";
-            const url = row.querySelector("td.url")?.textContent || "";
-            if (url) {
-              playlist.push({ type: "youtube", artist, title, album, url, videoId: extractYouTubeID(url) });
-            }
-          });
-          updatePlaylistUI();
+      htmlFileInput.click();
+    });
+    // Leer el archivo HTML seleccionado
+    htmlFileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt){
+        const data = evt.target.result;
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(data, "text/html");
+        const links = doc.querySelectorAll("tr");
+        links.forEach(row => {
+          const artist = row.querySelector("td.artist")?.textContent || "";
+          const title = row.querySelector("td.title")?.textContent || "";
+          const album = row.querySelector("td.album")?.textContent || "";
+          const url = row.querySelector("td.url")?.textContent || "";
+          if (url) {
+            playlist.push({ type: "youtube", artist, title, album, url, videoId: extractYouTubeID(url) });
+          }
         });
+        updatePlaylistUI();
+      }
+      reader.readAsText(file);
     });
     
     /* Lógica para importar desde una playlist de YouTube */
