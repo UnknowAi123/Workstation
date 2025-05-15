@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <title>Mini Reproductor con Carátula</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Incluir la API de YouTube -->
   <script src="https://www.youtube.com/iframe_api"></script>
   <style>
     /* Estilos generales */
@@ -14,7 +13,6 @@
       margin: 0;
       padding: 20px;
     }
-    /* Contenedor del mini reproductor */
     #miniPlayer {
       background: #fff;
       border-radius: 8px;
@@ -24,9 +22,14 @@
       padding: 15px;
       text-align: center;
     }
+    #coverContainer {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+    }
     #coverArt {
       width: 100%;
-      height: auto;
+      height: 100%;
+      object-fit: cover;
       border-radius: 5px;
     }
     #trackInfo {
@@ -36,18 +39,20 @@
       font-size: 18px;
       font-weight: bold;
     }
+    #trackAlbum {
+      font-size: 16px;
+      color: #666;
+    }
     #trackArtist {
       font-size: 14px;
       color: #666;
     }
-    /* Timeline */
     #timeDisplay {
       margin: 10px 0;
     }
     #progressBar {
       width: 100%;
     }
-    /* Controles de reproducción */
     #controls {
       margin: 10px 0;
     }
@@ -59,14 +64,12 @@
       border: none;
       cursor: pointer;
     }
-    /* Volumen */
     #volumeContainer {
       margin-top: 10px;
     }
     #volumeSlider {
       width: 80%;
     }
-    /* Contenedor para la playlist */
     #playlistContainer {
       background: #fff;
       border-radius: 8px;
@@ -76,62 +79,38 @@
       padding: 15px;
       text-align: center;
       overflow-y: auto;
-      max-height: 250px; /* Aproximadamente 6 pistas en promedio */
+      max-height: 250px;
     }
-    /* Listado de la playlist */
     #playlist {
       list-style: none;
       padding: 0;
       margin: 0;
     }
     #playlist li {
-      background: #fff;
-      padding: 8px 10px;
-      margin-bottom: 5px;
-      border-radius: 5px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      cursor: pointer;
-    }
-    #playlist li.active {
-      background: #d0eaff;
-    }
-    .track-info-item {
-      overflow: hidden;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-      max-width: calc(100% - 50px);
+      padding: 5px;
+      border-bottom: 1px solid #ddd;
+      font-size: 14px;
     }
     .trashIcon {
       cursor: pointer;
-      margin-left: 10px;
       color: red;
-    }
-    /* Sección para cargar pistas */
-    #loadSection {
-      text-align: center;
-      margin: 20px auto;
-      max-width: 350px;
-    }
-    #loadSection input, #loadSection button {
-      margin: 5px 0;
-      font-size: 14px;
     }
   </style>
 </head>
 <body>
   
-  <!-- MINI REPRODUCTOR -->
-<div id="miniPlayer">
-  <div id="coverContainer" style="width: 100%; aspect-ratio: 16 / 9;">
-    <img id="coverArt" src="placeholder-cover.jpg" alt="Portada" 
-         style="width: 100%; height: 100%; object-fit: cover;">
-  </div>
-  <div id="trackInfo">
-    <div id="trackTitle">Título de la pista</div>
-    <div id="trackArtist">Artista</div>
-  </div>
+  <div id="miniPlayer">
+    <div id="coverContainer">
+      <img id="coverArt" src="placeholder-cover.jpg" alt="Portada">
+    </div>
+    <div id="trackInfo">
+      <div id="trackTitle">Título de la pista</div>
+      <div id="trackAlbum">Álbum</div>
+      <div id="trackArtist">Artista</div>
+    </div>
     <div id="timeDisplay">
       <span id="currentTime">00:00</span> / <span id="duration">00:00</span>
     </div>
@@ -146,341 +125,62 @@
       <input type="range" id="volumeSlider" min="0" max="100" value="100">
     </div>
   </div>
-  
-  <!-- Jugadores ocultos para la reproducción -->
-  <audio id="audioPlayer" style="display: none;"></audio>
-  <div id="youtubePlayerContainer" style="display: none;"></div>
-  
-  <!-- SECCIÓN DE CARGA DE PISTAS -->
+
   <div id="loadSection">
     <h3>Cargar Pistas</h3>
     <input type="file" id="fileInput" accept="audio/*" multiple><br>
     <input type="text" id="youtubeURLInput" placeholder="Pegar URL de YouTube"><br>
     <button id="addYoutubeButton">Agregar YouTube</button>
+    <button id="importHtmlButton">Importar desde HTML</button>
+    <button id="importPlaylistButton">Importar desde YouTube</button>
   </div>
-  
-  <!-- CONTENEDOR DE PLAYLIST -->
+
   <div id="playlistContainer">
     <ul id="playlist"></ul>
   </div>
-  
+
   <script>
-    /* VARIABLES GLOBALES */
-    // Cada pista: { type, name, url, videoId, artist, title, cover }
-    let playlist = [];
-    let currentIndex = 0;
-    let shuffleOn = false;
-    let recentHistory = [];
-    
-    /* REFERENCIAS AL DOM */
-    const coverArt = document.getElementById('coverArt');
-    const trackTitleElem = document.getElementById('trackTitle');
-    const trackArtistElem = document.getElementById('trackArtist');
-    const currentTimeElem = document.getElementById('currentTime');
-    const durationElem = document.getElementById('duration');
-    const progressBar = document.getElementById('progressBar');
-    const playPauseButton = document.getElementById('playPauseButton');
-    const prevButton = document.getElementById('prevButton');
-    const nextButton = document.getElementById('nextButton');
-    const volumeSlider = document.getElementById('volumeSlider');
-    
-    // Jugadores (ocultos)
-    const audioPlayer = document.getElementById('audioPlayer');
-    const youtubePlayerContainer = document.getElementById('youtubePlayerContainer');
-    let youtubePlayer;
-    
-    // Carga de pistas y listado
-    const fileInput = document.getElementById('fileInput');
-    const youtubeURLInput = document.getElementById('youtubeURLInput');
-    const addYoutubeButton = document.getElementById('addYoutubeButton');
-    const playlistUI = document.getElementById('playlist');
-    
-    /* Función para actualizar el mini reproductor (carátula, título, artista) */
-    function updateMiniPlayerUI() {
-      if (!playlist[currentIndex]) return;
-      const item = playlist[currentIndex];
-      if (item.type === 'youtube') {
-        // Se utiliza la carátula de YouTube "hqdefault", que por defecto es de 480x360 píxeles.
-        coverArt.src = "https://img.youtube.com/vi/" + item.videoId + "/hqdefault.jpg";
-      } else {
-        coverArt.src = item.cover ? item.cover : "placeholder-cover.jpg";
-      }
-      // Mostrar "Artista - Título" si existen
-      trackTitleElem.textContent = item.title || item.name;
-      trackArtistElem.textContent = item.artist || "";
-    }
-    
-    /* Cargar y reproducir la pista actual */
-    function loadCurrentTrack() {
-      if (!playlist[currentIndex]) return;
-      const item = playlist[currentIndex];
-      updateMiniPlayerUI();
-      if (item.type === 'local') {
-        if (youtubePlayer && youtubePlayer.stopVideo) {
-          youtubePlayer.stopVideo();
-        }
-        audioPlayer.src = item.url;
-        audioPlayer.style.display = 'block';
-        youtubePlayerContainer.style.display = 'none';
-      } else if (item.type === 'youtube') {
-        audioPlayer.pause();
-        audioPlayer.style.display = 'none';
-        youtubePlayerContainer.style.display = 'block';
-        if (youtubePlayer) {
-          youtubePlayer.loadVideoById(item.videoId);
-        }
-      }
-    }
-    
-    function playCurrentTrack() {
-      const item = playlist[currentIndex];
-      if (!item) return;
-      if (item.type === 'local') {
-        audioPlayer.play();
-      } else if (item.type === 'youtube' && youtubePlayer) {
-        youtubePlayer.playVideo();
-      }
-      playPauseButton.textContent = '⏸️';
-    }
-    
-    function pauseCurrentTrack() {
-      const item = playlist[currentIndex];
-      if (!item) return;
-      if (item.type === 'local') {
-        audioPlayer.pause();
-      } else if (item.type === 'youtube' && youtubePlayer) {
-        youtubePlayer.pauseVideo();
-      }
-      playPauseButton.textContent = '▶️';
-    }
-    
-    function togglePlayPause() {
-      if (playPauseButton.textContent === '▶️') {
-        playCurrentTrack();
-      } else {
-        pauseCurrentTrack();
-      }
-    }
-    
-    /* Controles: siguiente y anterior (incluye lógica de shuffle) */
-    function nextTrack() {
-      if (shuffleOn) {
-        let allowed = [];
-        playlist.forEach((_, i) => {
-          if (i !== currentIndex && !recentHistory.includes(i)) allowed.push(i);
-        });
-        if (allowed.length === 0) {
-          recentHistory = [];
-          allowed = playlist.map((_, i) => i).filter(i => i !== currentIndex);
-        }
-        const rand = allowed[Math.floor(Math.random() * allowed.length)];
-        currentIndex = rand;
-        recentHistory.push(rand);
-        if (recentHistory.length > 6) recentHistory.shift();
-      } else {
-        currentIndex = (currentIndex + 1) % playlist.length;
-      }
-      loadCurrentTrack();
-      playCurrentTrack();
-      updatePlaylistUI();
-    }
-    
-    function prevTrack() {
-      if (shuffleOn) {
-        let allowed = [];
-        playlist.forEach((_, i) => {
-          if (i !== currentIndex && !recentHistory.includes(i)) allowed.push(i);
-        });
-        if (allowed.length === 0) {
-          recentHistory = [];
-          allowed = playlist.map((_, i) => i).filter(i => i !== currentIndex);
-        }
-        const rand = allowed[Math.floor(Math.random() * allowed.length)];
-        currentIndex = rand;
-        recentHistory.push(rand);
-        if (recentHistory.length > 6) recentHistory.shift();
-      } else {
-        currentIndex = (currentIndex - 1 + playlist.length) % playlist.length;
-      }
-      loadCurrentTrack();
-      playCurrentTrack();
-      updatePlaylistUI();
-    }
-    
-    /* Timeline y progreso */
-    function formatTime(sec) {
-      const mins = Math.floor(sec / 60);
-      const secs = Math.floor(sec % 60);
-      return (mins < 10 ? "0" + mins : mins) + ":" + (secs < 10 ? "0" + secs : secs);
-    }
-    
-    function updateTime() {
-      if (!playlist[currentIndex]) return;
-      const item = playlist[currentIndex];
-      let cur = 0, dur = 0;
-      if (item.type === 'local') {
-        cur = audioPlayer.currentTime;
-        dur = audioPlayer.duration || 0;
-      } else if (item.type === 'youtube' && youtubePlayer && youtubePlayer.getCurrentTime) {
-        cur = youtubePlayer.getCurrentTime();
-        dur = youtubePlayer.getDuration();
-      }
-      currentTimeElem.textContent = formatTime(cur);
-      durationElem.textContent = formatTime(dur);
-      progressBar.max = dur;
-      progressBar.value = cur;
-    }
-    setInterval(updateTime, 500);
-    
-    progressBar.addEventListener('input', () => {
-      const item = playlist[currentIndex];
-      if (item.type === 'local') {
-        audioPlayer.currentTime = progressBar.value;
-      } else if (item.type === 'youtube' && youtubePlayer) {
-        youtubePlayer.seekTo(progressBar.value, true);
-      }
-    });
-    
-    volumeSlider.addEventListener('input', () => {
-      const vol = volumeSlider.value;
-      audioPlayer.volume = vol / 100;
-      if (youtubePlayer && youtubePlayer.setVolume) {
-        youtubePlayer.setVolume(vol);
-      }
-    });
-    
-    /* YouTube IFrame API */
-    function onYouTubeIframeAPIReady() {
-      youtubePlayer = new YT.Player('youtubePlayerContainer', {
-        height: '180',
-        width: '320',
-        videoId: '',
-        playerVars: { autoplay: 0, controls: 1 },
-        events: {
-          'onReady': onYouTubePlayerReady,
-          'onStateChange': onYouTubePlayerStateChange
-        }
-      });
-    }
-    function onYouTubePlayerReady(event) {
-      // Configuración adicional si se necesita en el futuro
-    }
-    function onYouTubePlayerStateChange(event) {
-      if (event.data === YT.PlayerState.ENDED) {
-        nextTrack();
-      }
-    }
-    
-    /* Playlist UI */
-    function updatePlaylistUI() {
-      playlistUI.innerHTML = '';
-      playlist.forEach((item, i) => {
-        const li = document.createElement('li');
-        const infoSpan = document.createElement('span');
-        infoSpan.textContent = (item.artist && item.title) ? (item.artist + " - " + item.title) : item.name;
-        infoSpan.classList.add('track-info-item');
-        li.appendChild(infoSpan);
-        
-        const trash = document.createElement('span');
-        trash.textContent = " 🗑️";
-        trash.classList.add('trashIcon');
-        trash.addEventListener('click', (e) => {
-          e.stopPropagation();
-          removeFromPlaylist(i);
-        });
-        li.appendChild(trash);
-        
-        li.addEventListener('click', () => {
-          currentIndex = i;
-          loadCurrentTrack();
-          playCurrentTrack();
+    document.getElementById("importHtmlButton").addEventListener("click", () => {
+      fetch("enlaces.html")
+        .then(response => response.text())
+        .then(data => {
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(data, "text/html");
+          const links = doc.querySelectorAll("tr");
+          links.forEach(row => {
+            const artist = row.querySelector("td.artist")?.textContent || "";
+            const title = row.querySelector("td.title")?.textContent || "";
+            const album = row.querySelector("td.album")?.textContent || "";
+            const url = row.querySelector("td.url")?.textContent || "";
+            if (url) {
+              playlist.push({ type: "youtube", artist, title, album, url, videoId: extractYouTubeID(url) });
+            }
+          });
           updatePlaylistUI();
         });
-        if (i === currentIndex) li.classList.add('active');
-        playlistUI.appendChild(li);
-      });
-    }
-    
-    function removeFromPlaylist(index) {
-      playlist.splice(index, 1);
-      if (index < currentIndex) {
-        currentIndex--;
-      } else if (index === currentIndex) {
-        pauseCurrentTrack();
-        progressBar.value = 0;
-        currentTimeElem.textContent = "00:00";
-        if (playlist.length > 0) {
-          if (currentIndex >= playlist.length) currentIndex = 0;
-          loadCurrentTrack();
-        } else {
-          audioPlayer.pause();
-          audioPlayer.src = "";
-          if (youtubePlayer && youtubePlayer.stopVideo) {
-            youtubePlayer.stopVideo();
-          }
-          progressBar.value = 0;
-          durationElem.textContent = "00:00";
-          currentTimeElem.textContent = "00:00";
-        }
-      }
-      updatePlaylistUI();
-    }
-    
-    /* Eventos de controles */
-    playPauseButton.addEventListener('click', togglePlayPause);
-    prevButton.addEventListener('click', prevTrack);
-    nextButton.addEventListener('click', nextTrack);
-    
-    /* Cargar pistas locales */
-    fileInput.addEventListener('change', (e) => {
-      const files = e.target.files;
-      Array.from(files).forEach(file => {
-        if (file.type.startsWith("audio")) {
-          const url = URL.createObjectURL(file);
-          // Se pueden extraer metadatos (artist, title, cover) si se desea.
-          playlist.push({ type: 'local', name: file.name, url: url });
-        }
-      });
-      fileInput.value = "";
-      if (playlist.length > 0) {
-        currentIndex = 0;
-        loadCurrentTrack();
-        updatePlaylistUI();
-      }
     });
-    
-    /* Agregar pista de YouTube mediante URL */
-    addYoutubeButton.addEventListener('click', () => {
-      const url = youtubeURLInput.value.trim();
-      if (url) {
-        const videoId = extractYouTubeID(url);
-        if (videoId) {
-          playlist.push({ type: 'youtube', name: "YouTube: " + videoId, url: url, videoId: videoId });
-          youtubeURLInput.value = "";
-          if (playlist.length > 0) {
-            currentIndex = 0;
-            loadCurrentTrack();
+
+    document.getElementById("importPlaylistButton").addEventListener("click", () => {
+      const playlistId = prompt("Introduce el ID de la playlist de YouTube:");
+      if (playlistId) {
+        fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}&key=TU_API_KEY`)
+          .then(response => response.json())
+          .then(data => {
+            data.items.forEach(item => {
+              const videoId = item.snippet.resourceId.videoId;
+              const title = item.snippet.title;
+              playlist.push({ type: "youtube", title, videoId, url: `https://www.youtube.com/watch?v=${videoId}` });
+            });
             updatePlaylistUI();
-          }
-        }
+          });
       }
     });
-    
+
     function extractYouTubeID(url) {
-      let videoId = null;
-      const regExp = /[?&]v=([^&#]+)/;
-      const match = url.match(regExp);
-      if (match && match[1]) {
-        videoId = match[1];
-      } else {
-        const shortRegExp = /youtu\.be\/([^?&#]+)/;
-        const shortMatch = url.match(shortRegExp);
-        if (shortMatch && shortMatch[1]) {
-          videoId = shortMatch[1];
-        }
-      }
-      return videoId;
+      const match = url.match(/[?&]v=([^&#]+)/) || url.match(/youtu\.be\/([^?&#]+)/);
+      return match ? match[1] : null;
     }
   </script>
+
 </body>
 </html>
