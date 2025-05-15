@@ -3,37 +3,51 @@
 <head>
   <meta charset="UTF-8">
   <title>Mini Reproductor con Carátula</title>
-  <!-- Impedir zoom y scroll horizontal -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <!-- Incluir la API de YouTube -->
   <script src="https://www.youtube.com/iframe_api"></script>
   <style>
-    /* Estilos generales inspirados en tu código base */
+    /* Estilos generales (basados en tu código original) */
     body {
       font-family: Arial, sans-serif;
       background: #f4f4f4;
       margin: 0;
       padding: 20px;
     }
-    /* Zona 1: Contenedor del mini reproductor centrado */
+    /* Contenedor del mini reproductor */
     #miniPlayer {
       background: #fff;
       border-radius: 8px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
       max-width: 350px;
-      width: 100%;
       margin: 0 auto;
       padding: 15px;
       text-align: center;
     }
-    /* Elemento de carátula con proporción 16:9: alto 180px, ancho calculado para 16:9 (320px) */
+    /* Elemento de carátula: se actualizará dinámicamente */
     #coverArt {
+      border-radius: 5px;
+      margin: 0 auto;
+    }
+    /* Los siguientes estilos se asignarán desde el JS según el tipo de pista: */
+    /* 1. Para pista de YouTube (16:9: 320x180) */
+    .youtubeCover {
       width: 320px;
       height: 180px;
-      border-radius: 5px;
+      object-fit: cover;
+    }
+    /* 2. Para pista local (cuadrada: 180x180) */
+    .localCover {
+      width: 180px;
+      height: 180px;
       background-size: cover;
       background-position: center;
-      margin: 0 auto;
+    }
+    /* 3. Para cuando no hay pista cargada: rectángulo 16:9 (320x180) en negro */
+    .defaultCover {
+      width: 320px;
+      height: 180px;
+      background-color: black;
     }
     /* Información del track */
     #trackInfo {
@@ -56,7 +70,7 @@
     #progressBar {
       width: 100%;
     }
-    /* Controles de Reproducción */
+    /* Controles de reproducción (se conservan del código base) */
     #controls {
       margin: 10px 0;
     }
@@ -72,7 +86,7 @@
     #volumeSlider {
       width: 80%;
     }
-    /* Zona 3: Listado de Pistas centrado */
+    /* Listado de la playlist */
     #playlist {
       list-style: none;
       padding: 0;
@@ -105,7 +119,7 @@
       margin-left: 10px;
       color: red;
     }
-    /* Zona 2: Sección para cargar pistas */
+    /* Sección para cargar pistas */
     #loadSection {
       text-align: center;
       margin: 20px auto;
@@ -120,7 +134,7 @@
 <body>
   <!-- Zona 1: Mini Reproductor -->
   <div id="miniPlayer">
-    <!-- Carátula: si no hay nada cargado se muestra un rectángulo negro -->
+    <!-- Elemento de carátula; su contenido se actualizará según el estado -->
     <div id="coverArt"></div>
     <div id="trackInfo">
       <div id="trackTitle">Título de la pista</div>
@@ -130,7 +144,6 @@
       <span id="currentTime">00:00</span> / <span id="duration">00:00</span>
     </div>
     <input type="range" id="progressBar" min="0" value="0" step="1">
-    <!-- Controles de reproducción, ordenados según lo solicitado -->
     <div id="controls">
       <button id="shuffleButton" title="Shuffle">🔀</button>
       <button id="prevButton" title="Anterior">⏮️</button>
@@ -144,10 +157,10 @@
     </div>
   </div>
   
-  <!-- Zona 3: Listado de Pistas -->
+  <!-- Zona 3: Listado -->
   <ul id="playlist"></ul>
   
-  <!-- Zona 2: Sección para cargar pistas -->
+  <!-- Zona 2: Cargar Pistas -->
   <div id="loadSection">
     <h3>Cargar Pistas</h3>
     <input type="file" id="fileInput" accept="audio/*" multiple><br>
@@ -156,7 +169,7 @@
   </div>
   
   <script>
-    /* VARIABLES GLOBALES */
+    // VARIABLES GLOBALES
     let playlist = [];
     let currentIndex = 0;
     let shuffleOn = false;
@@ -186,41 +199,44 @@
     const youtubeURLInput = document.getElementById("youtubeURLInput");
     const addYoutubeButton = document.getElementById("addYoutubeButton");
   
-    // Función para actualizar la carátula
-    // Se asume que para todos los casos usaremos un rectángulo de 320x180 (16:9)
+    // Función para actualizar la carátula (cover) según el estado
     function updateCoverUI() {
-      // Si no hay pista cargada, mostramos un rectángulo negro
+      // Si no hay pista cargada, se muestra la carátula por defecto: rectángulo negro 320x180 (16:9)
       if (!playlist[currentIndex]) {
-        coverArt.style.backgroundImage = "";
+        coverArt.className = "defaultCover";
+        coverArt.style.width = "320px";
+        coverArt.style.height = "180px";
         coverArt.style.backgroundColor = "black";
-        coverArt.textContent = "";
+        coverArt.style.backgroundImage = "";
         return;
       }
-  
+      
       const item = playlist[currentIndex];
       if (item.type === "youtube") {
-        // Para YouTube: usamos la miniatura del video
-        coverArt.style.backgroundColor = "";
+        // Para YouTube, mostraremos la miniatura en un rectángulo 16:9 (320x180)
+        coverArt.className = "youtubeCover";
+        coverArt.style.width = "320px";
+        coverArt.style.height = "180px";
         coverArt.style.backgroundImage = `url(https://img.youtube.com/vi/${item.videoId}/hqdefault.jpg)`;
         coverArt.style.backgroundSize = "cover";
         coverArt.style.backgroundPosition = "center";
-      } else {
-        // Pista local
+      } else if (item.type === "local") {
+        // Para archivos locales, usaremos un rectángulo de 180x180 (cuadrado)
+        coverArt.className = "localCover";
+        coverArt.style.width = "180px";
+        coverArt.style.height = "180px";
         if (item.cover) {
-          coverArt.style.backgroundColor = "";
           coverArt.style.backgroundImage = `url(${item.cover})`;
           coverArt.style.backgroundSize = "cover";
           coverArt.style.backgroundPosition = "center";
+          coverArt.style.backgroundColor = "";
         } else {
-          // No hay cover: mostramos rectángulo negro
           coverArt.style.backgroundImage = "";
           coverArt.style.backgroundColor = "black";
-          coverArt.textContent = "";
         }
       }
     }
   
-    // Actualizar la información del track
     function updateMiniPlayerUI() {
       updateCoverUI();
       if (!playlist[currentIndex]) {
@@ -233,7 +249,6 @@
       }
     }
   
-    // Cargar y reproducir pista actual
     function loadCurrentTrack() {
       if (!playlist[currentIndex]) {
         updateMiniPlayerUI();
@@ -284,7 +299,6 @@
       }
     }
   
-    // Controles: siguiente y anterior
     function nextTrack() {
       if (shuffleOn) {
         let allowed = [];
@@ -484,7 +498,7 @@
       Array.from(files).forEach((file) => {
         if (file.type.startsWith("audio")) {
           const url = URL.createObjectURL(file);
-          // Se podría extraer metadata (artist, title, cover) aquí
+          // Aquí podrías extraer metadata (artist, title, cover) si lo deseas.
           playlist.push({ type: "local", name: file.name, url: url });
         }
       });
@@ -516,23 +530,22 @@
       let videoId = null;
       const regExp = /[?&]v=([^&#]+)/;
       const match = url.match(regExp);
-      if (match && match[1]) {
-        videoId = match[1];
-      } else {
+      if (match && match[1]) { videoId = match[1]; }
+      else {
         const shortRegExp = /youtu\.be\/([^?&#]+)/;
         const shortMatch = url.match(shortRegExp);
-        if (shortMatch && shortMatch[1]) {
-          videoId = shortMatch[1];
-        }
+        if (shortMatch && shortMatch[1]) { videoId = shortMatch[1]; }
       }
       return videoId;
     }
   
-    // Si no hay pista cargada al iniciar, mostramos el rectángulo negro
+    // Si no hay pista cargada inicialmente, se muestra la carátula por defecto (rectángulo negro 320x180)
     if (playlist.length === 0) {
-      coverArt.style.backgroundImage = "";
+      coverArt.className = "defaultCover";
+      coverArt.style.width = "320px";
+      coverArt.style.height = "180px";
       coverArt.style.backgroundColor = "black";
-      coverArt.textContent = "";
+      coverArt.style.backgroundImage = "";
       trackTitleElem.textContent = "Sin pista cargada";
       trackArtistElem.textContent = "";
     }
