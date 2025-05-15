@@ -9,16 +9,16 @@
   <script src="https://www.youtube.com/iframe_api"></script>
   <style>
     html, body {
-      overflow-x: hidden;
       margin: 0;
       padding: 0;
+      overflow-x: hidden;
     }
     body {
       font-family: Arial, sans-serif;
       background: #f4f4f4;
       padding: 20px;
     }
-    /* Zona 1: Mini reproductor adaptable */
+    /* Zona 1: Mini reproductor centrado y adaptable */
     #miniPlayer {
       background: #fff;
       border-radius: 8px;
@@ -38,16 +38,19 @@
       display: flex;
       justify-content: center;
     }
-    /* Carátula para YouTube y default: 200px de alto, ancho 100%, object-fit cover */
-    #youtubeCoverArt, #defaultCover {
+    /* Carátula para YouTube y default (se muestran como <img> con height fijo) */
+    #youtubeCoverArt,
+    #defaultCover {
       width: 100%;
-      height: 200px;
+      height: 200px; /* Fijado para forzar el recorte */
       object-fit: cover;
       border-radius: 5px;
+      display: block;
+      margin: 0 auto;
     }
-    /* Carátula por defecto se incluirá dentro de un enlace */
+    /* Cuando no hay pista se muestra el logo por defecto en un enlace */
     #defaultCoverLink {
-      display: none; /* Se mostrará sólo si no hay pista */
+      display: none;
     }
     /* Carátula para archivos locales: 260x260 */
     #localCoverArt {
@@ -57,8 +60,9 @@
       background-size: cover;
       background-position: center;
       display: none;
+      margin: 0 auto;
     }
-    /* Si no hay cover en un archivo local */
+    /* Estilo para archivo local sin cover */
     .noCover {
       background-color: #1E90FF;
       color: white;
@@ -72,7 +76,7 @@
     #trackInfo {
       margin-top: 5px;
     }
-    /* Contenedor para el título (una línea) */
+    /* Contenedor para el título en una línea */
     #trackTitleContainer {
       overflow: hidden;
       white-space: nowrap;
@@ -100,7 +104,7 @@
     #progressBar {
       width: 100%;
     }
-    /* Zona 1 – Controles, ordenados y con poco espacio vertical */
+    /* Zona 1 – Controles, centrados y reordenados */
     #controls {
       display: flex;
       justify-content: center;
@@ -131,7 +135,7 @@
     #volumeSlider {
       width: 80%;
     }
-    /* Zona 3: Contenedor del listado adaptable */
+    /* Zona 3: Contenedor del listado centrado y adaptable */
     #playlistContainer {
       width: 100%;
       max-width: 350px;
@@ -174,7 +178,7 @@
       margin-left: 10px;
       color: red;
     }
-    /* Zona 2: Cargar Pistas */
+    /* Zona 2: Sección de carga centrada */
     #loadSection {
       text-align: center;
       width: 100%;
@@ -193,9 +197,9 @@
     <div id="coverArtContainer">
       <!-- Para pistas locales -->
       <div id="localCoverArt"></div>
-      <!-- Para pistas de YouTube -->
+      <!-- Para YouTube -->
       <img id="youtubeCoverArt" src="" alt="YouTube Cover">
-      <!-- Cover por defecto (dentro de un enlace) -->
+      <!-- Cover por defecto-->
       <a id="defaultCoverLink" href="https://www.example.com" target="_blank">
         <img id="defaultCover" src="" alt="Logo">
       </a>
@@ -227,7 +231,7 @@
   <audio id="audioPlayer" style="display: none;"></audio>
   <div id="youtubePlayerContainer" style="display: none;"></div>
   
-  <!-- Zona 3: Lista de Pistas -->
+  <!-- Zona 3: Listado de Pistas -->
   <div id="playlistContainer">
     <ul id="playlist"></ul>
   </div>
@@ -242,8 +246,8 @@
   
   <script>
     // CONSTANTES Y VARIABLES GLOBALES
-    const defaultLogo = "https://via.placeholder.com/320x200?text=LOGO"; // Logo de ejemplo
-    const defaultLink = "https://www.example.com"; // URL a la que enlaza el logo
+    const defaultLogo = "https://via.placeholder.com/320x200?text=LOGO"; // Logo por defecto
+    const defaultLink = "https://www.example.com"; // URL a enlazar con el logo
     let playlist = [];
     let currentIndex = 0;
     let shuffleOn = false;
@@ -255,7 +259,6 @@
     const youtubeCoverArt = document.getElementById("youtubeCoverArt");
     const defaultCoverLink = document.getElementById("defaultCoverLink");
     const defaultCover = document.getElementById("defaultCover");
-    const coverArtContainer = document.getElementById("coverArtContainer");
   
     const trackTitleElem = document.getElementById("trackTitle");
     const trackTitleContainer = document.getElementById("trackTitleContainer");
@@ -280,15 +283,14 @@
     const youtubeURLInput = document.getElementById("youtubeURLInput");
     const addYoutubeButton = document.getElementById("addYoutubeButton");
   
-    // Actualizar la sección de cover de acuerdo a lo cargado
+    // Actualizar la carátula según lo cargado
     function updateCoverUI() {
-      // Ocultar todos inicialmente
+      // Ocultar todo inicialmente
       localCoverArt.style.display = "none";
       youtubeCoverArt.style.display = "none";
       defaultCoverLink.style.display = "none";
   
       if (!playlist[currentIndex]) {
-        // Si no hay pista, mostrar default por medio del logo
         defaultCover.src = defaultLogo;
         defaultCoverLink.href = defaultLink;
         defaultCoverLink.style.display = "block";
@@ -300,7 +302,6 @@
         youtubeCoverArt.src = `https://img.youtube.com/vi/${item.videoId}/hqdefault.jpg`;
         youtubeCoverArt.style.display = "block";
       } else {
-        // Pista local
         if (item.cover) {
           localCoverArt.style.backgroundImage = `url(${item.cover})`;
           localCoverArt.classList.remove("noCover");
@@ -314,7 +315,7 @@
       }
     }
   
-    // Actualizar UI del mini reproductor (titulo, artista y cover)
+    // Actualizar la UI del mini reproductor (título, artista y carátula)
     function updateMiniPlayerUI() {
       updateCoverUI();
       if (!playlist[currentIndex]) {
@@ -325,7 +326,7 @@
         trackTitleElem.textContent = item.title || item.name;
         trackArtistElem.textContent = item.artist || "";
       }
-      // Comprobar si el título desborda para aplicar marquee
+      // Comprobar si el título necesita marquee
       setTimeout(() => {
         if (trackTitleElem.scrollWidth > trackTitleContainer.offsetWidth) {
           trackTitleElem.classList.add("marquee");
@@ -335,10 +336,10 @@
       }, 100);
     }
   
-    // Cargar y reproducir pista actual
+    // Cargar y reproducir pista
     function loadCurrentTrack() {
-      if (!playlist[currentIndex]) { 
-        updateMiniPlayerUI(); 
+      if (!playlist[currentIndex]) {
+        updateMiniPlayerUI();
         return;
       }
       const item = playlist[currentIndex];
@@ -386,7 +387,7 @@
       }
     }
   
-    // Controles de siguiente y anterior (shuffle & repeat)
+    // Controles de siguiente y anterior, con shuffle y repeat
     function nextTrack() {
       if (shuffleOn) {
         let allowed = [];
@@ -449,7 +450,6 @@
       updatePlaylistUI();
     }
   
-    // Timeline y actualizaciones
     function formatTime(sec) {
       const mins = Math.floor(sec / 60);
       const secs = Math.floor(sec % 60);
@@ -459,7 +459,8 @@
     function updateTime() {
       if (!playlist[currentIndex]) return;
       const item = playlist[currentIndex];
-      let cur = 0, dur = 0;
+      let cur = 0,
+          dur = 0;
       if (item.type === "local") {
         cur = audioPlayer.currentTime;
         dur = audioPlayer.duration || 0;
@@ -513,7 +514,6 @@
       }
     }
   
-    // Actualizar listado de pistas (Zona 3)
     function updatePlaylistUI() {
       playlistUI.innerHTML = "";
       playlist.forEach((item, i) => {
@@ -629,7 +629,6 @@
       return videoId;
     }
   
-    // Al iniciar, si no hay pista, se muestra el logo por defecto
     if (playlist.length === 0) {
       defaultCover.src = defaultLogo;
       defaultCoverLink.href = defaultLink;
