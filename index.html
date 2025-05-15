@@ -3,71 +3,82 @@
 <head>
   <meta charset="UTF-8">
   <title>Mini Reproductor con Carátula</title>
-  <!-- Evitar zoom y scroll horizontal -->
+  <!-- Impedir zoom y scroll horizontal -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <style>
     html, body {
       overflow-x: hidden;
+      margin: 0;
+      padding: 0;
     }
-    /* Estilos generales */
     body {
       font-family: Arial, sans-serif;
       background: #f4f4f4;
-      margin: 0;
       padding: 20px;
     }
-    /* Zona1: Mini reproductor – ancho 100% con max-width, adaptado al ancho de pantalla */
+    /* Zona1: Mini Reproductor – ancho adaptable */
     #miniPlayer {
       background: #fff;
       border-radius: 8px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      width: 100%;
-      max-width: 350px;
-      /* La altura se incrementó para acomodar la carátula de YouTube sin tapar el título */
-      min-height: 600px;
+      width: 90%;
+      max-width: 400px;
       margin: 0 auto;
       padding: 10px 15px;
       text-align: center;
       display: flex;
       flex-direction: column;
-      justify-content: space-evenly;
+      gap: 5px;
     }
-    /* La carátula se maneja en un div de 260x260. */
-    #coverArt {
+    /* Contenedor para la carátula */
+    #coverArtContainer {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+    }
+    /* Carátula para archivos locales */
+    #localCoverArt {
       width: 260px;
       height: 260px;
       border-radius: 5px;
+      display: none;
       background-size: cover;
       background-position: center;
-      margin: 0 auto;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-      font-size: 16px;
     }
-    /* Para archivos locales sin cover: cuadrado DodgerBlue con texto blanco y borde negro de 2px */
+    /* Estilo para local sin cover */
     .noCover {
       background-color: #1E90FF;
       color: white;
       border: 2px solid black;
-      background-image: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+    }
+    /* Carátula para YouTube: se usa un <img> para mantener proporción de video */
+    #youtubeCoverArt {
+      max-width: 100%;
+      display: none;
+    }
+    /* Cover por defecto si no hay pista */
+    #defaultCover {
+      max-width: 100%;
+      display: none;
     }
     /* Zona1 – Información del track */
     #trackInfo {
       margin-top: 5px;
     }
-    /* Contenedor para el título, con animación marquee cuando sea necesario */
+    /* Contenedor para el título */
     #trackTitleContainer {
       overflow: hidden;
       white-space: nowrap;
       position: relative;
     }
-    /* El título (se le asignará la clase marquee si es muy largo) */
     #trackTitle {
       display: inline-block;
     }
-    /* Animación marquee: el texto se desplaza continuamente de izquierda a derecha */
+    /* Marquee para el título cuando sea muy largo */
     .marquee {
       animation: marquee 10s linear infinite;
     }
@@ -79,22 +90,20 @@
       font-size: 14px;
       color: #666;
     }
-    /* Timeline y tiempo: espacios reducidos */
+    /* Zona1 – Timeline, reducido espacio */
     #timeDisplay {
       margin: 5px 0;
     }
     #progressBar {
       width: 100%;
     }
-    /* Zona1 – Controles. Se reduce el espacio vertical */
+    /* Zona1 – Controles */
     #controls {
-      margin: 5px 0;
       display: flex;
       justify-content: center;
-      align-items: center;
       gap: 5px;
+      margin: 5px 0;
     }
-    /* Botones de controles: ordenados según: Shuffle, Anterior, Play/Pause, Siguiente, Repeat */
     #controls button {
       padding: 8px;
       font-size: 18px;
@@ -109,21 +118,20 @@
     #controls button:hover {
       background: #ddd;
     }
-    /* Botones toggle */
     .activeToggle {
       background: #cce5ff !important;
     }
-    /* Zona1 – Volumen: menos espacio */
+    /* Zona1 – Volumen */
     #volumeContainer {
       margin-top: 5px;
     }
     #volumeSlider {
       width: 80%;
     }
-    /* Zona3: Contenedor para listado de pistas, adaptado al ancho de pantalla */
+    /* Zona3: Lista de Pistas */
     #playlistContainer {
-      width: 100%;
-      max-width: 350px;
+      width: 90%;
+      max-width: 400px;
       height: 400px;  /* Aproximadamente 10 ítems visibles */
       overflow-y: auto;
       margin: 20px auto;
@@ -132,7 +140,6 @@
       background: #fff;
       padding: 5px;
     }
-    /* Listado de pistas (Zona3) */
     #playlist {
       list-style: none;
       padding: 0;
@@ -164,26 +171,32 @@
       margin-left: 10px;
       color: red;
     }
-    /* Zona2: Cargar pistas – adaptada al ancho y se coloca debajo del listado */
+    /* Zona2: Cargar Pistas */
     #loadSection {
       text-align: center;
+      width: 90%;
+      max-width: 400px;
       margin: 20px auto;
-      width: 100%;
-      max-width: 350px;
     }
     #loadSection input, #loadSection button {
       margin: 5px 0;
       font-size: 14px;
     }
   </style>
-  <!-- Incluir la API de YouTube -->
+  <!-- Incluir YouTube IFrame API -->
   <script src="https://www.youtube.com/iframe_api"></script>
 </head>
 <body>
   <!-- Zona1: Mini Reproductor -->
   <div id="miniPlayer">
-    <!-- Si no hay pista cargada se mostrará el logo por defecto (sin marco) -->
-    <div id="coverArt"></div>
+    <div id="coverArtContainer">
+      <!-- Elemento para cover de archivos locales -->
+      <div id="localCoverArt"></div>
+      <!-- Elemento para cover de YouTube -->
+      <img id="youtubeCoverArt" src="" alt="YouTube Cover">
+      <!-- Elemento para cover por defecto -->
+      <img id="defaultCover" src="" alt="Logo">
+    </div>
     <div id="trackInfo">
       <div id="trackTitleContainer">
         <div id="trackTitle">Título de la pista</div>
@@ -199,7 +212,7 @@
       <button id="prevButton" title="Anterior">⏮️</button>
       <button id="playPauseButton" title="Play">⏯️</button>
       <button id="nextButton" title="Siguiente">⏭️</button>
-      <button id="repeatButton" title="Repetir">🔁</button>
+      <button id="repeatButton" title="Repeat">🔁</button>
     </div>
     <div id="volumeContainer">
       <label for="volumeSlider">Volumen:</label>
@@ -207,16 +220,16 @@
     </div>
   </div>
   
-  <!-- Jugadores ocultos para la reproducción -->
+  <!-- Jugadores ocultos (para reproducción) -->
   <audio id="audioPlayer" style="display: none;"></audio>
   <div id="youtubePlayerContainer" style="display: none;"></div>
   
-  <!-- Zona3: Lista de Pistas (contenedor scrolleable) -->
+  <!-- Zona3: Listado de Pistas -->
   <div id="playlistContainer">
     <ul id="playlist"></ul>
   </div>
   
-  <!-- Zona2: Cargar Pistas (se muestra debajo del listado) -->
+  <!-- Zona2: Cargar Pistas -->
   <div id="loadSection">
     <h3>Cargar Pistas</h3>
     <input type="file" id="fileInput" accept="audio/*" multiple><br>
@@ -225,19 +238,20 @@
   </div>
   
   <script>
-    /* CONSTANTES y VARIABLES GLOBALES */
-    // URL del logo por defecto (sin marco) cuando no hay pista cargada
-    const defaultLogo = "https://via.placeholder.com/260x260?text=LOGO";
-    // Cada pista: { type, name, url, videoId, artist, title, cover }
+    // CONSTANTES Y VARIABLES GLOBALES
+    const defaultLogo = "https://via.placeholder.com/320x180?text=LOGO"; // Logo por defecto
     let playlist = [];
     let currentIndex = 0;
     let shuffleOn = false;
-    let repeatOn = false; // false = off, true = on
+    let repeatOn = false;
     let recentHistory = [];
-    
-    /* REFERENCIAS AL DOM */
-    // Zona1
-    const coverArt = document.getElementById('coverArt');
+  
+    // REFERENCIAS AL DOM
+    const localCoverArt = document.getElementById('localCoverArt');
+    const youtubeCoverArt = document.getElementById('youtubeCoverArt');
+    const defaultCover = document.getElementById('defaultCover');
+    const coverArtContainer = document.getElementById('coverArtContainer');
+  
     const trackTitleElem = document.getElementById('trackTitle');
     const trackTitleContainer = document.getElementById('trackTitleContainer');
     const trackArtistElem = document.getElementById('trackArtist');
@@ -250,56 +264,63 @@
     const shuffleButton = document.getElementById('shuffleButton');
     const repeatButton = document.getElementById('repeatButton');
     const volumeSlider = document.getElementById('volumeSlider');
-    
-    // Jugadores ocultos
+  
     const audioPlayer = document.getElementById('audioPlayer');
     const youtubePlayerContainer = document.getElementById('youtubePlayerContainer');
     let youtubePlayer;
-    
-    // Zona3
+  
     const playlistUI = document.getElementById('playlist');
-    
-    // Zona2
+  
     const fileInput = document.getElementById('fileInput');
     const youtubeURLInput = document.getElementById('youtubeURLInput');
     const addYoutubeButton = document.getElementById('addYoutubeButton');
-    
-    /* Actualizar UI del Mini Reproductor */
-    function updateMiniPlayerUI() {
-      // Si no hay pista cargada, muestra el logo por defecto (sin marco)
+  
+    // Actualizar la carátula según el tipo de pista
+    function updateCoverUI() {
+      // Ocultar todos por defecto
+      localCoverArt.style.display = "none";
+      youtubeCoverArt.style.display = "none";
+      defaultCover.style.display = "none";
+  
       if (!playlist[currentIndex]) {
-        coverArt.style.backgroundImage = `url(${defaultLogo})`;
-        coverArt.classList.remove("noCover");
-        coverArt.textContent = "";
+        defaultCover.src = defaultLogo;
+        defaultCover.style.display = "block";
+        return;
+      }
+  
+      const item = playlist[currentIndex];
+      if (item.type === "youtube") {
+        // Usar imagen de YouTube
+        youtubeCoverArt.src = `https://img.youtube.com/vi/${item.videoId}/hqdefault.jpg`;
+        youtubeCoverArt.style.display = "block";
+      } else {
+        // Pista local
+        if (item.cover) {
+          localCoverArt.style.backgroundImage = `url(${item.cover})`;
+          localCoverArt.classList.remove("noCover");
+          localCoverArt.textContent = "";
+        } else {
+          localCoverArt.style.backgroundImage = "";
+          localCoverArt.classList.add("noCover");
+          localCoverArt.textContent = "No cover";
+        }
+        localCoverArt.style.display = "block";
+      }
+    }
+  
+    // Actualizar UI del mini reproductor (título, artista y carátula)
+    function updateMiniPlayerUI() {
+      updateCoverUI();
+      if (!playlist[currentIndex]) {
         trackTitleElem.textContent = "Sin pista cargada";
         trackArtistElem.textContent = "";
         return;
       }
       const item = playlist[currentIndex];
-      
-      if (item.type === 'youtube') {
-        // Carátula de YouTube: usar la miniatura sin barras horizontales
-        coverArt.style.backgroundImage = `url(https://img.youtube.com/vi/${item.videoId}/hqdefault.jpg)`;
-        coverArt.classList.remove("noCover");
-        coverArt.textContent = "";
-      } else {
-        // Archivo local
-        if (item.cover) {
-          coverArt.style.backgroundImage = `url(${item.cover})`;
-          coverArt.classList.remove("noCover");
-          coverArt.textContent = "";
-        } else {
-          // Sin cover: aplicar estilo de "noCover" que muestra fondo DodgerBlue, texto blanco y borde negro
-          coverArt.style.backgroundImage = '';
-          coverArt.classList.add("noCover");
-          coverArt.textContent = "No cover";
-        }
-      }
-      
       trackTitleElem.textContent = item.title || item.name;
       trackArtistElem.textContent = item.artist || "";
-      
-      // Verificar si el título desborda el contenedor para activar la animación marquee
+  
+      // Activar animación marquee si el título desborda
       setTimeout(() => {
         if (trackTitleElem.scrollWidth > trackTitleContainer.offsetWidth) {
           trackTitleElem.classList.add("marquee");
@@ -308,8 +329,8 @@
         }
       }, 100);
     }
-    
-    /* Cargar y reproducir pista actual */
+  
+    // Cargar y reproducir pista actual
     function loadCurrentTrack() {
       if (!playlist[currentIndex]) {
         updateMiniPlayerUI();
@@ -317,54 +338,50 @@
       }
       const item = playlist[currentIndex];
       updateMiniPlayerUI();
-      if (item.type === 'local') {
-        if (youtubePlayer && youtubePlayer.stopVideo) {
-          youtubePlayer.stopVideo();
-        }
+      if (item.type === "local") {
+        if (youtubePlayer && youtubePlayer.stopVideo) { youtubePlayer.stopVideo(); }
         audioPlayer.src = item.url;
-        audioPlayer.style.display = 'block';
-        youtubePlayerContainer.style.display = 'none';
-      } else if (item.type === 'youtube') {
+        audioPlayer.style.display = "block";
+        youtubePlayerContainer.style.display = "none";
+      } else if (item.type === "youtube") {
         audioPlayer.pause();
-        audioPlayer.style.display = 'none';
-        youtubePlayerContainer.style.display = 'block';
-        if (youtubePlayer) {
-          youtubePlayer.loadVideoById(item.videoId);
-        }
+        audioPlayer.style.display = "none";
+        youtubePlayerContainer.style.display = "block";
+        if (youtubePlayer) { youtubePlayer.loadVideoById(item.videoId); }
       }
     }
-    
+  
     function playCurrentTrack() {
       const item = playlist[currentIndex];
       if (!item) return;
-      if (item.type === 'local') {
+      if (item.type === "local") {
         audioPlayer.play();
-      } else if (item.type === 'youtube' && youtubePlayer) {
+      } else if (item.type === "youtube" && youtubePlayer) {
         youtubePlayer.playVideo();
       }
-      playPauseButton.textContent = '⏸️';
+      playPauseButton.textContent = "⏸️";
     }
-    
+  
     function pauseCurrentTrack() {
       const item = playlist[currentIndex];
       if (!item) return;
-      if (item.type === 'local') {
+      if (item.type === "local") {
         audioPlayer.pause();
-      } else if (item.type === 'youtube' && youtubePlayer) {
+      } else if (item.type === "youtube" && youtubePlayer) {
         youtubePlayer.pauseVideo();
       }
-      playPauseButton.textContent = '⏯️';
+      playPauseButton.textContent = "⏯️";
     }
-    
+  
     function togglePlayPause() {
-      if (playPauseButton.textContent === '⏯️') {
+      if (playPauseButton.textContent === "⏯️") {
         playCurrentTrack();
       } else {
         pauseCurrentTrack();
       }
     }
-    
-    /* Controles: Siguiente y Anterior (incluyendo lógica de shuffle y repeat) */
+  
+    // Controles: siguiente y anterior, con lógica de shuffle y repeat
     function nextTrack() {
       if (shuffleOn) {
         let allowed = [];
@@ -395,7 +412,7 @@
       playCurrentTrack();
       updatePlaylistUI();
     }
-    
+  
     function prevTrack() {
       if (shuffleOn) {
         let allowed = [];
@@ -426,22 +443,22 @@
       playCurrentTrack();
       updatePlaylistUI();
     }
-    
-    /* Timeline y progreso */
+  
+    // Actualizar timeline y tiempo
     function formatTime(sec) {
       const mins = Math.floor(sec / 60);
       const secs = Math.floor(sec % 60);
       return (mins < 10 ? "0" + mins : mins) + ":" + (secs < 10 ? "0" + secs : secs);
     }
-    
+  
     function updateTime() {
       if (!playlist[currentIndex]) return;
       const item = playlist[currentIndex];
       let cur = 0, dur = 0;
-      if (item.type === 'local') {
+      if (item.type === "local") {
         cur = audioPlayer.currentTime;
         dur = audioPlayer.duration || 0;
-      } else if (item.type === 'youtube' && youtubePlayer && youtubePlayer.getCurrentTime) {
+      } else if (item.type === "youtube" && youtubePlayer && youtubePlayer.getCurrentTime) {
         cur = youtubePlayer.getCurrentTime();
         dur = youtubePlayer.getDuration();
       }
@@ -451,37 +468,36 @@
       progressBar.value = cur;
     }
     setInterval(updateTime, 500);
-    
-    progressBar.addEventListener('input', () => {
+  
+    progressBar.addEventListener("input", () => {
       const item = playlist[currentIndex];
-      if (item.type === 'local') {
+      if (item.type === "local") {
         audioPlayer.currentTime = progressBar.value;
-      } else if (item.type === 'youtube' && youtubePlayer) {
+      } else if (item.type === "youtube" && youtubePlayer) {
         youtubePlayer.seekTo(progressBar.value, true);
       }
     });
-    
-    volumeSlider.addEventListener('input', () => {
+  
+    volumeSlider.addEventListener("input", () => {
       const vol = volumeSlider.value;
       audioPlayer.volume = vol / 100;
       if (youtubePlayer && youtubePlayer.setVolume) {
         youtubePlayer.setVolume(vol);
       }
     });
-    
-    /* Cuando el audio local termine, pasar a la siguiente pista */
-    audioPlayer.addEventListener('ended', nextTrack);
-    
-    /* YouTube IFrame API */
+  
+    audioPlayer.addEventListener("ended", nextTrack);
+  
+    // YouTube IFrame API
     function onYouTubeIframeAPIReady() {
-      youtubePlayer = new YT.Player('youtubePlayerContainer', {
-        height: '180',
-        width: '320',
-        videoId: '',
+      youtubePlayer = new YT.Player("youtubePlayerContainer", {
+        height: "180",
+        width: "320",
+        videoId: "",
         playerVars: { autoplay: 0, controls: 1 },
         events: {
-          'onReady': onYouTubePlayerReady,
-          'onStateChange': onYouTubePlayerStateChange
+          "onReady": onYouTubePlayerReady,
+          "onStateChange": onYouTubePlayerStateChange
         }
       });
     }
@@ -491,37 +507,37 @@
         nextTrack();
       }
     }
-    
-    /* Zona3: Actualizar el listado de pistas */
+  
+    // Actualizar UI de listado
     function updatePlaylistUI() {
-      playlistUI.innerHTML = '';
+      playlistUI.innerHTML = "";
       playlist.forEach((item, i) => {
-        const li = document.createElement('li');
-        const infoSpan = document.createElement('span');
+        const li = document.createElement("li");
+        const infoSpan = document.createElement("span");
         infoSpan.textContent = (item.artist && item.title) ? (item.artist + " - " + item.title) : item.name;
-        infoSpan.classList.add('track-info-item');
+        infoSpan.classList.add("track-info-item");
         li.appendChild(infoSpan);
-        
-        const trash = document.createElement('span');
+  
+        const trash = document.createElement("span");
         trash.textContent = " 🗑️";
-        trash.classList.add('trashIcon');
-        trash.addEventListener('click', (e) => {
+        trash.classList.add("trashIcon");
+        trash.addEventListener("click", (e) => {
           e.stopPropagation();
           removeFromPlaylist(i);
         });
         li.appendChild(trash);
-        
-        li.addEventListener('click', () => {
+  
+        li.addEventListener("click", () => {
           currentIndex = i;
           loadCurrentTrack();
           playCurrentTrack();
           updatePlaylistUI();
         });
-        if (i === currentIndex) li.classList.add('active');
+        if (i === currentIndex) li.classList.add("active");
         playlistUI.appendChild(li);
       });
     }
-    
+  
     function removeFromPlaylist(index) {
       playlist.splice(index, 1);
       if (index < currentIndex) {
@@ -542,36 +558,40 @@
           progressBar.value = 0;
           durationElem.textContent = "00:00";
           currentTimeElem.textContent = "00:00";
-          // Actualizar UI para mostrar el logo por defecto
           updateMiniPlayerUI();
         }
       }
       updatePlaylistUI();
     }
-    
-    /* Eventos de botones de control */
-    playPauseButton.addEventListener('click', togglePlayPause);
-    prevButton.addEventListener('click', prevTrack);
-    nextButton.addEventListener('click', nextTrack);
-    
-    shuffleButton.addEventListener('click', () => {
+  
+    playPauseButton.addEventListener("click", togglePlayPause);
+    prevButton.addEventListener("click", prevTrack);
+    nextButton.addEventListener("click", nextTrack);
+  
+    shuffleButton.addEventListener("click", () => {
       shuffleOn = !shuffleOn;
-      shuffleOn ? shuffleButton.classList.add('activeToggle') : shuffleButton.classList.remove('activeToggle');
+      if (shuffleOn) {
+        shuffleButton.classList.add("activeToggle");
+      } else {
+        shuffleButton.classList.remove("activeToggle");
+      }
     });
-    
-    repeatButton.addEventListener('click', () => {
+  
+    repeatButton.addEventListener("click", () => {
       repeatOn = !repeatOn;
-      repeatOn ? repeatButton.classList.add('activeToggle') : repeatButton.classList.remove('activeToggle');
+      if (repeatOn) {
+        repeatButton.classList.add("activeToggle");
+      } else {
+        repeatButton.classList.remove("activeToggle");
+      }
     });
-    
-    /* Zona2: Cargar pistas locales */
-    fileInput.addEventListener('change', (e) => {
+  
+    fileInput.addEventListener("change", (e) => {
       const files = e.target.files;
-      Array.from(files).forEach(file => {
+      Array.from(files).forEach((file) => {
         if (file.type.startsWith("audio")) {
           const url = URL.createObjectURL(file);
-          // Se podría extraer metadata (artist, title, cover) aquí
-          playlist.push({ type: 'local', name: file.name, url: url });
+          playlist.push({ type: "local", name: file.name, url: url });
         }
       });
       fileInput.value = "";
@@ -581,14 +601,13 @@
         updatePlaylistUI();
       }
     });
-    
-    /* Zona2: Agregar pista de YouTube */
-    addYoutubeButton.addEventListener('click', () => {
+  
+    addYoutubeButton.addEventListener("click", () => {
       const url = youtubeURLInput.value.trim();
       if (url) {
         const videoId = extractYouTubeID(url);
         if (videoId) {
-          playlist.push({ type: 'youtube', name: "YouTube: " + videoId, url: url, videoId: videoId });
+          playlist.push({ type: "youtube", name: "YouTube: " + videoId, url: url, videoId: videoId });
           youtubeURLInput.value = "";
           if (playlist.length > 0) {
             currentIndex = 0;
@@ -598,7 +617,7 @@
         }
       }
     });
-    
+  
     function extractYouTubeID(url) {
       let videoId = null;
       const regExp = /[?&]v=([^&#]+)/;
@@ -614,16 +633,14 @@
       }
       return videoId;
     }
-    
-    /* Al iniciar, si no hay ninguna pista, se muestra el logo por defecto */
+  
+    // Si no hay pista cargada al iniciar, mostrar default
     if (playlist.length === 0) {
-      coverArt.style.backgroundImage = `url(${defaultLogo})`;
-      coverArt.classList.remove("noCover");
-      coverArt.textContent = "";
+      defaultCover.src = defaultLogo;
+      defaultCover.style.display = "block";
       trackTitleElem.textContent = "Sin pista cargada";
       trackArtistElem.textContent = "";
     }
-    
   </script>
 </body>
 </html>
