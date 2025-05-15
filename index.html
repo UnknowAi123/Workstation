@@ -123,12 +123,15 @@
 <body>
   
   <!-- MINI REPRODUCTOR -->
-  <div id="miniPlayer">
-    <img id="coverArt" src="placeholder-cover.jpg" alt="Portada">
-    <div id="trackInfo">
-      <div id="trackTitle">Título de la pista</div>
-      <div id="trackArtist">Artista</div>
-    </div>
+<div id="miniPlayer">
+  <div id="coverContainer" style="width: 100%; aspect-ratio: 16 / 9;">
+    <img id="coverArt" src="placeholder-cover.jpg" alt="Portada" 
+         style="width: 100%; height: 100%; object-fit: cover;">
+  </div>
+  <div id="trackInfo">
+    <div id="trackTitle">Título de la pista</div>
+    <div id="trackArtist">Artista</div>
+  </div>
     <div id="timeDisplay">
       <span id="currentTime">00:00</span> / <span id="duration">00:00</span>
     </div>
