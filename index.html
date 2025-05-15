@@ -14,7 +14,7 @@
       margin: 0;
       padding: 20px;
     }
-    /* Contenedor del mini reproductor */
+    /* Contenedor del mini reproductor (Zona 1) */
     #miniPlayer {
       background: #fff;
       border-radius: 8px;
@@ -63,13 +63,13 @@
     #volumeSlider {
       width: 80%;
     }
-    /* Contenedor del listado (Zona 3) */
+    /* Contenedor del listado (Zona 3) - Igual al de Zona 1 */
     #playlistContainer {
       background: #fff;
       border-radius: 8px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
       max-width: 350px;
-      margin: 20px auto 0 auto;
+      margin: 20px auto;
       padding: 15px;
       overflow-y: auto;
       height: 250px; /* Aproximadamente 6 pistas a la vez */
@@ -183,7 +183,8 @@
       Array.from(files).forEach(file => {
         let isAudio = file.type.startsWith("audio") || ['mp3', 'wav', 'ogg', 'flac'].includes(file.name.split('.').pop().toLowerCase());
         if (isAudio) {
-          playlist.push({ type: 'local', name: file.name });
+          const url = URL.createObjectURL(file);
+          playlist.push({ type: 'local', name: file.name, url: url });
         }
       });
       fileInput.value = "";
@@ -195,7 +196,7 @@
       const url = youtubeURLInput.value.trim();
       const videoId = url.match(/[?&]v=([^&#]+)/)?.[1] || url.match(/youtu\.be\/([^?&#]+)/)?.[1];
       if (videoId) {
-        playlist.push({ type: 'youtube', name: "YouTube: " + videoId });
+        playlist.push({ type: 'youtube', name: "YouTube: " + videoId, url: url, videoId: videoId });
         youtubeURLInput.value = "";
         updatePlaylistUI();
       }
