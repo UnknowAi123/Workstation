@@ -90,7 +90,7 @@
       overflow-y: auto;
       max-height: 250px;
     }
-    /* Listado de la playlist: Artista, Canción y Duración (con papelera) */
+    /* Listado de la playlist: muestra Artista, Canción y Duración (por defecto "00:00") con ícono de eliminación */
     #playlist {
       list-style: none;
       padding: 0;
@@ -204,12 +204,12 @@
     const playlistUI = document.getElementById('playlist');
     const htmlFileInput = document.getElementById('htmlFileInput');
     
-    /* Función para actualizar el mini reproductor (carátula, título, álbum, artista) */
+    /* Función para actualizar la interfaz del mini reproductor */
     function updateMiniPlayerUI() {
       if (!playlist[currentIndex]) return;
       const item = playlist[currentIndex];
-      coverArt.src = item.cover 
-        ? item.cover 
+      coverArt.src = item.cover && item.cover.trim() !== ""
+        ? item.cover.trim()
         : (item.type === 'youtube' ? `https://img.youtube.com/vi/${item.videoId}/hqdefault.jpg` : "placeholder-cover.jpg");
       trackTitleElem.textContent = item.title || item.name;
       trackAlbumElem.textContent = item.album || "";
@@ -268,7 +268,7 @@
       }
     }
     
-    /* Controles: siguiente y anterior (incluye lógica de shuffle) */
+    /* Controles: siguiente y anterior con lógica de shuffle */
     function nextTrack() {
       if (shuffleOn) {
         let allowed = [];
@@ -313,13 +313,14 @@
       updatePlaylistUI();
     }
     
-    /* Timeline y progreso */
+    /* Formato de tiempo MM:SS */
     function formatTime(sec) {
       const mins = Math.floor(sec / 60);
       const secs = Math.floor(sec % 60);
       return (mins < 10 ? "0" + mins : mins) + ":" + (secs < 10 ? "0" + secs : secs);
     }
     
+    /* Actualizar el tiempo reproducido y la duración */
     function updateTime() {
       if (!playlist[currentIndex]) return;
       const item = playlist[currentIndex];
@@ -336,7 +337,11 @@
       progressBar.max = dur;
       progressBar.value = cur;
     }
+    // Actualiza el tiempo cada 500ms
     setInterval(updateTime, 500);
+    
+    // Para archivos locales, actualiza la duración al cargar la metadata
+    audioPlayer.addEventListener('loadedmetadata', updateTime);
     
     progressBar.addEventListener('input', () => {
       const item = playlist[currentIndex];
@@ -369,7 +374,8 @@
       });
     }
     function onYouTubePlayerReady(event) {
-      // Configuración adicional si se necesita en el futuro
+      // Fuerza la actualización de la duración después de 2 segundos
+      setTimeout(updateTime, 2000);
     }
     function onYouTubePlayerStateChange(event) {
       if (event.data === YT.PlayerState.ENDED) {
@@ -377,13 +383,13 @@
       }
     }
     
-    /* Playlist UI */
+    /* Actualizar la UI de la lista de pistas */
     function updatePlaylistUI() {
       playlistUI.innerHTML = '';
       playlist.forEach((item, i) => {
         const li = document.createElement('li');
         const infoSpan = document.createElement('span');
-        // Mostrar: Artista, Canción y Duración (por defecto "00:00")
+        // Se muestra: Artista, Canción y duración (por defecto "00:00")
         const durationStr = "00:00";
         infoSpan.textContent = (item.artist ? item.artist + " - " : "") + (item.title || item.name) + " (" + durationStr + ")";
         li.appendChild(infoSpan);
@@ -433,7 +439,7 @@
       updatePlaylistUI();
     }
     
-    /* Eventos de controles */
+    /* Eventos de los controles */
     playPauseButton.addEventListener('click', togglePlayPause);
     prevButton.addEventListener('click', prevTrack);
     nextButton.addEventListener('click', nextTrack);
@@ -490,27 +496,36 @@
     }
     
     /* Lógica para importar desde archivo HTML */
-    // Al pulsar el botón, se abre el diálogo para elegir archivo HTML
+    // Al pulsar "Importar desde HTML" se abre el diálogo para elegir archivo
     document.getElementById("importHtmlButton").addEventListener("click", () => {
       htmlFileInput.click();
     });
-    // Leer el archivo HTML seleccionado
     htmlFileInput.addEventListener("change", (e) => {
       const file = e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = function(evt){
+      reader.onload = function(evt) {
         const data = evt.target.result;
         const parser = new DOMParser();
         const doc = parser.parseFromString(data, "text/html");
+        // Se asume que las filas están dentro de una tabla
         const links = doc.querySelectorAll("tr");
         links.forEach(row => {
-          const artist = row.querySelector("td.artist")?.textContent || "";
-          const title = row.querySelector("td.title")?.textContent || "";
-          const album = row.querySelector("td.album")?.textContent || "";
-          const url = row.querySelector("td.url")?.textContent || "";
+          const cover = row.querySelector("td.cover")?.textContent.trim() || "";
+          const artist = row.querySelector("td.artist")?.textContent.trim() || "";
+          const title = row.querySelector("td.title")?.textContent.trim() || "";
+          const album = row.querySelector("td.album")?.textContent.trim() || "";
+          const url = row.querySelector("td.url")?.textContent.trim() || "";
           if (url) {
-            playlist.push({ type: "youtube", artist, title, album, url, videoId: extractYouTubeID(url) });
+            playlist.push({ 
+              type: "youtube", 
+              artist, 
+              title, 
+              album, 
+              url, 
+              videoId: extractYouTubeID(url),
+              cover: cover 
+            });
           }
         });
         updatePlaylistUI();
@@ -518,7 +533,7 @@
       reader.readAsText(file);
     });
     
-    /* Lógica para importar desde una playlist de YouTube */
+    /* Lógica para importar desde una playlist de YouTube (ingresa solo el ID) */
     document.getElementById("importPlaylistButton").addEventListener("click", () => {
       const playlistId = prompt("Introduce el ID de la playlist de YouTube:");
       if (playlistId) {
@@ -531,9 +546,11 @@
               playlist.push({ type: "youtube", title, videoId, url: `https://www.youtube.com/watch?v=${videoId}` });
             });
             updatePlaylistUI();
-          });
+          })
+          .catch(err => console.error("Error al importar la playlist:", err));
       }
     });
+    
   </script>
 </body>
 </html>
