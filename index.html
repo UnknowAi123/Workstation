@@ -2,8 +2,11 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Mini Reproductor con Portadas</title>
+  <title>Mini Reproductor PWA</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Manifest y meta theme-color para Chrome -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0078D7">
   <!-- Incluir la API de YouTube -->
   <script src="https://www.youtube.com/iframe_api"></script>
   <style>
@@ -13,6 +16,7 @@
       background: #f4f4f4;
       margin: 0;
       padding: 20px;
+      text-align: center;
     }
     /* Contenedor del mini reproductor */
     #miniPlayer {
@@ -35,11 +39,11 @@
       border-radius: 5px;
     }
     /* Clases para definir el comportamiento de la portada */
-    /* Si hay portada personalizada: se respeta su ratio sin deformarse */
+    /* Portada personalizada: se usa object-fit: contain para respetar el ratio */
     .custom-cover {
       object-fit: contain;
     }
-    /* En caso de miniatura de YouTube, se llena el contenedor */
+    /* Miniatura de YouTube: se llena el contenedor con object-fit: cover */
     .youtube-cover {
       object-fit: cover;
       background-color: #000;
@@ -184,6 +188,17 @@
   </div>
   
   <script>
+    // Registro del Service Worker para PWA
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js')
+        .then(function(registration) {
+          console.log('Service Worker registrado con alcance:', registration.scope);
+        })
+        .catch(function(error) {
+          console.error('Error al registrar el Service Worker:', error);
+        });
+    }
+    
     // VARIABLES GLOBALES
     let playlist = [];
     let currentIndex = 0;
@@ -218,12 +233,12 @@
       if (!playlist[currentIndex]) return;
       const item = playlist[currentIndex];
       if (item.cover && item.cover.trim() !== "") {
-        // Portada personalizada: se usa la imagen y se aplica "custom-cover" (object-fit: contain)
+        // Portada personalizada: se usa la imagen y se aplica "custom-cover" 
         coverArt.src = item.cover.trim();
         coverArt.classList.add("custom-cover");
         coverArt.classList.remove("youtube-cover");
       } else {
-        // Para videos de YouTube sin portada personalizada, se usa la miniatura estándar con "youtube-cover" (object-fit: cover)
+        // Para videos de YouTube sin portada personalizada, se usa la miniatura estándar
         coverArt.src = `https://img.youtube.com/vi/${item.videoId}/hqdefault.jpg`;
         coverArt.classList.add("youtube-cover");
         coverArt.classList.remove("custom-cover");
@@ -350,6 +365,7 @@
       progressBar.max = dur;
       progressBar.value = cur;
     }
+    
     setInterval(updateTime, 500);
     audioPlayer.addEventListener('loadedmetadata', updateTime);
     
@@ -383,9 +399,11 @@
         }
       });
     }
+    
     function onYouTubePlayerReady(event) {
       setTimeout(updateTime, 2000);
     }
+    
     function onYouTubePlayerStateChange(event) {
       if (event.data === YT.PlayerState.ENDED) {
         nextTrack();
