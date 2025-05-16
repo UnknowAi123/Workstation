@@ -1,116 +1,178 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>Extractor YouTube HTML</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            background: #f4f4f4;
-            padding: 20px;
-        }
-        #output {
-            margin-top: 20px;
-            text-align: left;
-            max-width: 700px;
-            margin: 0 auto;
-            background: white;
-            padding: 15px;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            overflow-x: auto;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        th, td {
-            padding: 8px;
-            border: 1px solid #ddd;
-        }
-        .download-btn {
-            display: block;
-            margin-top: 15px;
-            padding: 10px;
-            background: #0078D7;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-        .download-btn:hover {
-            background: #005A9E;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>Extractor de Playlist de YouTube</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      padding: 20px;
+      text-align: center;
+    }
+    h2 {
+      color: #333;
+    }
+    #fileInput {
+      margin: 10px 0;
+    }
+    #output {
+      margin-top: 20px;
+      max-width: 800px;
+      margin-left: auto;
+      margin-right: auto;
+      text-align: left;
+      background: #fff;
+      padding: 15px;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 8px;
+      border: 1px solid #ddd;
+      text-align: left;
+    }
+    th {
+      background: #0078D7;
+      color: #fff;
+    }
+    .download-btn {
+      margin-top: 15px;
+      padding: 10px;
+      background: #0078D7;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      border-radius: 3px;
+    }
+    .download-btn:hover {
+      background: #005A9E;
+    }
+  </style>
 </head>
 <body>
 
-<h2>Importador de Listas de YouTube</h2>
-<p>Sube tu archivo HTML o TXT para procesarlo automáticamente.</p>
-<input type="file" id="fileInput" accept=".html,.txt">
-<div id="output"></div>
-<button id="downloadBtn" class="download-btn" style="display:none;">Descargar HTML</button>
+  <h2>Extractor de Playlist de YouTube</h2>
+  <p>Sube tu archivo HTML o TXT con el código fuente de la playlist de YouTube.</p>
+  <input type="file" id="fileInput" accept=".html,.txt">
+  
+  <div id="output"></div>
+  
+  <button id="downloadBtn" class="download-btn" style="display:none;">Descargar HTML</button>
 
-<script>
-document.getElementById("fileInput").addEventListener("change", function(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = function(evt) {
+  <script>
+    document.getElementById("fileInput").addEventListener("change", function(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = function(evt) {
         const data = evt.target.result;
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(data, "text/html");
-
-        const tableHTML = generateStructuredHTML(doc);
-        document.getElementById("output").innerHTML = tableHTML;
-        document.getElementById("downloadBtn").style.display = "block";
-    };
-    reader.readAsText(file);
-});
-
-function generateStructuredHTML(doc) {
-    const videos = [];
-    
-    doc.querySelectorAll("script").forEach(script => {
-        const match = script.innerHTML.match(/"videoId":"(.*?)"/g);
-        if (match) {
-            match.forEach(video => {
-                const videoId = video.split(":")[1].replace(/"/g, "").trim();
-                const title = doc.querySelector(`[href*="watch?v=${videoId}"]`)?.textContent.trim() || "Desconocido";
-                const duration = doc.innerHTML.match(new RegExp(`"${videoId}".*?"lengthSeconds":"(\\d+)"`))?.[1] || "0";
-                const thumbnail = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
-
-                videos.push({ videoId, title, duration, thumbnail });
-            });
+        const structuredHTML = generateStructuredHTML(data);
+        document.getElementById("output").innerHTML = structuredHTML;
+        if (structuredHTML.indexOf("<tr>") !== -1) {
+          document.getElementById("downloadBtn").style.display = "block";
+        } else {
+          document.getElementById("downloadBtn").style.display = "none";
         }
+      };
+      reader.readAsText(file);
     });
-
-    let tableHTML = `<table><tr><th>Carátula</th><th>Artista</th><th>Título</th><th>Álbum</th><th>URL</th></tr>`;
-    videos.forEach(video => {
-        tableHTML += `
-            <tr>
-                <td class="cover">${video.thumbnail}</td>
-                <td class="artist">Desconocido</td>
-                <td class="title">${video.title}</td>
-                <td class="album">Desconocido</td>
-                <td class="url">https://www.youtube.com/watch?v=${video.videoId}</td>
-            </tr>`;
+    
+    function generateStructuredHTML(content) {
+      // Extraer de todo el archivo todas las apariciones de "videoId":"XXXX"
+      const videoRegex = /"videoId":"([^"]+)"/g;
+      let match;
+      const videoSet = new Set();
+      const videos = [];
+      
+      while ((match = videoRegex.exec(content)) !== null) {
+        const videoId = match[1];
+        if (videoSet.has(videoId)) continue;
+        videoSet.add(videoId);
+        
+        // Buscar título: intenta usar una expresión que extraiga "title":{"simpleText":"..."}
+        let titleRegex = new RegExp(`"videoId":"${videoId}".*?"title":\\{"simpleText":"([^"]+)"\\}`, "s");
+        let titleMatch = titleRegex.exec(content);
+        let title = titleMatch && titleMatch[1] ? titleMatch[1] : "Desconocido";
+        
+        // Buscar duración: buscar "lengthSeconds":"XXX" asociado a este video
+        let durationRegex = new RegExp(`"videoId":"${videoId}".*?"lengthSeconds":"(\\d+)"`, "s");
+        let durationMatch = durationRegex.exec(content);
+        let duration = durationMatch ? durationMatch[1] : "0";
+        
+        // La miniatura (carátula) se genera a partir del videoId
+        let thumbnail = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+        
+        // Guardamos el objeto; Artista y Álbum se dejan en "Desconocido"
+        videos.push({
+          videoId: videoId,
+          title: title,
+          duration: duration,
+          thumbnail: thumbnail,
+          artist: "Desconocido",
+          album: "Desconocido"
+        });
+      }
+      
+      if (videos.length === 0) {
+        return "<p>No se han encontrado videos con la información requerida.</p>";
+      }
+      
+      // Construir el HTML de la tabla
+      let tableHTML = `<table>
+        <tr>
+          <th>Carátula</th>
+          <th>Artista</th>
+          <th>Título</th>
+          <th>Álbum</th>
+          <th>URL</th>
+          <th>Duración (s)</th>
+        </tr>`;
+      
+      videos.forEach(video => {
+        tableHTML += `<tr>
+          <td class="cover">${video.thumbnail}</td>
+          <td class="artist">${video.artist}</td>
+          <td class="title">${video.title}</td>
+          <td class="album">${video.album}</td>
+          <td class="url">https://www.youtube.com/watch?v=${video.videoId}</td>
+          <td>${video.duration}</td>
+        </tr>`;
+      });
+      tableHTML += "</table>";
+      
+      // Opcional: envolver la tabla en una estructura HTML completa
+      const finalHTML = `
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8">
+        <title>Playlist Importada</title>
+      </head>
+      <body>
+        ${tableHTML}
+      </body>
+      </html>`;
+      
+      return finalHTML;
+    }
+      
+    document.getElementById("downloadBtn").addEventListener("click", function() {
+      const htmlContent = document.getElementById("output").innerHTML;
+      const blob = new Blob([htmlContent], { type: "text/html" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "youtube_playlist.html";
+      a.click();
     });
-    tableHTML += `</table>`;
-    return tableHTML;
-}
-
-document.getElementById("downloadBtn").addEventListener("click", function() {
-    const htmlContent = document.getElementById("output").innerHTML;
-    const blob = new Blob([htmlContent], { type: "text/html" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "youtube_playlist.html";
-    a.click();
-});
-</script>
+  </script>
 
 </body>
 </html>
