@@ -24,7 +24,7 @@
       padding: 15px;
       text-align: center;
     }
-    /* Contenedor para la portada (la carátula) */
+    /* Contenedor para la portada */
     #coverContainer {
       width: 100%;
       aspect-ratio: 16 / 9;
@@ -35,11 +35,13 @@
       border-radius: 5px;
     }
     /* Clases para definir el comportamiento de la portada */
+    /* Si hay portada personalizada: se respeta su ratio sin deformarse */
     .custom-cover {
-      object-fit: cover;
-    }
-    .youtube-cover {
       object-fit: contain;
+    }
+    /* En caso de miniatura de YouTube, se llena el contenedor */
+    .youtube-cover {
+      object-fit: cover;
       background-color: #000;
     }
     /* Información del track */
@@ -216,12 +218,12 @@
       if (!playlist[currentIndex]) return;
       const item = playlist[currentIndex];
       if (item.cover && item.cover.trim() !== "") {
-        // Si hay portada personalizada, úsala y aplica la clase custom
+        // Portada personalizada: se usa la imagen y se aplica "custom-cover" (object-fit: contain)
         coverArt.src = item.cover.trim();
         coverArt.classList.add("custom-cover");
         coverArt.classList.remove("youtube-cover");
       } else {
-        // Si no, usa la miniatura de YouTube y la clase correspondiente
+        // Para videos de YouTube sin portada personalizada, se usa la miniatura estándar con "youtube-cover" (object-fit: cover)
         coverArt.src = `https://img.youtube.com/vi/${item.videoId}/hqdefault.jpg`;
         coverArt.classList.add("youtube-cover");
         coverArt.classList.remove("custom-cover");
