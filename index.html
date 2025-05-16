@@ -3,139 +3,169 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Analizador de Audio - Versión Completa</title>
-  <!-- Cargamos la librería music-metadata-browser desde CDN -->
+  <title>Analizador de Archivos de Audio</title>
+  <!-- Librería music-metadata-browser para extraer metadatos avanzados -->
   <script src="https://cdn.jsdelivr.net/npm/music-metadata-browser/dist/music-metadata-browser.umd.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
       text-align: center;
+      margin: 0;
+      padding: 0;
     }
-    #output {
+    h1 {
       margin-top: 20px;
-      white-space: pre-wrap;
-      text-align: left;
-      width: 90%;
-      margin: auto;
     }
-    #progressBar {
+    #file-input {
+      margin: 20px;
+    }
+    #progress-container {
       width: 90%;
       margin: auto;
+      background-color: #ccc;
       height: 20px;
-      background: #ccc;
+      border-radius: 5px;
+      overflow: hidden;
       display: none;
     }
-    #progressFill {
+    #progress-bar {
       width: 0%;
       height: 100%;
-      background: #4caf50;
-      transition: width 0.5s;
+      background-color: #4caf50;
+      transition: width 0.5s ease;
+    }
+    #output {
+      width: 90%;
+      margin: 20px auto;
+      text-align: left;
+      white-space: pre-wrap;
+      background: #f4f4f4;
+      padding: 10px;
+      border: 1px solid #ddd;
+    }
+    button {
+      margin: 10px;
+      padding: 10px 15px;
+      font-size: 16px;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
-  <h1>Analizador de Audio (Completo)</h1>
-  <input type="file" id="fileInput" accept=".mp3, .flac, .wav, .ogg, .aac, .m4a">
-  <button onclick="exportToHTML()">Exportar Info a HTML</button>
+  <h1>Analizador de Archivos de Audio</h1>
+  <!-- Input para cargar el archivo de audio -->
+  <input type="file" id="file-input" accept=".mp3,.flac,.wav,.ogg,.aac,.m4a">
+  <!-- Botón para exportar la información extraída a un archivo HTML -->
+  <button onclick="exportInfo()">Exportar Info a HTML</button>
   
-  <div id="progressBar">
-    <div id="progressFill"></div>
+  <!-- Barra de progreso visual -->
+  <div id="progress-container">
+    <div id="progress-bar"></div>
   </div>
+  
+  <!-- Contenedor para mostrar los resultados del análisis -->
   <pre id="output"></pre>
   
   <script>
-    document.getElementById('fileInput').addEventListener('change', handleFile);
-  
+    // Cuando se selecciona un archivo se lanza el proceso de análisis.
+    document.getElementById("file-input").addEventListener("change", handleFile);
+
     async function handleFile(event) {
       const file = event.target.files[0];
       if (!file) return;
-  
-      const progressBar = document.getElementById('progressBar');
-      const progressFill = document.getElementById('progressFill');
-      progressBar.style.display = 'block';
-      progressFill.style.width = '10%';
-  
-      const output = document.getElementById('output');
-      output.textContent = 'Procesando archivo...\n';
-  
+
+      // Mostrar y reiniciar la barra de progreso
+      const progressContainer = document.getElementById("progress-container");
+      const progressBar = document.getElementById("progress-bar");
+      progressContainer.style.display = "block";
+      progressBar.style.width = "0%";
+
+      const outputEl = document.getElementById("output");
+      outputEl.textContent = "Procesando archivo...\n";
+
       try {
-        // Paso 1: Extraer metadatos con music-metadata (incluye tags si están presentes)
-        progressFill.style.width = '30%';
+        // Etapa 1: Información básica que ya tenemos en el objeto File
+        progressBar.style.width = "10%";
+        let result = "";
+        result += `Archivo: ${file.name}\n`;
+        result += `Tamaño: ${(file.size / 1024).toFixed(2)} KB\n`;
+        result += `Tipo: ${file.type || "No disponible"}\n\n`;
+
+        // Etapa 2: Extraer metadatos (tags) usando music-metadata
+        progressBar.style.width = "30%";
         const metadata = await musicMetadata.parseBlob(file, { duration: true });
-        progressFill.style.width = '50%';
-  
-        // Paso 2: Leer el archivo completo para obtener ArrayBuffer (para hash y AudioContext)
-        const fileBuffer = await file.arrayBuffer();
-  
-        // Paso 3: Decodificar el audio mediante AudioContext para obtener datos técnicos (duración, canales, etc.)
+        progressBar.style.width = "50%";
+        result += "--- METADATOS (Tags) ---\n";
+        result += `Título  : ${metadata.common.title || "No disponible"}\n`;
+        result += `Artista : ${metadata.common.artist || "No disponible"}\n`;
+        result += `Álbum  : ${metadata.common.album || "No disponible"}\n`;
+        result += `Género : ${metadata.common.genre ? metadata.common.genre.join(", ") : "No disponible"}\n\n`;
+
+        // Etapa 3: Información técnica extraída de metadata.format
+        result += "--- INFORMACIÓN TÉCNICA ---\n";
+        result += `Duración (metadata): ${metadata.format.duration ? metadata.format.duration.toFixed(2) + " s" : "No disponible"}\n`;
+        result += `Bitrate            : ${metadata.format.bitrate ? metadata.format.bitrate + " bps" : "No disponible"}\n`;
+        result += `Frecuencia         : ${metadata.format.sampleRate || "No disponible"} Hz\n`;
+        result += `Canales            : ${metadata.format.numberOfChannels || "No disponible"}\n\n`;
+
+        // Etapa 4: Uso de AudioContext para obtener datos adicionales (ej. duración real)
+        progressBar.style.width = "70%";
+        const arrayBuffer = await file.arrayBuffer();
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const audioBuffer = await audioContext.decodeAudioData(fileBuffer);
-        progressFill.style.width = '70%';
-  
-        // Paso 4: Generar el hash SHA-256 del archivo
-        const hash = await generateHash(fileBuffer);
-        progressFill.style.width = '80%';
-  
-        // Paso 5: Construir el resultado combinando información básica del archivo, metadatos y datos técnicos.
-        let result = '';
-        // Información básica obtenida del objeto File
-        result += `Archivo       : ${file.name}\n`;
-        result += `Tamaño (KB)   : ${(file.size / 1024).toFixed(2)} KB\n`;
-        result += `Tipo          : ${file.type || 'No disponible'}\n\n`;
-  
-        // Metadatos (tags) extraídos con music-metadata
-        result += '--- METADATOS (Tags) ---\n';
-        result += `Título        : ${metadata.common.title || 'No disponible'}\n`;
-        result += `Artista       : ${metadata.common.artist || 'No disponible'}\n`;
-        result += `Álbum         : ${metadata.common.album || 'No disponible'}\n`;
-        result += `Género(s)     : ${(metadata.common.genre && metadata.common.genre.join(', ')) || 'No disponible'}\n\n`;
-  
-        // Información técnica (datos obtenidos tanto de metadata.format como del AudioContext)
-        result += '--- INFORMACIÓN TÉCNICA ---\n';
-        // Duración: preferimos lo que indique metadata; si no existe, usamos el valor de AudioContext
-        if (metadata.format.duration) {
-          result += `Duración      : ${metadata.format.duration.toFixed(2)} s\n`;
-        } else if (audioBuffer.duration) {
-          result += `Duración (AC): ${audioBuffer.duration.toFixed(2)} s\n`;
-        } else {
-          result += 'Duración      : No disponible\n';
-        }
-        // Otros datos técnicos
-        result += `Bitrate       : ${metadata.format.bitrate ? metadata.format.bitrate + ' bps' : 'No disponible'}\n`;
-        result += `Frecuencia    : ${metadata.format.sampleRate || 'No disponible'} Hz\n`;
-        result += `Canales       : ${metadata.format.numberOfChannels || 'No disponible'}\n`;
-        result += `Contenedor    : ${metadata.format.container || file.type || 'No disponible'}\n`;
-        result += `Codec         : ${metadata.format.codec || 'No disponible'}\n`;
-        if (metadata.format.bitsPerSample)
-          result += `Bits/Sample   : ${metadata.format.bitsPerSample}\n`;
-  
-        result += `\nHash SHA-256  : ${hash}\n`;
-  
-        output.textContent = result;
-        progressFill.style.width = '100%';
-  
-        setTimeout(() => { progressBar.style.display = 'none'; }, 1000);
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        result += `Duración (AudioContext): ${audioBuffer.duration ? audioBuffer.duration.toFixed(2) + " s" : "No disponible"}\n`;
+
+        // Etapa 5: Generación del hash SHA-256 del archivo
+        progressBar.style.width = "85%";
+        const hash = await generateHash(arrayBuffer);
+        result += `\nHash SHA-256: ${hash}\n`;
+
+        // Finalización: Mostrar el resultado y ocultar la barra de progreso
+        progressBar.style.width = "100%";
+        outputEl.textContent = result;
+        setTimeout(() => { progressContainer.style.display = "none"; }, 1000);
       } catch (error) {
+        outputEl.textContent = "Error al procesar el archivo:\n" + error;
         console.error(error);
-        output.textContent = 'Error al procesar el archivo. Verifica que tenga metadatos y que sea un formato compatible.\n' + error;
-        progressBar.style.display = 'none';
+        progressContainer.style.display = "none";
       }
     }
-  
+
+    // Función que utiliza la Crypto API para generar el hash SHA-256
     async function generateHash(buffer) {
-      const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-      return Array.from(new Uint8Array(hashBuffer))
-        .map(b => b.toString(16).padStart(2, '0'))
-        .join('');
+      const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
     }
-  
-    function exportToHTML() {
-      const content = document.getElementById('output').textContent;
-      const blob = new Blob([`<pre>${content}</pre>`], { type: 'text/html' });
-      const a = document.createElement('a');
+
+    // Función para exportar el contenido del área de resultados a un archivo HTML descargable
+    function exportInfo() {
+      const content = document.getElementById("output").textContent;
+      const blob = new Blob(
+        [`
+          <!DOCTYPE html>
+          <html lang="es">
+          <head>
+            <meta charset="UTF-8">
+            <title>Información del Archivo de Audio</title>
+            <style>
+              body { font-family: Arial, sans-serif; padding: 20px; }
+              pre { background: #f4f4f4; padding: 10px; border: 1px solid #ddd; }
+            </style>
+          </head>
+          <body>
+            <pre>${content}</pre>
+          </body>
+          </html>
+        `],
+        { type: "text/html" }
+      );
+      const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = 'audio_info.html';
+      a.download = "audio_info.html";
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
     }
   </script>
 </body>
