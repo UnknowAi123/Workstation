@@ -34,7 +34,7 @@
     }
     .section li {
       margin: 4px 0;
-      word-break: break-word;
+      word-break: break-all;
     }
     .section li strong {
       color: #222;
@@ -53,59 +53,70 @@
   <div id="metadata">
     <!-- Aquí se mostrarán los metadatos -->
   </div>
-
-  <!-- Cargamos la versión correcta de music-metadata-browser desde unpkg -->
+  
+  <!-- Cargamos la librería UMD de music-metadata-browser desde unpkg -->
   <script src="https://unpkg.com/music-metadata-browser@2.4.10/dist/music-metadata-browser.umd.min.js"></script>
   <script>
-    document.getElementById("fileInput").addEventListener("change", async function(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      
-      // Indicamos mensaje de carga
-      document.getElementById("metadata").innerHTML = "<p>Cargando metadatos...</p>";
-      
-      try {
-        // Extraemos los metadatos del archivo usando parseBlob
-        const metadata = await musicMetadata.parseBlob(file);
-        console.log(metadata);
-
-        let html = "";
-        
-        // Sección de etiquetas comunes (common)
-        html += `<div class="section"><h2>Common Tags</h2><ul>`;
-        for (const tag in metadata.common) {
-          if (tag === "picture") {
-            // Si hay imagen(es), se muestra la primera (portada)
-            if (Array.isArray(metadata.common.picture) && metadata.common.picture.length > 0) {
-              const pic = metadata.common.picture[0];
-              let base64String = "";
-              for (let i = 0; i < pic.data.length; i++) {
-                base64String += String.fromCharCode(pic.data[i]);
-              }
-              const imageUri = "data:" + pic.format + ";base64," + btoa(base64String);
-              html += `<li><strong>picture:</strong> <br/><img src="${imageUri}" alt="cover" style="max-width:200px;"></li>`;
-            }
-          } else {
-            html += `<li><strong>${tag}:</strong> ${metadata.common[tag]}</li>`;
-          }
-        }
-        html += `</ul></div>`;
-        
-        // Sección de información de formato
-        html += `<div class="section"><h2>Format</h2><ul>`;
-        for (const key in metadata.format) {
-          html += `<li><strong>${key}:</strong> ${metadata.format[key]}</li>`;
-        }
-        html += `</ul></div>`;
-        
-        // Se muestra el JSON completo de metadatos para referencia
-        html += `<h2>JSON Completo:</h2><pre class="json-output">${JSON.stringify(metadata, null, 2)}</pre>`;
-        
-        document.getElementById("metadata").innerHTML = html;
-      } catch (err) {
-        console.error("Error al extraer metadatos:", err);
-        document.getElementById("metadata").innerHTML = `<p>Error al extraer metadatos: ${err.message}</p>`;
+    // Esperamos a que se cargue el DOM y la librería
+    document.addEventListener("DOMContentLoaded", function() {
+      // Verificamos que la librería se haya cargado
+      if (!window.musicMetadata) {
+        console.error("La librería music-metadata-browser no se cargó correctamente.");
+        document.getElementById("metadata").innerHTML = "<p>Error: la librería music-metadata-browser no se encontró.</p>";
+        return;
       }
+      
+      // Asignamos la variable global a una constante para mayor claridad
+      const mm = window.musicMetadata;
+      
+      document.getElementById("fileInput").addEventListener("change", async function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+      
+        // Mostramos mensaje de carga
+        document.getElementById("metadata").innerHTML = "<p>Cargando metadatos...</p>";
+      
+        try {
+          // Extraemos los metadatos usando parseBlob
+          const metadata = await mm.parseBlob(file);
+          console.log("Metadatos extraídos:", metadata);
+      
+          // Construimos el HTML para mostrar resultados
+          let html = "<div class='section'><h2>Common Tags</h2><ul>";
+          for (const tag in metadata.common) {
+            if (tag === "picture") {
+              // Si existe imagen, muestra la primera portada
+              if (Array.isArray(metadata.common.picture) && metadata.common.picture.length > 0) {
+                const pic = metadata.common.picture[0];
+                let base64String = "";
+                for (let i = 0; i < pic.data.length; i++) {
+                  base64String += String.fromCharCode(pic.data[i]);
+                }
+                const imageUri = "data:" + pic.format + ";base64," + btoa(base64String);
+                html += `<li><strong>picture:</strong><br/><img src="${imageUri}" alt="cover" style="max-width:200px;"></li>`;
+              }
+            } else {
+              html += `<li><strong>${tag}:</strong> ${metadata.common[tag]}</li>`;
+            }
+          }
+          html += "</ul></div>";
+      
+          // Sección para la información del formato
+          html += "<div class='section'><h2>Format</h2><ul>";
+          for (const key in metadata.format) {
+            html += `<li><strong>${key}:</strong> ${metadata.format[key]}</li>`;
+          }
+          html += "</ul></div>";
+      
+          // Mostramos también el JSON completo de metadatos para referencia
+          html += `<h2>JSON Completo:</h2><pre class="json-output">${JSON.stringify(metadata, null, 2)}</pre>`;
+      
+          document.getElementById("metadata").innerHTML = html;
+        } catch (error) {
+          console.error("Error al extraer metadatos:", error);
+          document.getElementById("metadata").innerHTML = `<p>Error al extraer metadatos: ${error.message}</p>`;
+        }
+      });
     });
   </script>
 </body>
