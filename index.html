@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Extractoor de Metadatos con MediaInfo.js</title>
+  <title>Extractor de Metadatos con MediaInfo.js</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
@@ -39,7 +39,6 @@
     .section li strong {
       color: #222;
     }
-    /* Para mostrar la salida en formato "pretty" */
     pre.json-output {
       background: #272822;
       color: #f8f8f2;
@@ -64,11 +63,15 @@
 
       document.getElementById('metadata').innerHTML = "<p>Cargando metadatos...</p>";
 
-      // Inicializamos MediaInfo.js en formato "object"
-      MediaInfo({ format: "object" }).then(mediaInfo => {
-        // La función getSize retorna el tamaño del archivo
+      // Inicializamos MediaInfo especificando locateFile para que encuentre el archivo WASM de forma remota.
+      MediaInfo({
+        locateFile: (filename) => {
+          // Siempre retornamos la URL del WASM alojado en jsDelivr.
+          return "https://cdn.jsdelivr.net/npm/mediainfo.js@2.4.10/dist/mediainfo.wasm";
+        }
+      }).then(mediaInfo => {
+        // Preparar funciones para leer el archivo en chunks.
         const getSize = () => file.size;
-        // La función readChunk lee un trozo (chunk) del archivo utilizando FileReader
         const readChunk = (chunkSize, offset) => {
           return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -82,6 +85,7 @@
           });
         };
 
+        // Analizamos el archivo
         mediaInfo.analyzeData(getSize, readChunk).then(result => {
           console.log("Resultado de MediaInfo:", result);
           let html = "";
@@ -99,7 +103,8 @@
           } else {
             html = "<p>No se encontraron metadatos.</p>";
           }
-          // También se puede mostrar el JSON completo en formato legible
+
+          // Mostrar también el JSON completo para mayor detalle
           html += "<h2>JSON Completo:</h2><pre class='json-output'>" + JSON.stringify(result, null, 2) + "</pre>";
           document.getElementById('metadata').innerHTML = html;
         }).catch(error => {
