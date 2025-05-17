@@ -57,13 +57,24 @@
   <!-- Cargamos MediaInfo.js desde jsDelivr -->
   <script src="https://cdn.jsdelivr.net/npm/mediainfo.js/dist/mediainfo.min.js"></script>
   <script>
-    // Función personalizada para instanciar el módulo WASM
+    // Función personalizada para instanciar el módulo WASM con un objeto de importación adecuado
     function customInstantiateWasm(imports, receiveInstance) {
-      // Asegurarse de que imports.env sea un objeto
+      // Aseguramos que imports.env es un objeto y definimos 'memory' y 'table'
       if (!imports.env || typeof imports.env !== "object") {
-        imports.env = {};
+        imports.env = {
+          memory: new WebAssembly.Memory({ initial: 256 }),
+          table: new WebAssembly.Table({ initial: 0, element: "anyfunc" })
+        };
+      } else {
+        if (!imports.env.memory) {
+          imports.env.memory = new WebAssembly.Memory({ initial: 256 });
+        }
+        if (!imports.env.table) {
+          imports.env.table = new WebAssembly.Table({ initial: 0, element: "anyfunc" });
+        }
       }
-      // Se hace el fetch y se convierte a ArrayBuffer
+
+      // Cargamos el archivo WASM de forma manual
       fetch("MediaInfoModule.wasm")
         .then(response => response.arrayBuffer())
         .then(bytes => WebAssembly.instantiate(bytes, imports))
@@ -74,26 +85,26 @@
           console.error("Error instanciando el WASM:", error);
           throw error;
         });
-      return {}; // La función debe retornar un objeto (según la API de Emscripten)
+      
+      // Es necesario devolver un objeto vacío según la API de Emscripten
+      return {};
     }
 
     document.getElementById('fileInput').addEventListener('change', function (event) {
       const file = event.target.files[0];
       if (!file) return;
-
+      
       document.getElementById('metadata').innerHTML = "<p>Cargando metadatos...</p>";
 
-      // Inicializamos MediaInfo, indicando locateFile para que busque el WASM
-      // y pasando customInstantiateWasm para asegurar la configuración de 'env'
+      // Inicializamos MediaInfo, especificando locateFile y nuestra función custom para instanciar el WASM
       MediaInfo({
         locateFile: (filename) => {
-          // Como MediaInfoModule.wasm está en la misma carpeta que index.html,
-          // simplemente devolvemos su nombre.
+          // Como MediaInfoModule.wasm se encuentra en la misma carpeta que index.html, devolvemos solo su nombre.
           return "MediaInfoModule.wasm";
         },
         instantiateWasm: customInstantiateWasm
       }).then(mediaInfo => {
-        // Funciones para leer el archivo en chunks
+        // Funciones para leer el archivo en trozos (chunks)
         const getSize = () => file.size;
         const readChunk = (chunkSize, offset) => {
           return new Promise((resolve, reject) => {
@@ -104,7 +115,7 @@
           });
         };
 
-        // Analizamos el archivo usando mediaInfo.analyzeData
+        // Analizamos el archivo utilizando mediaInfo.analyzeData()
         mediaInfo.analyzeData(getSize, readChunk).then(result => {
           console.log("Resultado de MediaInfo:", result);
           let html = "";
@@ -123,7 +134,7 @@
             html = "<p>No se encontraron metadatos.</p>";
           }
 
-          // Mostrar también el JSON completo para mayor detalle
+          // Mostramos también el JSON completo para referencia
           html += "<h2>JSON Completo:</h2><pre class='json-output'>" + JSON.stringify(result, null, 2) + "</pre>";
           document.getElementById('metadata').innerHTML = html;
         }).catch(error => {
