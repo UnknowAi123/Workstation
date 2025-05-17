@@ -57,19 +57,41 @@
   <!-- Cargamos MediaInfo.js desde jsDelivr -->
   <script src="https://cdn.jsdelivr.net/npm/mediainfo.js/dist/mediainfo.min.js"></script>
   <script>
+    // Función personalizada para instanciar el módulo WASM
+    function customInstantiateWasm(imports, receiveInstance) {
+      // Asegurarse de que imports.env sea un objeto
+      if (!imports.env || typeof imports.env !== "object") {
+        imports.env = {};
+      }
+      // Se hace el fetch y se convierte a ArrayBuffer
+      fetch("MediaInfoModule.wasm")
+        .then(response => response.arrayBuffer())
+        .then(bytes => WebAssembly.instantiate(bytes, imports))
+        .then(result => {
+          receiveInstance(result.instance);
+        })
+        .catch(error => {
+          console.error("Error instanciando el WASM:", error);
+          throw error;
+        });
+      return {}; // La función debe retornar un objeto (según la API de Emscripten)
+    }
+
     document.getElementById('fileInput').addEventListener('change', function (event) {
       const file = event.target.files[0];
       if (!file) return;
 
       document.getElementById('metadata').innerHTML = "<p>Cargando metadatos...</p>";
 
-      // Inicializamos MediaInfo, configurando locateFile para que cargue el WASM local.
+      // Inicializamos MediaInfo, indicando locateFile para que busque el WASM
+      // y pasando customInstantiateWasm para asegurar la configuración de 'env'
       MediaInfo({
         locateFile: (filename) => {
           // Como MediaInfoModule.wasm está en la misma carpeta que index.html,
-          // simplemente devolvemos el nombre.
+          // simplemente devolvemos su nombre.
           return "MediaInfoModule.wasm";
-        }
+        },
+        instantiateWasm: customInstantiateWasm
       }).then(mediaInfo => {
         // Funciones para leer el archivo en chunks
         const getSize = () => file.size;
@@ -101,7 +123,7 @@
             html = "<p>No se encontraron metadatos.</p>";
           }
 
-          // Se muestra también el JSON completo para referencia
+          // Mostrar también el JSON completo para mayor detalle
           html += "<h2>JSON Completo:</h2><pre class='json-output'>" + JSON.stringify(result, null, 2) + "</pre>";
           document.getElementById('metadata').innerHTML = html;
         }).catch(error => {
