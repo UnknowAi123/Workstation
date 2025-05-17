@@ -3,170 +3,83 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Analizador de Archivos de Audio</title>
-  <!-- Librería music-metadata-browser para extraer metadatos avanzados -->
-  <script src="https://cdn.jsdelivr.net/npm/music-metadata-browser/dist/music-metadata-browser.umd.js"></script>
+  <title>Editor de Metadatos de Audio</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       text-align: center;
-      margin: 0;
-      padding: 0;
+      padding: 2rem;
+      background: #f7f7f7;
     }
     h1 {
-      margin-top: 20px;
+      color: #333;
     }
-    #file-input {
-      margin: 20px;
+    input[type="file"] {
+      margin: 10px 0;
     }
-    #progress-container {
-      width: 90%;
-      margin: auto;
-      background-color: #ccc;
-      height: 20px;
-      border-radius: 5px;
-      overflow: hidden;
-      display: none;
-    }
-    #progress-bar {
-      width: 0%;
-      height: 100%;
-      background-color: #4caf50;
-      transition: width 0.5s ease;
-    }
-    #output {
-      width: 90%;
-      margin: 20px auto;
-      text-align: left;
-      white-space: pre-wrap;
-      background: #f4f4f4;
-      padding: 10px;
-      border: 1px solid #ddd;
+    input {
+      margin: 5px;
+      padding: 5px;
     }
     button {
-      margin: 10px;
-      padding: 10px 15px;
-      font-size: 16px;
+      background-color: #28a745;
+      color: #fff;
+      padding: 8px 16px;
+      border: none;
       cursor: pointer;
+      margin-top: 15px;
+    }
+    button:hover {
+      background-color: #218838;
+    }
+    p {
+      margin: 10px 0;
     }
   </style>
 </head>
 <body>
-  <h1>Analizador de Archivos de Audio</h1>
-  <!-- Input para cargar el archivo de audio -->
-  <input type="file" id="file-input" accept=".mp3,.flac,.wav,.ogg,.aac,.m4a">
-  <!-- Botón para exportar la información extraída a un archivo HTML -->
-  <button onclick="exportInfo()">Exportar Info a HTML</button>
+  <h1>Editor de Metadatos de Audio</h1>
+  <input type="file" id="fileInput" accept=".mp3,.flac">
+  <div id="metadata"></div>
+  <button id="saveButton">Guardar cambios</button>
   
-  <!-- Barra de progreso visual -->
-  <div id="progress-container">
-    <div id="progress-bar"></div>
-  </div>
-  
-  <!-- Contenedor para mostrar los resultados del análisis -->
-  <pre id="output"></pre>
+  <!-- Incluimos jsmediatags desde CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.4/jsmediatags.min.js" integrity="sha512-dRh1M+Tp3u7a6WJGHJEoSlimHewVJjRp0fGh/R60youwOziILYtZpZQcZlgcOjhpcKkb3ANwAHNA6VX1E1E3yg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   
   <script>
-    // Cuando se selecciona un archivo se lanza el proceso de análisis.
-    document.getElementById("file-input").addEventListener("change", handleFile);
-
-    async function handleFile(event) {
-      const file = event.target.files[0];
+    // Maneja la carga del archivo
+    document.getElementById('fileInput').addEventListener('change', function (event) {
+      var file = event.target.files[0];
       if (!file) return;
-
-      // Mostrar y reiniciar la barra de progreso
-      const progressContainer = document.getElementById("progress-container");
-      const progressBar = document.getElementById("progress-bar");
-      progressContainer.style.display = "block";
-      progressBar.style.width = "0%";
-
-      const outputEl = document.getElementById("output");
-      outputEl.textContent = "Procesando archivo...\n";
-
-      try {
-        // Etapa 1: Información básica que ya tenemos en el objeto File
-        progressBar.style.width = "10%";
-        let result = "";
-        result += `Archivo: ${file.name}\n`;
-        result += `Tamaño: ${(file.size / 1024).toFixed(2)} KB\n`;
-        result += `Tipo: ${file.type || "No disponible"}\n\n`;
-
-        // Etapa 2: Extraer metadatos (tags) usando music-metadata
-        progressBar.style.width = "30%";
-        const metadata = await musicMetadata.parseBlob(file, { duration: true });
-        progressBar.style.width = "50%";
-        result += "--- METADATOS (Tags) ---\n";
-        result += `Título  : ${metadata.common.title || "No disponible"}\n`;
-        result += `Artista : ${metadata.common.artist || "No disponible"}\n`;
-        result += `Álbum  : ${metadata.common.album || "No disponible"}\n`;
-        result += `Género : ${metadata.common.genre ? metadata.common.genre.join(", ") : "No disponible"}\n\n`;
-
-        // Etapa 3: Información técnica extraída de metadata.format
-        result += "--- INFORMACIÓN TÉCNICA ---\n";
-        result += `Duración (metadata): ${metadata.format.duration ? metadata.format.duration.toFixed(2) + " s" : "No disponible"}\n`;
-        result += `Bitrate            : ${metadata.format.bitrate ? metadata.format.bitrate + " bps" : "No disponible"}\n`;
-        result += `Frecuencia         : ${metadata.format.sampleRate || "No disponible"} Hz\n`;
-        result += `Canales            : ${metadata.format.numberOfChannels || "No disponible"}\n\n`;
-
-        // Etapa 4: Uso de AudioContext para obtener datos adicionales (ej. duración real)
-        progressBar.style.width = "70%";
-        const arrayBuffer = await file.arrayBuffer();
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-        result += `Duración (AudioContext): ${audioBuffer.duration ? audioBuffer.duration.toFixed(2) + " s" : "No disponible"}\n`;
-
-        // Etapa 5: Generación del hash SHA-256 del archivo
-        progressBar.style.width = "85%";
-        const hash = await generateHash(arrayBuffer);
-        result += `\nHash SHA-256: ${hash}\n`;
-
-        // Finalización: Mostrar el resultado y ocultar la barra de progreso
-        progressBar.style.width = "100%";
-        outputEl.textContent = result;
-        setTimeout(() => { progressContainer.style.display = "none"; }, 1000);
-      } catch (error) {
-        outputEl.textContent = "Error al procesar el archivo:\n" + error;
-        console.error(error);
-        progressContainer.style.display = "none";
-      }
-    }
-
-    // Función que utiliza la Crypto API para generar el hash SHA-256
-    async function generateHash(buffer) {
-      const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
-    }
-
-    // Función para exportar el contenido del área de resultados a un archivo HTML descargable
-    function exportInfo() {
-      const content = document.getElementById("output").textContent;
-      const blob = new Blob(
-        [`
-          <!DOCTYPE html>
-          <html lang="es">
-          <head>
-            <meta charset="UTF-8">
-            <title>Información del Archivo de Audio</title>
-            <style>
-              body { font-family: Arial, sans-serif; padding: 20px; }
-              pre { background: #f4f4f4; padding: 10px; border: 1px solid #ddd; }
-            </style>
-          </head>
-          <body>
-            <pre>${content}</pre>
-          </body>
-          </html>
-        `],
-        { type: "text/html" }
-      );
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "audio_info.html";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    }
+      
+      // Limpiar área de metadatos previamente mostrada
+      document.getElementById('metadata').innerHTML = "";
+      
+      // Usamos la API de callbacks de jsmediatags
+      jsmediatags.read(file, {
+        onSuccess: function(tag) {
+          var tags = tag.tags;
+          var output = "<h2>Metadatos</h2>";
+          // Definimos los campos a mostrar
+          var fields = ["title", "artist", "album", "year", "genre"];
+          fields.forEach(function(field) {
+            // Creamos una entrada de texto para cada campo
+            output += '<p>' + field.charAt(0).toUpperCase() + field.slice(1) + ': ' +
+                      '<input type="text" id="' + field + '" value="' + (tags[field] ? tags[field] : "") + '"></p>';
+          });
+          document.getElementById('metadata').innerHTML = output;
+        },
+        onError: function(error) {
+          console.error("Error leyendo metadatos:", error);
+          document.getElementById('metadata').innerHTML = "<p>Error leyendo metadatos: " + error.info + "</p>";
+        }
+      });
+    });
+    
+    // Botón de guardar (funcionalidad pendiente)
+    document.getElementById('saveButton').addEventListener('click', function () {
+      alert("Funcionalidad de guardado pendiente de implementación.");
+    });
   </script>
 </body>
 </html>
