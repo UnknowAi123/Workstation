@@ -6,6 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <!-- Incluir la API de YouTube -->
   <script src="https://www.youtube.com/iframe_api"></script>
+  <!-- Incluir EXIF.js para leer metadatos de JPEG -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/exif-js/2.3.0/exif.min.js"></script>
   <style>
     /* Estilos generales */
     body {
@@ -34,12 +36,10 @@
       height: 100%;
       border-radius: 5px;
     }
-    /* Clases para definir el comportamiento de la portada */
-    /* Si hay portada personalizada: se respeta su ratio sin deformarse */
+    /* Portada personalizada vs. miniatura de YouTube */
     .custom-cover {
       object-fit: contain;
     }
-    /* En caso de miniatura de YouTube, se llena el contenedor */
     .youtube-cover {
       object-fit: cover;
       background-color: #000;
@@ -176,6 +176,10 @@
     <button id="importPlaylistButton">Importar desde YouTube</button>
     <!-- Input oculto para HTML -->
     <input type="file" id="htmlFileInput" accept=".html" style="display: none;">
+    <br>
+    <!-- Nuevo botón para cargar imagen JPG con metadatos -->
+    <input type="file" id="jpgFileInput" accept="image/jpeg" style="display: none;">
+    <button id="addJpgButton">Agregar desde JPG</button>
   </div>
   
   <!-- Playlist -->
@@ -213,17 +217,21 @@
     const playlistUI = document.getElementById('playlist');
     const htmlFileInput = document.getElementById('htmlFileInput');
     
-    /* Función actualizada 'updateMiniPlayerUI' (Cambio "Portadas") */
+    // Elementos para cargar JPG con metadatos
+    const addJpgButton = document.getElementById('addJpgButton');
+    const jpgFileInput = document.getElementById('jpgFileInput');
+    
+    // Función para actualizar la UI del mini reproductor (Portadas y metadatos)
     function updateMiniPlayerUI() {
       if (!playlist[currentIndex]) return;
       const item = playlist[currentIndex];
       if (item.cover && item.cover.trim() !== "") {
-        // Portada personalizada: se usa la imagen y se aplica "custom-cover" (object-fit: contain)
+        // Portada personalizada: se usa la imagen y se aplica "custom-cover"
         coverArt.src = item.cover.trim();
         coverArt.classList.add("custom-cover");
         coverArt.classList.remove("youtube-cover");
       } else {
-        // Para videos de YouTube sin portada personalizada, se usa la miniatura estándar con "youtube-cover" (object-fit: cover)
+        // Para videos de YouTube sin portada personalizada, se usa la miniatura estándar
         coverArt.src = `https://img.youtube.com/vi/${item.videoId}/hqdefault.jpg`;
         coverArt.classList.add("youtube-cover");
         coverArt.classList.remove("custom-cover");
@@ -397,6 +405,7 @@
       playlist.forEach((item, i) => {
         const li = document.createElement('li');
         const infoSpan = document.createElement('span');
+        // Se muestra información básica; la duración se muestra como "00:00" por defecto
         const durationStr = "00:00";
         infoSpan.textContent = (item.artist ? item.artist + " - " : "") + (item.title || item.name) + " (" + durationStr + ")";
         li.appendChild(infoSpan);
@@ -552,6 +561,50 @@
           })
           .catch(err => console.error("Error al importar la playlist:", err));
       }
+    });
+    
+    /* NUEVA FUNCIONALIDAD: Cargar archivo JPG y extraer sus metadatos */
+    addJpgButton.addEventListener('click', function() {
+      jpgFileInput.click();
+    });
+    
+    jpgFileInput.addEventListener('change', function(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      // Usar EXIF.js para leer los metadatos del archivo JPG
+      EXIF.getData(file, function() {
+        // Extraer algunas etiquetas; se asume que en "UserComment" se encuentra el enlace de YouTube.
+        const artist = EXIF.getTag(this, "Artist") || "";
+        const title = EXIF.getTag(this, "ImageDescription") || file.name;
+        // Intentamos obtener un posible "Album" (aunque no suele estar presente en una imagen)
+        const album = EXIF.getTag(this, "Album") || "";
+        const userComment = EXIF.getTag(this, "UserComment") || "";
+        const videoId = extractYouTubeID(userComment);
+        
+        if (!videoId) {
+          alert("No se encontró un enlace de YouTube en los metadatos de la imagen.");
+          return;
+        }
+        const youtubeUrl = "https://www.youtube.com/watch?v=" + videoId;
+        // Creamos una URL para mostrar la imagen como portada
+        const coverUrl = URL.createObjectURL(file);
+        // Agregamos el nuevo item a la playlist
+        const newItem = {
+          type: "youtube",
+          artist: artist,
+          title: title,
+          album: album,
+          url: youtubeUrl,
+          videoId: videoId,
+          cover: coverUrl
+        };
+        playlist.push(newItem);
+        if (playlist.length === 1) {
+          currentIndex = 0;
+          loadCurrentTrack();
+        }
+        updatePlaylistUI();
+      });
     });
     
   </script>
