@@ -8,7 +8,6 @@
     body {
       font-family: Arial, sans-serif;
       margin: 20px;
-      padding: 20px;
       background: #f9f9f9;
     }
     h1 {
@@ -58,17 +57,17 @@
     <!-- Aquí se mostrarán los metadatos -->
   </div>
 
-  <!-- Se carga la librería music-metadata-browser -->
-  <script src="https://unpkg.com/music-metadata-browser/dist/music-metadata-browser.js"></script>
+  <!-- Usamos una versión alternativa de music-metadata-browser desde jsDelivr -->
+  <script src="https://cdn.jsdelivr.net/npm/music-metadata-browser@2.4.10/dist/music-metadata-browser.umd.min.js"></script>
   <script>
     document.getElementById('fileInput').addEventListener('change', async function(event) {
       const file = event.target.files[0];
       if (!file) return;
-
+      
       document.getElementById('metadata').innerHTML = "<p>Cargando metadatos...</p>";
-
+      
       try {
-        // Se procesa el archivo y se obtienen los metadatos
+        // Se procesa el archivo para extraer toda la información disponible
         const metadata = await musicMetadata.parseBlob(file);
         console.log(metadata);
 
@@ -79,7 +78,7 @@
         for (const key in metadata.common) {
           let value = metadata.common[key];
           if (key === "picture" && Array.isArray(value) && value.length > 0) {
-            // Procesar la primera imagen encontrada
+            // Procesamos la primera imagen encontrada
             const pic = value[0];
             let base64String = "";
             for (let i = 0; i < pic.data.length; i++) {
@@ -88,7 +87,7 @@
             let imageUri = "data:" + pic.format + ";base64," + btoa(base64String);
             html += `<li><strong>${key}:</strong> <br/><a href="${imageUri}" download="cover.${pic.format.split("/")[1] || 'jpg'}"><img src="${imageUri}" alt="Cover"></a></li>`;
           } else {
-            // Si se trata de un objeto, lo convertimos a JSON
+            // Si el valor es un objeto, lo convertimos a cadena JSON
             if (typeof value === "object" && value !== null) {
               value = JSON.stringify(value);
             }
@@ -97,7 +96,7 @@
         }
         html += "</ul></div>";
 
-        // 2. Mostrar Formato
+        // 2. Mostrar Formato (Format)
         html += "<div class='section'><h2>Format</h2><ul>";
         for (const key in metadata.format) {
           html += `<li><strong>${key}:</strong> ${metadata.format[key]}</li>`;
