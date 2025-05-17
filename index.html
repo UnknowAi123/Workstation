@@ -54,8 +54,8 @@
     <!-- Aquí se mostrarán los metadatos -->
   </div>
 
-  <!-- Cargamos music-metadata-browser desde unpkg -->
-  <script src="https://unpkg.com/music-metadata-browser/dist/music-metadata-browser.umd.js"></script>
+  <!-- Cargamos la versión correcta de music-metadata-browser desde unpkg -->
+  <script src="https://unpkg.com/music-metadata-browser@2.4.10/dist/music-metadata-browser.umd.min.js"></script>
   <script>
     document.getElementById("fileInput").addEventListener("change", async function(event) {
       const file = event.target.files[0];
