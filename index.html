@@ -8,8 +8,8 @@
     body {
       font-family: Arial, sans-serif;
       margin: 20px;
-      padding: 20px;
       background: #f9f9f9;
+      padding: 20px;
     }
     h1 {
       color: #333;
@@ -54,20 +54,21 @@
     <!-- Aquí se mostrarán los metadatos -->
   </div>
 
-  <!-- Cargamos la librería como módulo ESM y ejecutamos nuestra lógica -->
-  <script type="module">
-    // Importamos la librería desde jsDelivr como ESM
-    import * as musicMetadata from "https://cdn.jsdelivr.net/npm/music-metadata-browser@2.4.10/+esm";
-
+  <!-- Cargamos la versión UMD de music-metadata-browser (no ESM) -->
+  <script src="https://cdn.jsdelivr.net/npm/music-metadata-browser@2.4.10/dist/music-metadata-browser.umd.min.js"></script>
+  <script>
+    // Esperamos a que el DOM esté completamente cargado
     document.addEventListener("DOMContentLoaded", function() {
-      // Verificamos que la librería se haya importado
-      if (!musicMetadata) {
+      // Verificamos que la librería se haya cargado: debe quedar definida en window.musicMetadata
+      if (!window.musicMetadata) {
         console.error("La librería music-metadata-browser no se cargó correctamente.");
         document.getElementById("metadata").innerHTML = "<p>Error: la librería music-metadata-browser no se encontró.</p>";
         return;
       }
-      const mm = musicMetadata;
       
+      const mm = window.musicMetadata;  // Usamos el objeto global
+
+      // Agregamos el evento para el input de archivos
       document.getElementById("fileInput").addEventListener("change", async function(event) {
         const file = event.target.files[0];
         if (!file) return;
@@ -75,11 +76,12 @@
         document.getElementById("metadata").innerHTML = "<p>Cargando metadatos...</p>";
         
         try {
-          // Se extraen los metadatos del archivo seleccionado
+          // Extraemos los metadatos del archivo usando parseBlob
           const metadata = await mm.parseBlob(file);
           console.log("Metadatos extraídos:", metadata);
           
           let html = "<div class='section'><h2>Common Tags</h2><ul>";
+          // Recorremos las etiquetas comunes
           for (const tag in metadata.common) {
             if (tag === "picture") {
               // Si existe imagen, mostramos la primera portada
@@ -98,14 +100,14 @@
           }
           html += "</ul></div>";
           
-          // Sección de formato
+          // Sección para el formato
           html += "<div class='section'><h2>Format</h2><ul>";
           for (const key in metadata.format) {
             html += `<li><strong>${key}:</strong> ${metadata.format[key]}</li>`;
           }
           html += "</ul></div>";
           
-          // Mostramos el JSON completo de metadatos
+          // Se muestra el JSON completo de metadatos para referencia
           html += `<h2>JSON Completo:</h2><pre class="json-output">${JSON.stringify(metadata, null, 2)}</pre>`;
           
           document.getElementById("metadata").innerHTML = html;
