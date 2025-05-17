@@ -2,19 +2,20 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Extractor de Metadatos (MP3, FLAC, WAV)</title>
+  <title>Extractor de Metadatos con MediaInfo.js</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
       font-family: Arial, sans-serif;
       margin: 20px;
       background: #f9f9f9;
+      padding: 20px;
     }
     h1 {
       color: #333;
       margin-bottom: 20px;
     }
-    input[type=file] {
+    input[type="file"] {
       margin: 10px 0;
     }
     .section {
@@ -27,103 +28,88 @@
       margin: 10px 0;
       color: #444;
     }
-    .section h3 {
-      margin-top: 15px;
-      color: #555;
-    }
-    ul {
+    .section ul {
       list-style: none;
       padding: 0;
     }
-    li {
+    .section li {
       margin: 4px 0;
       word-wrap: break-word;
     }
-    li strong {
+    .section li strong {
       color: #222;
     }
-    img {
-      max-width: 200px;
-      display: block;
-      margin-top: 5px;
-      border: 1px solid #ccc;
+    /* Para mostrar la salida en formato "pretty" */
+    pre.json-output {
+      background: #272822;
+      color: #f8f8f2;
+      padding: 10px;
+      overflow: auto;
     }
   </style>
 </head>
 <body>
-  <h1>Extractor de Metadatos (MP3, FLAC, WAV)</h1>
+  <h1>Extractor de Metadatos (MP3, FLAC, WAV) con MediaInfo.js</h1>
   <input type="file" id="fileInput" accept=".mp3,.flac,.wav" />
   <div id="metadata">
     <!-- Aquí se mostrarán los metadatos -->
   </div>
 
-  <!-- Usamos una versión alternativa de music-metadata-browser desde jsDelivr -->
-  <script src="https://cdn.jsdelivr.net/npm/music-metadata-browser@2.4.10/dist/music-metadata-browser.umd.min.js"></script>
+  <!-- Cargamos MediaInfo.js desde jsDelivr -->
+  <script src="https://cdn.jsdelivr.net/npm/mediainfo.js/dist/mediainfo.min.js"></script>
   <script>
-    document.getElementById('fileInput').addEventListener('change', async function(event) {
+    document.getElementById('fileInput').addEventListener('change', function(event) {
       const file = event.target.files[0];
       if (!file) return;
-      
+
       document.getElementById('metadata').innerHTML = "<p>Cargando metadatos...</p>";
-      
-      try {
-        // Se procesa el archivo para extraer toda la información disponible
-        const metadata = await musicMetadata.parseBlob(file);
-        console.log(metadata);
 
-        let html = "";
-
-        // 1. Mostrar Common Tags
-        html += "<div class='section'><h2>Common Tags</h2><ul>";
-        for (const key in metadata.common) {
-          let value = metadata.common[key];
-          if (key === "picture" && Array.isArray(value) && value.length > 0) {
-            // Procesamos la primera imagen encontrada
-            const pic = value[0];
-            let base64String = "";
-            for (let i = 0; i < pic.data.length; i++) {
-              base64String += String.fromCharCode(pic.data[i]);
-            }
-            let imageUri = "data:" + pic.format + ";base64," + btoa(base64String);
-            html += `<li><strong>${key}:</strong> <br/><a href="${imageUri}" download="cover.${pic.format.split("/")[1] || 'jpg'}"><img src="${imageUri}" alt="Cover"></a></li>`;
-          } else {
-            // Si el valor es un objeto, lo convertimos a cadena JSON
-            if (typeof value === "object" && value !== null) {
-              value = JSON.stringify(value);
-            }
-            html += `<li><strong>${key}:</strong> ${value}</li>`;
-          }
-        }
-        html += "</ul></div>";
-
-        // 2. Mostrar Formato (Format)
-        html += "<div class='section'><h2>Format</h2><ul>";
-        for (const key in metadata.format) {
-          html += `<li><strong>${key}:</strong> ${metadata.format[key]}</li>`;
-        }
-        html += "</ul></div>";
-
-        // 3. Mostrar Native Tags
-        html += "<div class='section'><h2>Native Tags</h2>";
-        for (const tagType in metadata.native) {
-          html += `<h3>${tagType}</h3><ul>`;
-          const tagList = metadata.native[tagType];
-          tagList.forEach(tagEntry => {
-            let value = tagEntry.value;
-            if (typeof value === "object" && value !== null) {
-              value = JSON.stringify(value);
-            }
-            html += `<li><strong>${tagEntry.id}:</strong> ${value}</li>`;
+      // Inicializamos MediaInfo.js en formato "object"
+      MediaInfo({ format: "object" }).then(mediaInfo => {
+        // La función getSize retorna el tamaño del archivo
+        const getSize = () => file.size;
+        // La función readChunk lee un trozo (chunk) del archivo utilizando FileReader
+        const readChunk = (chunkSize, offset) => {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = event => {
+              resolve(new Uint8Array(event.target.result));
+            };
+            reader.onerror = error => {
+              reject(error);
+            };
+            reader.readAsArrayBuffer(file.slice(offset, offset + chunkSize));
           });
-          html += "</ul>";
-        }
-        html += "</div>";
+        };
 
-        document.getElementById('metadata').innerHTML = html;
-      } catch (error) {
-        console.error("Error al leer metadatos:", error);
-        document.getElementById('metadata').innerHTML = "<p>Error al leer metadatos: " + error.message + "</p>";
-      }
+        mediaInfo.analyzeData(getSize, readChunk).then(result => {
+          console.log("Resultado de MediaInfo:", result);
+          let html = "";
+
+          if (result.media && result.media.track) {
+            result.media.track.forEach(track => {
+              html += `<div class="section"><h2>${track["@type"]}</h2><ul>`;
+              for (const key in track) {
+                if (key !== "@type") {
+                  html += `<li><strong>${key}:</strong> ${track[key]}</li>`;
+                }
+              }
+              html += "</ul></div>";
+            });
+          } else {
+            html = "<p>No se encontraron metadatos.</p>";
+          }
+          // También se puede mostrar el JSON completo en formato legible
+          html += "<h2>JSON Completo:</h2><pre class='json-output'>" + JSON.stringify(result, null, 2) + "</pre>";
+          document.getElementById('metadata').innerHTML = html;
+        }).catch(error => {
+          console.error("Error analizando el archivo:", error);
+          document.getElementById('metadata').innerHTML = `<p>Error analizando el archivo: ${error}</p>`;
+        });
+      }).catch(error => {
+        console.error("Error inicializando MediaInfo:", error);
+        document.getElementById('metadata').innerHTML = `<p>Error inicializando MediaInfo: ${error}</p>`;
+      });
     });
   </script>
 </body>
