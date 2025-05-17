@@ -8,8 +8,8 @@
     body {
       font-family: Arial, sans-serif;
       margin: 20px;
-      background: #f9f9f9;
       padding: 20px;
+      background: #f9f9f9;
     }
     h1 {
       color: #333;
@@ -49,43 +49,40 @@
 </head>
 <body>
   <h1>Extractor de Metadatos (MP3, FLAC, WAV) con music-metadata-browser</h1>
-  <input type="file" id="fileInput" accept=".mp3,.flac,.wav" />
+  <input type="file" id="fileInput" accept=".mp3,.flac,.wav">
   <div id="metadata">
     <!-- Aquí se mostrarán los metadatos -->
   </div>
-  
-  <!-- Cargamos la librería UMD de music-metadata-browser desde unpkg -->
-  <script src="https://unpkg.com/music-metadata-browser@2.4.10/dist/music-metadata-browser.umd.min.js"></script>
-  <script>
-    // Esperamos a que se cargue el DOM y la librería
+
+  <!-- Cargamos la librería como módulo ESM y ejecutamos nuestra lógica -->
+  <script type="module">
+    // Importamos la librería desde jsDelivr como ESM
+    import * as musicMetadata from "https://cdn.jsdelivr.net/npm/music-metadata-browser@2.4.10/+esm";
+
     document.addEventListener("DOMContentLoaded", function() {
-      // Verificamos que la librería se haya cargado
-      if (!window.musicMetadata) {
+      // Verificamos que la librería se haya importado
+      if (!musicMetadata) {
         console.error("La librería music-metadata-browser no se cargó correctamente.");
         document.getElementById("metadata").innerHTML = "<p>Error: la librería music-metadata-browser no se encontró.</p>";
         return;
       }
-      
-      // Asignamos la variable global a una constante para mayor claridad
-      const mm = window.musicMetadata;
+      const mm = musicMetadata;
       
       document.getElementById("fileInput").addEventListener("change", async function(event) {
         const file = event.target.files[0];
         if (!file) return;
-      
-        // Mostramos mensaje de carga
+        
         document.getElementById("metadata").innerHTML = "<p>Cargando metadatos...</p>";
-      
+        
         try {
-          // Extraemos los metadatos usando parseBlob
+          // Se extraen los metadatos del archivo seleccionado
           const metadata = await mm.parseBlob(file);
           console.log("Metadatos extraídos:", metadata);
-      
-          // Construimos el HTML para mostrar resultados
+          
           let html = "<div class='section'><h2>Common Tags</h2><ul>";
           for (const tag in metadata.common) {
             if (tag === "picture") {
-              // Si existe imagen, muestra la primera portada
+              // Si existe imagen, mostramos la primera portada
               if (Array.isArray(metadata.common.picture) && metadata.common.picture.length > 0) {
                 const pic = metadata.common.picture[0];
                 let base64String = "";
@@ -100,17 +97,17 @@
             }
           }
           html += "</ul></div>";
-      
-          // Sección para la información del formato
+          
+          // Sección de formato
           html += "<div class='section'><h2>Format</h2><ul>";
           for (const key in metadata.format) {
             html += `<li><strong>${key}:</strong> ${metadata.format[key]}</li>`;
           }
           html += "</ul></div>";
-      
-          // Mostramos también el JSON completo de metadatos para referencia
+          
+          // Mostramos el JSON completo de metadatos
           html += `<h2>JSON Completo:</h2><pre class="json-output">${JSON.stringify(metadata, null, 2)}</pre>`;
-      
+          
           document.getElementById("metadata").innerHTML = html;
         } catch (error) {
           console.error("Error al extraer metadatos:", error);
