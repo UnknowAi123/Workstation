@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Extractor de Metadatos con MediaInfo.js</title>
+  <title>Extractor de Metadatos con music-metadata-browser</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
@@ -34,7 +34,7 @@
     }
     .section li {
       margin: 4px 0;
-      word-wrap: break-word;
+      word-break: break-word;
     }
     .section li strong {
       color: #222;
@@ -48,103 +48,64 @@
   </style>
 </head>
 <body>
-  <h1>Extractor de Metadatos (MP3, FLAC, WAV) con MediaInfo.js</h1>
+  <h1>Extractor de Metadatos (MP3, FLAC, WAV) con music-metadata-browser</h1>
   <input type="file" id="fileInput" accept=".mp3,.flac,.wav" />
   <div id="metadata">
     <!-- Aquí se mostrarán los metadatos -->
   </div>
 
-  <!-- Cargamos MediaInfo.js desde jsDelivr -->
-  <script src="https://cdn.jsdelivr.net/npm/mediainfo.js/dist/mediainfo.min.js"></script>
+  <!-- Cargamos music-metadata-browser desde unpkg -->
+  <script src="https://unpkg.com/music-metadata-browser/dist/music-metadata-browser.umd.js"></script>
   <script>
-    // Función personalizada para instanciar el módulo WASM con un objeto de importación adecuado
-    function customInstantiateWasm(imports, receiveInstance) {
-      // Aseguramos que imports.env es un objeto y definimos 'memory' y 'table'
-      if (!imports.env || typeof imports.env !== "object") {
-        imports.env = {
-          memory: new WebAssembly.Memory({ initial: 256 }),
-          table: new WebAssembly.Table({ initial: 0, element: "anyfunc" })
-        };
-      } else {
-        if (!imports.env.memory) {
-          imports.env.memory = new WebAssembly.Memory({ initial: 256 });
-        }
-        if (!imports.env.table) {
-          imports.env.table = new WebAssembly.Table({ initial: 0, element: "anyfunc" });
-        }
-      }
-
-      // Cargamos el archivo WASM de forma manual
-      fetch("MediaInfoModule.wasm")
-        .then(response => response.arrayBuffer())
-        .then(bytes => WebAssembly.instantiate(bytes, imports))
-        .then(result => {
-          receiveInstance(result.instance);
-        })
-        .catch(error => {
-          console.error("Error instanciando el WASM:", error);
-          throw error;
-        });
-      
-      // Es necesario devolver un objeto vacío según la API de Emscripten
-      return {};
-    }
-
-    document.getElementById('fileInput').addEventListener('change', function (event) {
+    document.getElementById("fileInput").addEventListener("change", async function(event) {
       const file = event.target.files[0];
       if (!file) return;
       
-      document.getElementById('metadata').innerHTML = "<p>Cargando metadatos...</p>";
+      // Indicamos mensaje de carga
+      document.getElementById("metadata").innerHTML = "<p>Cargando metadatos...</p>";
+      
+      try {
+        // Extraemos los metadatos del archivo usando parseBlob
+        const metadata = await musicMetadata.parseBlob(file);
+        console.log(metadata);
 
-      // Inicializamos MediaInfo, especificando locateFile y nuestra función custom para instanciar el WASM
-      MediaInfo({
-        locateFile: (filename) => {
-          // Como MediaInfoModule.wasm se encuentra en la misma carpeta que index.html, devolvemos solo su nombre.
-          return "MediaInfoModule.wasm";
-        },
-        instantiateWasm: customInstantiateWasm
-      }).then(mediaInfo => {
-        // Funciones para leer el archivo en trozos (chunks)
-        const getSize = () => file.size;
-        const readChunk = (chunkSize, offset) => {
-          return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = event => resolve(new Uint8Array(event.target.result));
-            reader.onerror = error => reject(error);
-            reader.readAsArrayBuffer(file.slice(offset, offset + chunkSize));
-          });
-        };
-
-        // Analizamos el archivo utilizando mediaInfo.analyzeData()
-        mediaInfo.analyzeData(getSize, readChunk).then(result => {
-          console.log("Resultado de MediaInfo:", result);
-          let html = "";
-
-          if (result.media && result.media.track) {
-            result.media.track.forEach(track => {
-              html += `<div class="section"><h2>${track["@type"]}</h2><ul>`;
-              for (const key in track) {
-                if (key !== "@type") {
-                  html += `<li><strong>${key}:</strong> ${track[key]}</li>`;
-                }
+        let html = "";
+        
+        // Sección de etiquetas comunes (common)
+        html += `<div class="section"><h2>Common Tags</h2><ul>`;
+        for (const tag in metadata.common) {
+          if (tag === "picture") {
+            // Si hay imagen(es), se muestra la primera (portada)
+            if (Array.isArray(metadata.common.picture) && metadata.common.picture.length > 0) {
+              const pic = metadata.common.picture[0];
+              let base64String = "";
+              for (let i = 0; i < pic.data.length; i++) {
+                base64String += String.fromCharCode(pic.data[i]);
               }
-              html += "</ul></div>";
-            });
+              const imageUri = "data:" + pic.format + ";base64," + btoa(base64String);
+              html += `<li><strong>picture:</strong> <br/><img src="${imageUri}" alt="cover" style="max-width:200px;"></li>`;
+            }
           } else {
-            html = "<p>No se encontraron metadatos.</p>";
+            html += `<li><strong>${tag}:</strong> ${metadata.common[tag]}</li>`;
           }
-
-          // Mostramos también el JSON completo para referencia
-          html += "<h2>JSON Completo:</h2><pre class='json-output'>" + JSON.stringify(result, null, 2) + "</pre>";
-          document.getElementById('metadata').innerHTML = html;
-        }).catch(error => {
-          console.error("Error analizando el archivo:", error);
-          document.getElementById('metadata').innerHTML = `<p>Error analizando el archivo: ${error}</p>`;
-        });
-      }).catch(error => {
-        console.error("Error inicializando MediaInfo:", error);
-        document.getElementById('metadata').innerHTML = `<p>Error inicializando MediaInfo: ${error}</p>`;
-      });
+        }
+        html += `</ul></div>`;
+        
+        // Sección de información de formato
+        html += `<div class="section"><h2>Format</h2><ul>`;
+        for (const key in metadata.format) {
+          html += `<li><strong>${key}:</strong> ${metadata.format[key]}</li>`;
+        }
+        html += `</ul></div>`;
+        
+        // Se muestra el JSON completo de metadatos para referencia
+        html += `<h2>JSON Completo:</h2><pre class="json-output">${JSON.stringify(metadata, null, 2)}</pre>`;
+        
+        document.getElementById("metadata").innerHTML = html;
+      } catch (err) {
+        console.error("Error al extraer metadatos:", err);
+        document.getElementById("metadata").innerHTML = `<p>Error al extraer metadatos: ${err.message}</p>`;
+      }
     });
   </script>
 </body>
