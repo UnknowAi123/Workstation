@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Editor de Metadatos: Todos los Parámetros con jsmediatags</title>
+  <title>Editor de Metadatos Avanzado - jsmediatags</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      text-align: center;
       padding: 20px;
+      text-align: center;
     }
     h1 {
       color: #333;
@@ -34,11 +34,12 @@
     }
     img {
       margin-top: 10px;
+      max-width: 300px;
     }
   </style>
 </head>
 <body>
-  <h1>Editor de Metadatos: Todos los Parámetros</h1>
+  <h1>Editor de Metadatos Avanzado</h1>
   <input type="file" id="fileInput" accept=".mp3,.flac">
   <div id="metadata"></div>
   <button id="saveButton">Guardar cambios</button>
@@ -49,35 +50,71 @@
     document.getElementById('fileInput').addEventListener('change', function(event) {
       const file = event.target.files[0];
       if (!file) return;
-
       console.log("Archivo seleccionado:", file.name);
 
       jsmediatags.read(file, {
         onSuccess: function(tag) {
           console.log("Metadatos encontrados:", tag);
-          let output = "<h2>Metadatos:</h2>";
           const metadata = tag.tags;
-          
-          // Iteramos sobre todas las claves dentro de metadata
-          Object.keys(metadata).forEach(function(key) {
-            if (key === "picture" && metadata[key]) {
-              // Tratamiento especial para la imagen (portada)
-              let picture = metadata[key];
-              let base64String = "";
-              for (let i = 0; i < picture.data.length; i++) {
-                base64String += String.fromCharCode(picture.data[i]);
-              }
-              let imageUri = "data:" + picture.format + ";base64," + window.btoa(base64String);
-              output += `<label>${key}:<br/><img src="${imageUri}" alt="Imagen de Portada" width="200"></label><br/>`;
+          let output = "<h2>Metadatos:</h2>";
+
+          // Album
+          const album = metadata.album || '';
+          output += `<label>Album: <input type="text" id="album" value="${album}"></label>`;
+
+          // Album/Performer (usamos "albumartist")
+          const albumPerformer = metadata.albumartist || '';
+          output += `<label>Album/Performer: <input type="text" id="albumartist" value="${albumPerformer}"></label>`;
+
+          // Track Name o Title
+          const trackTitle = metadata.title || '';
+          output += `<label>Track name o Title: <input type="text" id="title" value="${trackTitle}"></label>`;
+
+          // Track name/Position y Track name/Total
+          let trackPosition = '';
+          let trackTotal = '';
+          if (metadata.track) {
+            // Si el valor contiene "/" lo separamos en posición y total
+            if (metadata.track.indexOf("/") !== -1) {
+              let parts = metadata.track.split("/");
+              trackPosition = parts[0].trim();
+              trackTotal = (parts[1] || '').trim();
             } else {
-              let value = metadata[key];
-              // Si el valor es un objeto (por ejemplo, arrays o estructuras), lo convertimos a cadena JSON
-              if (typeof value === 'object' && value !== null) {
-                value = JSON.stringify(value);
-              }
-              output += `<label>${key}: <input type="text" id="${key}" value="${value || ''}"></label><br/>`;
+              trackPosition = metadata.track;
             }
-          });
+          }
+          output += `<label>Track name/Position: <input type="text" id="trackPosition" value="${trackPosition}"></label>`;
+          output += `<label>Track name/Total: <input type="text" id="trackTotal" value="${trackTotal}"></label>`;
+
+          // Performer / Artist
+          const artist = metadata.artist || '';
+          output += `<label>Performer / Artist: <input type="text" id="artist" value="${artist}"></label>`;
+
+          // Publisher
+          const publisher = metadata.publisher || '';
+          output += `<label>Publisher: <input type="text" id="publisher" value="${publisher}"></label>`;
+
+          // Genre
+          const genre = metadata.genre || '';
+          output += `<label>Genre: <input type="text" id="genre" value="${genre}"></label>`;
+
+          // Recorded date / Year
+          const year = metadata.year || '';
+          output += `<label>Recorded date / Year: <input type="text" id="year" value="${year}"></label>`;
+
+          // Cover (imagen)
+          if (metadata.picture) {
+            let picture = metadata.picture;
+            let base64String = "";
+            for (let i = 0; i < picture.data.length; i++) {
+              base64String += String.fromCharCode(picture.data[i]);
+            }
+            let imageUri = "data:" + picture.format + ";base64," + window.btoa(base64String);
+            output += `<label>Cover:</label><br/><a href="${imageUri}" download="cover.${picture.format.split("/")[1] || 'jpg'}">Descargar Imagen</a><br/><img id="cover" src="${imageUri}" alt="Cover Image"><br/>`;
+          } else {
+            output += `<label>Cover: No disponible</label><br/>`;
+          }
+
           document.getElementById('metadata').innerHTML = output;
         },
         onError: function(error) {
