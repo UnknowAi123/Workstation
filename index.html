@@ -65,11 +65,12 @@
 
       // Inicializamos MediaInfo especificando locateFile para que encuentre el archivo WASM de forma remota.
       MediaInfo({
-        locateFile: (filename) => {
-          // Siempre retornamos la URL del WASM alojado en jsDelivr.
-          return "https://cdn.jsdelivr.net/npm/mediainfo.js@2.4.10/dist/mediainfo.wasm";
-        }
-      }).then(mediaInfo => {
+  locateFile: (filename) => {
+    // Como MediaInfoModule.wasm está en la misma carpeta, solo indicamos el nombre
+    return "MediaInfoModule.wasm";
+  }
+}).then(mediaInfo => {
+
         // Preparar funciones para leer el archivo en chunks.
         const getSize = () => file.size;
         const readChunk = (chunkSize, offset) => {
