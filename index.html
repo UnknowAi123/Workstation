@@ -163,6 +163,11 @@
   <!-- Jugadores (ocultos) -->
   <audio id="audioPlayer" style="display: none;"></audio>
   <div id="youtubePlayerContainer" style="display: none;"></div>
+
+<!-- Playlist -->
+  <div id="playlistContainer">
+    <ul id="playlist"></ul>
+  </div>
   
   <!-- SECCIÓN DE CARGA DE PISTAS -->
   <div id="loadSection">
@@ -180,11 +185,6 @@
     <!-- Nuevo botón para cargar imagen JPG con metadatos -->
     <input type="file" id="jpgFileInput" accept="image/jpeg" style="display: none;">
     <button id="addJpgButton">Agregar desde JPG</button>
-  </div>
-  
-  <!-- Playlist -->
-  <div id="playlistContainer">
-    <ul id="playlist"></ul>
   </div>
   
   <script>
