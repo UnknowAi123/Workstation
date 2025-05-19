@@ -55,12 +55,14 @@
     #volumeContainer { margin-top: 10px; }
     #volumeSlider { width: 80%; }
     /* Playlist */
+    #playlistSection {
+      max-width: 350px;
+      margin: 20px auto;
+    }
     #playlistContainer {
       background: #fff;
       border-radius: 8px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      max-width: 350px;
-      margin: 20px auto;
       padding: 15px;
       text-align: center;
       overflow-y: auto;
@@ -80,25 +82,30 @@
     }
     .trackTitle {
       flex: 1;
+      white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      white-space: nowrap;
       text-align: left;
     }
     .trackTime {
       margin-left: 10px;
       font-size: 12px;
     }
-    .trashIcon {
-      flex-shrink: 0;
-      margin-left: 5px;
-      cursor: pointer;
-      color: red;
+    .selected {
+      background: #ffd7d7;
     }
-    .selected { background: #ffd7d7; } /* Marca las pistas seleccionadas */
-    .playlistButtons { margin-top: 10px; }
-    .playlistButtons button { margin: 2px; }
-    /* Sección de carga */
+    /* Controles de playlist externos */
+    #playlistControls {
+      text-align: center;
+      margin-top: 10px;
+    }
+    #playlistControls button {
+      margin: 0 5px;
+      padding: 6px 10px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    /* Sección de carga de pistas */
     #loadSection {
       text-align: center;
       margin: 20px auto;
@@ -112,6 +119,7 @@
   </style>
 </head>
 <body>
+  
   <!-- MINI REPRODUCTOR -->
   <div id="miniPlayer">
     <div id="coverContainer">
@@ -141,11 +149,12 @@
   <audio id="audioPlayer" style="display: none;"></audio>
   <div id="youtubePlayerContainer" style="display: none;"></div>
   
-  <!-- PLAYLIST -->
-  <div id="playlistContainer">
-    <ul id="playlist"></ul>
-    <div class="playlistButtons">
-      <button id="playButton">▶️ Play</button>
+  <!-- PLAYLIST (Listado y controles) -->
+  <div id="playlistSection">
+    <div id="playlistContainer">
+      <ul id="playlist"></ul>
+    </div>
+    <div id="playlistControls">
       <button id="selectAll">Seleccionar todas</button>
       <button id="deselectAll">Deseleccionar todas</button>
       <button id="deleteSelected">Eliminar seleccionadas</button>
@@ -175,7 +184,7 @@
     let shuffleOn = false;
     let recentHistory = [];
     
-    // REFERENCIAS AL DOM
+    // REFERENCIAS DEL MINI REPRODUCTOR y otros elementos
     const coverArt = document.getElementById('coverArt');
     const trackTitleElem = document.getElementById('trackTitle');
     const trackAlbumElem = document.getElementById('trackAlbum');
@@ -192,15 +201,16 @@
     const youtubePlayerContainer = document.getElementById('youtubePlayerContainer');
     let youtubePlayer;
     
+    // Elementos para carga e importación
     const fileInput = document.getElementById('fileInput');
     const youtubeURLInput = document.getElementById('youtubeURLInput');
     const addYoutubeButton = document.getElementById('addYoutubeButton');
-    const playlistUI = document.getElementById('playlist');
     const htmlFileInput = document.getElementById('htmlFileInput');
     const addJpgButton = document.getElementById('addJpgButton');
     const jpgFileInput = document.getElementById('jpgFileInput');
     
-    const playButton = document.getElementById('playButton');
+    // Elementos del listado de pistas
+    const playlistUI = document.getElementById('playlist');
     const selectAllBtn = document.getElementById('selectAll');
     const deselectAllBtn = document.getElementById('deselectAll');
     const deleteSelectedBtn = document.getElementById('deleteSelected');
@@ -214,6 +224,7 @@
         coverArt.classList.add("custom-cover");
         coverArt.classList.remove("youtube-cover");
       } else {
+        // Para pistas de YouTube, se muestra miniatura si está disponible; si no, un placeholder
         coverArt.src = item.videoId ? `https://img.youtube.com/vi/${item.videoId}/hqdefault.jpg` : "placeholder-cover.jpg";
         coverArt.classList.add("youtube-cover");
         coverArt.classList.remove("custom-cover");
@@ -228,9 +239,7 @@
       const item = playlist[currentIndex];
       updateMiniPlayerUI();
       if (item.type === 'local') {
-        if (youtubePlayer && youtubePlayer.stopVideo) {
-          youtubePlayer.stopVideo();
-        }
+        if (youtubePlayer && youtubePlayer.stopVideo) youtubePlayer.stopVideo();
         audioPlayer.src = item.url;
         audioPlayer.style.display = 'block';
         youtubePlayerContainer.style.display = 'none';
@@ -238,9 +247,7 @@
         audioPlayer.pause();
         audioPlayer.style.display = 'none';
         youtubePlayerContainer.style.display = 'block';
-        if (youtubePlayer) {
-          youtubePlayer.loadVideoById(item.videoId);
-        }
+        if (youtubePlayer) youtubePlayer.loadVideoById(item.videoId);
       }
     }
     
@@ -267,7 +274,13 @@
     }
     
     function togglePlayPause() {
+      // Al pulsar play en el mini reproductor: si hay EXACTAMENTE UNA pista seleccionada,
+      // se reproduce esa pista; si no, se reproduce la pista actual sin cambiar la selección.
       if (playPauseButton.textContent === '▶️') {
+        const selectedTracks = playlist.filter(track => track.selected);
+        if (selectedTracks.length === 1) {
+          currentIndex = playlist.findIndex(track => track.selected);
+        }
         playCurrentTrack();
       } else {
         pauseCurrentTrack();
@@ -388,7 +401,7 @@
       }
     }
     
-    // FUNCIONALIDAD DEL LISTADO CON SELECCIÓN
+    // FUNCIONALIDAD DEL LISTADO (PLAYLIST)
     function updatePlaylistUI() {
       playlistUI.innerHTML = '';
       playlist.forEach((item, index) => {
@@ -404,24 +417,19 @@
         li.appendChild(titleSpan);
         li.appendChild(timeSpan);
         
-        // Resaltar si la pista está seleccionada
+        // Marcar la pista si está seleccionada
         li.classList.toggle('selected', item.selected);
         
-        // Evento: clic para alternar la selección (permitiendo multi-selección con Ctrl/Shift)
+        // Clic simple: alterna (toggle) la selección de la pista.
         li.addEventListener('click', (e) => {
-          if (e.ctrlKey || e.metaKey || e.shiftKey) {
-            item.selected = !item.selected;
-          } else {
-            // Sin modificadores, se deseleccionan las demás y se marca solo ésta
-            playlist.forEach(track => track.selected = false);
-            item.selected = true;
-          }
-          currentIndex = index; // Se establece la pista actual según la selección
+          item.selected = !item.selected;
           updatePlaylistUI();
         });
         
-        // Evento: doble clic para reproducir la pista
+        // Doble clic: deja seleccionada solo ésta y la reproduce.
         li.addEventListener('dblclick', () => {
+          playlist.forEach(track => track.selected = false);
+          item.selected = true;
           currentIndex = index;
           loadCurrentTrack();
           playCurrentTrack();
@@ -432,26 +440,7 @@
       });
     }
     
-    // Botón Play: si hay exactamente una pista seleccionada, reproduce esa;
-    // de lo contrario, reproduce la pista actual.
-    playButton.addEventListener('click', () => {
-      const selectedTracks = playlist.filter(track => track.selected);
-      if (selectedTracks.length === 1) {
-        currentIndex = playlist.findIndex(track => track.selected);
-        loadCurrentTrack();
-        playCurrentTrack();
-      } else {
-        if (playlist[currentIndex]) {
-          loadCurrentTrack();
-          playCurrentTrack();
-        } else {
-          alert("No hay pista seleccionada.");
-        }
-      }
-      updatePlaylistUI();
-    });
-    
-    // Botones para seleccionar/deseleccionar todas
+    // BOTONES EXTERNOS DE LISTADO
     selectAllBtn.addEventListener('click', () => {
       playlist.forEach(track => track.selected = true);
       updatePlaylistUI();
@@ -462,22 +451,28 @@
       updatePlaylistUI();
     });
     
-    // Botón para eliminar las pistas seleccionadas con confirmación
     deleteSelectedBtn.addEventListener('click', () => {
       if (confirm("¿Seguro que deseas eliminar las pistas seleccionadas?")) {
+        // Liberar URLs de los archivos locales eliminados
         playlist.forEach(track => {
           if (track.selected && track.url) URL.revokeObjectURL(track.url);
         });
         playlist = playlist.filter(item => !item.selected);
-        currentIndex = 0;
+        // Se resetea currentIndex a 0 si es que la lista no quedó vacía
+        currentIndex = playlist.length ? 0 : 0;
         updatePlaylistUI();
       }
     });
     
+    // BOTÓN PLAY/PAUSA DEL MINI REPRODUCTOR
+    playPauseButton.addEventListener('click', togglePlayPause);
+    prevButton.addEventListener('click', prevTrack);
+    nextButton.addEventListener('click', nextTrack);
+    
     /* Cargar pistas locales */
     fileInput.addEventListener('change', (e) => {
       const files = Array.from(e.target.files);
-      // Liberamos las URLs de pistas existentes para evitar conflictos al recargar
+      // Liberar URLs de pistas previas
       playlist.forEach(track => track.url && URL.revokeObjectURL(track.url));
       files.forEach(file => {
         if (file.type.startsWith("audio")) {
@@ -485,7 +480,7 @@
           playlist.push({ type: 'local', name: file.name, url: url, duration: "00:00", selected: false });
         }
       });
-      fileInput.value = ""; // Resetear input para permitir recarga
+      fileInput.value = ""; // Resetea el input para permitir recarga
       if (playlist.length > 0) {
         currentIndex = 0;
         loadCurrentTrack();
@@ -554,7 +549,7 @@
               url, 
               videoId: extractYouTubeID(url),
               cover: cover,
-              duration: "00:00",
+              duration: "00:00", // Para YouTube cargados desde HTML, la duración queda en "00:00"
               selected: false
             });
           }
@@ -589,6 +584,7 @@
     jpgFileInput.addEventListener('change', function(event) {
       const file = event.target.files[0];
       if (!file) return;
+      // Usar EXIF.js para leer metadatos del JPG
       EXIF.getData(file, function() {
         const artist = EXIF.getTag(this, "Artist") || "";
         const title = EXIF.getTag(this, "ImageDescription") || file.name;
@@ -609,7 +605,7 @@
           url: youtubeUrl,
           videoId,
           cover: coverUrl,
-          duration: "00:00",
+          duration: "00:00", // La duración queda en "00:00" (para mayor precisión requeriría consulta a la API)
           selected: false
         };
         playlist.push(newItem);
