@@ -117,13 +117,18 @@
   white-space: nowrap; /* No permite saltos de línea */
   overflow: hidden; /* Oculta el exceso de texto */
   text-overflow: ellipsis; /* Agrega "..." al final si el texto se corta */
-  max-width: calc(100% - 30px); /* Ajusta según el espacio disponible */
+  max-width: calc(100% - 60px); /* Ajusta según el espacio disponible */
   display: inline-block;
 }
 
     #playlist li.active {
       background: #d0eaff;
     }
+.trackTime {
+  flex-shrink: 0; /* Evita que se reduzca */
+  margin-left: 5px;
+}
+    
     .trashIcon {
       cursor: pointer;
       color: red;
