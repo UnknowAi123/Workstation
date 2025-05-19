@@ -112,6 +112,15 @@
       font-size: 14px;
       cursor: pointer;
     }
+#playlist li span {
+  flex-grow: 1; /* Ocupa el máximo espacio disponible */
+  white-space: nowrap; /* No permite saltos de línea */
+  overflow: hidden; /* Oculta el exceso de texto */
+  text-overflow: ellipsis; /* Agrega "..." al final si el texto se corta */
+  max-width: calc(100% - 30px); /* Ajusta según el espacio disponible */
+  display: inline-block;
+}
+
     #playlist li.active {
       background: #d0eaff;
     }
@@ -119,6 +128,11 @@
       cursor: pointer;
       color: red;
       margin-left: 10px;
+  flex-shrink: 0; /* Evita que se reduzca */
+  margin-left: 10px; /* Espacio antes de la papelera */
+}
+
+      
     }
     /* Sección de carga */
     #loadSection {
