@@ -16,7 +16,7 @@
       margin: 0;
       padding: 20px;
     }
-    /* Mini reproductor */
+    /* MINI REPRODUCTOR */
     #miniPlayer {
       background: #fff;
       border-radius: 8px;
@@ -28,12 +28,26 @@
     }
     #coverContainer {
       width: 100%;
-      aspect-ratio: 1/1;
+      /* El contenedor se mantiene para la portada, aunque usaremos el <img> o SVG */
+      position: relative;
     }
-    #coverContainer img {
+    #coverContainer img,
+    #coverContainer div.placeholder {
       width: 100%;
-      height: 100%;
+      height: 350px;
       border-radius: 5px;
+      object-fit: cover;
+    }
+    #coverContainer div.placeholder {
+      background-color: #ccc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #coverContainer div.placeholder span {
+      color: white;
+      font-size: 24px;
+      font-weight: bold;
     }
     .custom-cover { object-fit: contain; }
     .youtube-cover { object-fit: cover; background-color: #000; }
@@ -43,23 +57,29 @@
     #trackArtist { font-size: 14px; color: #666; }
     #timeDisplay { margin: 10px 0; }
     #progressBar { width: 100%; }
-    #controls { margin: 10px 0; }
-    /* Reordenamos los botones: Shuffle, Atrás, Play/Pausa, Adelante, Repeat */
+    /* Controles del mini reproductor */
+    #controls {
+      margin: 10px 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    /* Orden deseado: Shuffle, Atrás, Play/Pausa, Adelante, Repeat */
     #controls button {
       padding: 8px 12px;
       margin: 0 3px;
-      font-size: 14px;
+      font-size: 16px;
       background: none;
       border: none;
       cursor: pointer;
     }
-    /* Estilo para indicar que un botón está activo (subrayado) */
+    /* Clase para indicar que se encuentra activo (subrayado) */
     #controls button.active {
       border-bottom: 2px solid blue;
     }
     #volumeContainer { margin-top: 10px; }
     #volumeSlider { width: 80%; }
-    /* Playlist */
+    /* PLAYLIST */
     #playlistSection {
       max-width: 350px;
       margin: 20px auto;
@@ -96,9 +116,8 @@
       margin-left: 10px;
       font-size: 12px;
     }
-    /* Los colores de selección: en modo normal (azul) y modo edición (rojo) */
-    /* Se asignan en línea en updatePlaylistUI */
-    
+    /* Los colores de selección: en modo normal (azul) y en modo edición (rojo) 
+       Se asignan en updatePlaylistUI */
     /* Controles externos de edición */
     #playlistControls {
       text-align: center;
@@ -128,6 +147,7 @@
   <!-- MINI REPRODUCTOR -->
   <div id="miniPlayer">
     <div id="coverContainer">
+      <!-- La imagen de portada o placeholder se inyectará aquí -->
       <img id="coverArt" src="placeholder-cover.jpg" alt="Portada">
     </div>
     <div id="trackInfo">
@@ -140,7 +160,6 @@
     </div>
     <input type="range" id="progressBar" min="0" value="0" step="1">
     <div id="controls">
-      <!-- Nuevo orden: Shuffle, Atrás, Play/Pausa, Adelante, Repeat -->
       <button id="shuffleButton">🔀</button>
       <button id="prevButton">⏮️</button>
       <button id="playPauseButton">▶️</button>
@@ -167,7 +186,8 @@
       <span id="editButtons" style="display: none;">
         <button id="selectAll">Seleccionar todas</button>
         <button id="deselectAll">Deseleccionar todas</button>
-        <button id="deleteSelected">Eliminar seleccionadas</button>
+        <!-- Botón de borrar con icono Trash -->
+        <button id="deleteSelected">🗑️</button>
       </span>
     </div>
   </div>
@@ -189,16 +209,18 @@
   </div>
   
   <script>
-    // VARIABLES GLOBALES
+    /* VARIABLES GLOBALES */
     let playlist = [];
     let currentIndex = 0;
     let shuffleMode = false;
     let repeatMode = false;
-    let recentHistory = [];
     let editMode = false;  // Modo edición
-    
-    // REFERENCIAS DEL MINI REPRODUCTOR y demás elementos
+    let shuffleQueue = []; // Para shuffle: lista de índices pendientes
+    let shuffleHistory = []; // Historial para poder regresar en shuffle
+
+    /* REFERENCIAS */
     const coverArt = document.getElementById('coverArt');
+    const coverContainer = document.getElementById('coverContainer');
     const trackTitleElem = document.getElementById('trackTitle');
     const trackAlbumElem = document.getElementById('trackAlbum');
     const trackArtistElem = document.getElementById('trackArtist');
@@ -216,7 +238,7 @@
     const youtubePlayerContainer = document.getElementById('youtubePlayerContainer');
     let youtubePlayer;
     
-    // ELEMENTOS DE CARGA / IMPORTACIÓN
+    // Elementos para carga e importación
     const fileInput = document.getElementById('fileInput');
     const youtubeURLInput = document.getElementById('youtubeURLInput');
     const addYoutubeButton = document.getElementById('addYoutubeButton');
@@ -224,7 +246,7 @@
     const addJpgButton = document.getElementById('addJpgButton');
     const jpgFileInput = document.getElementById('jpgFileInput');
     
-    // ELEMENTOS DEL LISTADO (PLAYLIST)
+    // Elementos del listado
     const playlistUI = document.getElementById('playlist');
     const toggleEditBtn = document.getElementById('toggleEdit');
     const editButtons = document.getElementById('editButtons');
@@ -232,10 +254,12 @@
     const deselectAllBtn = document.getElementById('deselectAll');
     const deleteSelectedBtn = document.getElementById('deleteSelected');
     
-    // --- MINI REPRODUCTOR ---
+    /* FUNCIONES DEL MINI REPRODUCTOR */
     function updateMiniPlayerUI() {
       if (!playlist[currentIndex]) {
-        coverArt.src = "placeholder-cover.jpg";
+        // Limpia la información si no hay pista
+        coverArt.style.display = "none";
+        coverContainer.innerHTML = "";
         trackTitleElem.textContent = "";
         trackAlbumElem.textContent = "";
         trackArtistElem.textContent = "";
@@ -244,14 +268,28 @@
         return;
       }
       const item = playlist[currentIndex];
+      // Actualizar la portada: si hay cover definido, se usa; si es YouTube y videoId existe, se usa la miniatura; de lo contrario, mostrar "NO COVER"
       if (item.cover && item.cover.trim() !== "") {
+        // Usar imagen personalizada
         coverArt.src = item.cover.trim();
-        coverArt.classList.add("custom-cover");
-        coverArt.classList.remove("youtube-cover");
+        coverArt.style.display = "block";
+        coverContainer.innerHTML = "";
+        coverContainer.appendChild(coverArt);
+      } else if (item.videoId) {
+        // Usar miniatura de YouTube
+        coverArt.src = `https://img.youtube.com/vi/${item.videoId}/hqdefault.jpg`;
+        coverArt.style.display = "block";
+        coverContainer.innerHTML = "";
+        coverContainer.appendChild(coverArt);
       } else {
-        coverArt.src = (item.videoId) ? `https://img.youtube.com/vi/${item.videoId}/hqdefault.jpg` : "placeholder-cover.jpg";
-        coverArt.classList.add("youtube-cover");
-        coverArt.classList.remove("custom-cover");
+        // Mostrar placeholder: cuadrado gris con "NO COVER"
+        coverContainer.innerHTML = "";
+        let placeholder = document.createElement("div");
+        placeholder.className = "placeholder";
+        let span = document.createElement("span");
+        span.textContent = "NO COVER";
+        placeholder.appendChild(span);
+        coverContainer.appendChild(placeholder);
       }
       trackTitleElem.textContent = item.title || item.name;
       trackAlbumElem.textContent = item.album || "";
@@ -305,18 +343,34 @@
       }
     }
     
+    /* Funciones para Next y Prev con soporte real para shuffle sin repetir todas las pistas antes de volver */
+    function generateShuffleQueue() {
+      let indices = [];
+      for (let i = 0; i < playlist.length; i++) {
+        if (i !== currentIndex) indices.push(i);
+      }
+      // Barajear indices
+      for (let i = indices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [indices[i], indices[j]] = [indices[j], indices[i]];
+      }
+      shuffleQueue = indices.slice();
+      shuffleHistory = []; // Reiniciar historial de shuffle
+    }
+    
     function nextTrack() {
+      if (playlist.length === 0) return;
       if (shuffleMode) {
-        let allowed = [];
-        playlist.forEach((_, i) => { if (i !== currentIndex) allowed.push(i); });
-        if (allowed.length > 0) {
-          currentIndex = allowed[Math.floor(Math.random() * allowed.length)];
+        if (shuffleQueue.length === 0) {
+          generateShuffleQueue();
         }
+        shuffleHistory.push(currentIndex);
+        currentIndex = shuffleQueue.shift();
       } else {
         if (currentIndex < playlist.length - 1) {
           currentIndex++;
         } else {
-          if (repeatMode && playlist.length > 0) {
+          if (repeatMode) {
             currentIndex = 0;
           } else {
             pauseCurrentTrack();
@@ -330,17 +384,18 @@
     }
     
     function prevTrack() {
+      if (playlist.length === 0) return;
       if (shuffleMode) {
-        let allowed = [];
-        playlist.forEach((_, i) => { if (i !== currentIndex) allowed.push(i); });
-        if (allowed.length > 0) {
-          currentIndex = allowed[Math.floor(Math.random() * allowed.length)];
+        if (shuffleHistory.length > 0) {
+          // Volver a la pista previa en modo shuffle
+          shuffleQueue.unshift(currentIndex);
+          currentIndex = shuffleHistory.pop();
         }
       } else {
         if (currentIndex > 0) {
           currentIndex--;
         } else {
-          if (repeatMode && playlist.length > 0) {
+          if (repeatMode) {
             currentIndex = playlist.length - 1;
           } else {
             pauseCurrentTrack();
@@ -430,7 +485,7 @@
       }
     }
     
-    // --- LISTADO (PLAYLIST) ---
+    /* --- LISTADO (PLAYLIST) --- */
     function updatePlaylistUI() {
       playlistUI.innerHTML = '';
       playlist.forEach((item, index) => {
@@ -445,22 +500,19 @@
         li.appendChild(titleSpan);
         li.appendChild(timeSpan);
         
-        // Colorear según modo: en edicion, rojo; en normal, azul.
+        // Asignar color de fondo según modo
         if (editMode) {
           li.style.backgroundColor = item.selected ? "#ffd7d7" : "";
         } else {
           li.style.backgroundColor = item.selected ? "#aecaff" : "";
         }
         
-        // Al hacer clic:
         li.addEventListener('click', () => {
           if (editMode) {
             item.selected = !item.selected;
           } else {
-            // En modo normal, al hacer clic se reproduce la pista inmediatamente.
-            playlist.forEach((track, idx) => {
-              track.selected = (idx === index);
-            });
+            // En modo normal, con un clic se selecciona y se reproduce la pista
+            playlist.forEach((track, idx) => { track.selected = (idx === index); });
             currentIndex = index;
             loadCurrentTrack();
             playCurrentTrack();
@@ -472,11 +524,11 @@
       });
     }
     
-    // Botón para alternar el modo edición
+    /* Botón para alternar modo edición */
     toggleEditBtn.addEventListener('click', () => {
       editMode = !editMode;
       if (!editMode) {
-        // Al salir de edición, conservar únicamente la pista actual seleccionada.
+        // Al salir de edición, conservar solo la pista actual seleccionada
         playlist.forEach((track, idx) => { track.selected = (idx === currentIndex); });
       }
       toggleEditBtn.textContent = editMode ? "Finalizar Edición" : "Editar Lista";
@@ -484,7 +536,7 @@
       updatePlaylistUI();
     });
     
-    // Botones en modo edición
+    /* Botones de edición */
     selectAllBtn.addEventListener('click', () => {
       playlist.forEach(track => { track.selected = true; });
       updatePlaylistUI();
@@ -497,6 +549,7 @@
     
     deleteSelectedBtn.addEventListener('click', () => {
       if (confirm("¿Seguro que deseas eliminar las pistas seleccionadas?")) {
+        // Si la pista en reproducción se elimina, se limpia la zona del mini reproductor
         const deletingCurrent = playlist[currentIndex] && playlist[currentIndex].selected;
         playlist.forEach(track => {
           if (track.selected && track.url) { URL.revokeObjectURL(track.url); }
@@ -513,7 +566,7 @@
       }
     });
     
-    // Tecla espacio en modo normal para play/pausa
+    /* Tecla espacio en modo normal para play/pausa */
     document.addEventListener('keydown', (e) => {
       if (!editMode && e.code === 'Space') {
         e.preventDefault();
@@ -521,10 +574,11 @@
       }
     });
     
-    // --- CARGA DE PISTAS ---
+    /* --- CARGA DE PISTAS --- */
     // Locales
     fileInput.addEventListener('change', (e) => {
       const files = Array.from(e.target.files);
+      // Liberar URLs previas
       playlist.forEach(track => { if(track.url) URL.revokeObjectURL(track.url); });
       files.forEach(file => {
         if (file.type.startsWith("audio")) {
@@ -674,24 +728,32 @@
       });
     });
     
-    // --- BOTONES DE MINI REPRODUCTOR: Repeat y Shuffle ---
+    /* --- BOTONES DE MINI REPRODUCTOR: Repeat y Shuffle --- */
     repeatButton.addEventListener('click', () => {
       repeatMode = !repeatMode;
-      if (repeatMode) {
-        repeatButton.classList.add("active");
-      } else {
-        repeatButton.classList.remove("active");
+      if (repeatMode) { 
+        repeatButton.classList.add("active"); 
+      } else { 
+        repeatButton.classList.remove("active"); 
       }
     });
     
     shuffleButton.addEventListener('click', () => {
       shuffleMode = !shuffleMode;
-      if (shuffleMode) {
+      if (shuffleMode) { 
         shuffleButton.classList.add("active");
-      } else {
+        generateShuffleQueue(); 
+      } else { 
         shuffleButton.classList.remove("active");
+        shuffleQueue = [];
+        shuffleHistory = [];
       }
     });
+    
+    /* Asignar eventos a los botones del mini reproductor */
+    prevButton.addEventListener('click', prevTrack);
+    nextButton.addEventListener('click', nextTrack);
+    playPauseButton.addEventListener('click', togglePlayPause);
     
   </script>
 </body>
