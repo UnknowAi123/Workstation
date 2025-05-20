@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <!-- API de YouTube -->
   <script src="https://www.youtube.com/iframe_api"></script>
-  <!-- EXIF.js para leer metadatos de JPG -->
+  <!-- EXIF.js para metadatos JPG -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/exif-js/2.3.0/exif.min.js"></script>
   <style>
     /* Estilos generales */
@@ -44,6 +44,7 @@
     #timeDisplay { margin: 10px 0; }
     #progressBar { width: 100%; }
     #controls { margin: 10px 0; }
+    /* Reordenamos los botones: Shuffle, Atrás, Play/Pausa, Adelante, Repeat */
     #controls button {
       padding: 8px 12px;
       margin: 0 3px;
@@ -52,12 +53,9 @@
       border: none;
       cursor: pointer;
     }
-    /* Botones adicionales: repeat y shuffle */
-    #repeatButton, #shuffleButton {
-      padding: 8px 12px;
-      margin: 0 3px;
-      font-size: 14px;
-      cursor: pointer;
+    /* Estilo para indicar que un botón está activo (subrayado) */
+    #controls button.active {
+      border-bottom: 2px solid blue;
     }
     #volumeContainer { margin-top: 10px; }
     #volumeSlider { width: 80%; }
@@ -98,7 +96,8 @@
       margin-left: 10px;
       font-size: 12px;
     }
-    /* Estilo de selección en modo normal (azul) y en modo edición (rojo) se asigna en el updatePlaylistUI */
+    /* Los colores de selección: en modo normal (azul) y modo edición (rojo) */
+    /* Se asignan en línea en updatePlaylistUI */
     
     /* Controles externos de edición */
     #playlistControls {
@@ -141,11 +140,12 @@
     </div>
     <input type="range" id="progressBar" min="0" value="0" step="1">
     <div id="controls">
+      <!-- Nuevo orden: Shuffle, Atrás, Play/Pausa, Adelante, Repeat -->
+      <button id="shuffleButton">🔀</button>
       <button id="prevButton">⏮️</button>
       <button id="playPauseButton">▶️</button>
       <button id="nextButton">⏭️</button>
       <button id="repeatButton">🔁</button>
-      <button id="shuffleButton">🔀</button>
     </div>
     <div id="volumeContainer">
       <label for="volumeSlider">Volumen:</label>
@@ -197,7 +197,7 @@
     let recentHistory = [];
     let editMode = false;  // Modo edición
     
-    // REFERENCIAS DEL MINI REPRODUCTOR y otros
+    // REFERENCIAS DEL MINI REPRODUCTOR y demás elementos
     const coverArt = document.getElementById('coverArt');
     const trackTitleElem = document.getElementById('trackTitle');
     const trackAlbumElem = document.getElementById('trackAlbum');
@@ -216,7 +216,7 @@
     const youtubePlayerContainer = document.getElementById('youtubePlayerContainer');
     let youtubePlayer;
     
-    // Elementos de carga e importación
+    // ELEMENTOS DE CARGA / IMPORTACIÓN
     const fileInput = document.getElementById('fileInput');
     const youtubeURLInput = document.getElementById('youtubeURLInput');
     const addYoutubeButton = document.getElementById('addYoutubeButton');
@@ -224,7 +224,7 @@
     const addJpgButton = document.getElementById('addJpgButton');
     const jpgFileInput = document.getElementById('jpgFileInput');
     
-    // Elementos del listado (Playlist)
+    // ELEMENTOS DEL LISTADO (PLAYLIST)
     const playlistUI = document.getElementById('playlist');
     const toggleEditBtn = document.getElementById('toggleEdit');
     const editButtons = document.getElementById('editButtons');
@@ -235,7 +235,6 @@
     // --- MINI REPRODUCTOR ---
     function updateMiniPlayerUI() {
       if (!playlist[currentIndex]) {
-        // Si no hay pista, limpiar la info
         coverArt.src = "placeholder-cover.jpg";
         trackTitleElem.textContent = "";
         trackAlbumElem.textContent = "";
@@ -307,7 +306,6 @@
     }
     
     function nextTrack() {
-      // Si está en modo shuffle, seleccionar una aleatoria
       if (shuffleMode) {
         let allowed = [];
         playlist.forEach((_, i) => { if (i !== currentIndex) allowed.push(i); });
@@ -315,7 +313,6 @@
           currentIndex = allowed[Math.floor(Math.random() * allowed.length)];
         }
       } else {
-        // Modo normal: si no es el último, avanzar; si es el último y repeat está activo, volver al primero; si no, detener
         if (currentIndex < playlist.length - 1) {
           currentIndex++;
         } else {
@@ -323,7 +320,7 @@
             currentIndex = 0;
           } else {
             pauseCurrentTrack();
-            return; // No hay siguiente pista, fin de lista
+            return;
           }
         }
       }
@@ -379,7 +376,6 @@
       progressBar.value = cur;
     }
     
-    // Cuando finaliza la pista en audio (local)
     audioPlayer.addEventListener('ended', () => {
       nextTrack();
     });
@@ -449,24 +445,25 @@
         li.appendChild(titleSpan);
         li.appendChild(timeSpan);
         
-        // Aplicar el estilo de selección según el modo:
+        // Colorear según modo: en edicion, rojo; en normal, azul.
         if (editMode) {
           li.style.backgroundColor = item.selected ? "#ffd7d7" : "";
         } else {
           li.style.backgroundColor = item.selected ? "#aecaff" : "";
         }
         
-        // Clic en la lista:
+        // Al hacer clic:
         li.addEventListener('click', () => {
           if (editMode) {
-            // Permitir selección múltiple (alternar selección)
             item.selected = !item.selected;
           } else {
-            // En modo normal: se deseleccionan todas y se selecciona la tocada
+            // En modo normal, al hacer clic se reproduce la pista inmediatamente.
             playlist.forEach((track, idx) => {
               track.selected = (idx === index);
             });
             currentIndex = index;
+            loadCurrentTrack();
+            playCurrentTrack();
           }
           updatePlaylistUI();
         });
@@ -475,11 +472,11 @@
       });
     }
     
-    // Botón para alternar modo edición
+    // Botón para alternar el modo edición
     toggleEditBtn.addEventListener('click', () => {
       editMode = !editMode;
       if (!editMode) {
-        // Al salir del modo edición, en modo normal se conserva solo la pista actual como seleccionada
+        // Al salir de edición, conservar únicamente la pista actual seleccionada.
         playlist.forEach((track, idx) => { track.selected = (idx === currentIndex); });
       }
       toggleEditBtn.textContent = editMode ? "Finalizar Edición" : "Editar Lista";
@@ -487,7 +484,7 @@
       updatePlaylistUI();
     });
     
-    // Botones de edición (sólo en modo edición)
+    // Botones en modo edición
     selectAllBtn.addEventListener('click', () => {
       playlist.forEach(track => { track.selected = true; });
       updatePlaylistUI();
@@ -500,17 +497,15 @@
     
     deleteSelectedBtn.addEventListener('click', () => {
       if (confirm("¿Seguro que deseas eliminar las pistas seleccionadas?")) {
-        // Si se elimina la pista en reproducción, reseteamos el mini reproductor.
         const deletingCurrent = playlist[currentIndex] && playlist[currentIndex].selected;
         playlist.forEach(track => {
           if (track.selected && track.url) { URL.revokeObjectURL(track.url); }
         });
         playlist = playlist.filter(item => !item.selected);
         if (deletingCurrent || currentIndex >= playlist.length) {
-          audioPlayer.pause();
+          pauseCurrentTrack();
           audioPlayer.src = "";
           if (youtubePlayer && youtubePlayer.stopVideo) youtubePlayer.stopVideo();
-          // Actualizamos la UI del mini reproductor
           updateMiniPlayerUI();
           currentIndex = 0;
         }
@@ -518,7 +513,7 @@
       }
     });
     
-    // Manejador para la tecla espacio (solo en modo normal)
+    // Tecla espacio en modo normal para play/pausa
     document.addEventListener('keydown', (e) => {
       if (!editMode && e.code === 'Space') {
         e.preventDefault();
@@ -527,11 +522,9 @@
     });
     
     // --- CARGA DE PISTAS ---
-    
     // Locales
     fileInput.addEventListener('change', (e) => {
       const files = Array.from(e.target.files);
-      // Liberar URLs previas
       playlist.forEach(track => { if(track.url) URL.revokeObjectURL(track.url); });
       files.forEach(file => {
         if (file.type.startsWith("audio")) {
@@ -539,7 +532,7 @@
           playlist.push({ type: 'local', name: file.name, url: url, duration: "00:00", selected: false });
         }
       });
-      fileInput.value = ""; // Resetear input
+      fileInput.value = "";
       if (playlist.length > 0) {
         currentIndex = 0;
         loadCurrentTrack();
@@ -550,13 +543,12 @@
       }
     });
     
-    // YouTube: NO se auto-reproduce al agregar
+    // YouTube: sin auto-play al agregar
     addYoutubeButton.addEventListener('click', () => {
       const url = youtubeURLInput.value.trim();
       if (url) {
         const videoId = extractYouTubeID(url);
         if (videoId) {
-          // Agregamos la pista SIN iniciar reproducción automáticamente
           playlist.push({ type: 'youtube', name: "YouTube: " + videoId, url: url, videoId: videoId, duration: "00:00", selected: false });
           youtubeURLInput.value = "";
           if (playlist.length === 1) {
@@ -643,7 +635,7 @@
       }
     });
     
-    // Importar desde JPG (YouTube vinculados en metadatos)
+    // Importar desde JPG
     addJpgButton.addEventListener('click', function() {
       jpgFileInput.click();
     });
@@ -685,12 +677,20 @@
     // --- BOTONES DE MINI REPRODUCTOR: Repeat y Shuffle ---
     repeatButton.addEventListener('click', () => {
       repeatMode = !repeatMode;
-      repeatButton.textContent = repeatMode ? "🔁 (On)" : "🔁";
+      if (repeatMode) {
+        repeatButton.classList.add("active");
+      } else {
+        repeatButton.classList.remove("active");
+      }
     });
     
     shuffleButton.addEventListener('click', () => {
       shuffleMode = !shuffleMode;
-      shuffleButton.textContent = shuffleMode ? "🔀 (On)" : "🔀";
+      if (shuffleMode) {
+        shuffleButton.classList.add("active");
+      } else {
+        shuffleButton.classList.remove("active");
+      }
     });
     
   </script>
