@@ -67,29 +67,23 @@
     #progressBar {
       width: 100%;
     }
-#controls {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 0;       /* Elimina la separación extra entre elementos */
-  padding: 0;  
-  margin: 0;
-}
-
-
-    
     /* Controles */
     #controls {
-      margin: 10px 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0; /* Elimina la separación extra */
+      padding: 0;
+      margin: 0;
     }
     #controls button {
-  padding: 6px 8px; /* Reduce el espacio interno */
-  margin: 0 0px;  /* Reduce la separación entre botones */
-  font-size: 22px; /* Mantiene legibilidad */
-  background: none;
-  border: none;
-  cursor: pointer;
-}
+      padding: 6px 8px;
+      margin: 0;
+      font-size: 22px;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
     /* Volumen */
     #volumeContainer {
       margin-top: 10px;
@@ -161,15 +155,14 @@
     </div>
     <input type="range" id="progressBar" min="0" value="0" step="1">
     <div id="controls">
-  <button id="shuffleButton">🔀</button>
-  <button id="prevButton">⏮️</button>
-  <button id="rewindButton">⏪</button>
-  <button id="playPauseButton">▶️</button>
-  <button id="forwardButton">⏩</button>
-  <button id="nextButton">⏭️</button>
-  <button id="repeatButton">🔁</button>
-</div>
-
+      <button id="shuffleButton">🔀</button>
+      <button id="prevButton">⏮️</button>
+      <button id="rewindButton">⏪</button>
+      <button id="playPauseButton">▶️</button>
+      <button id="forwardButton">⏩</button>
+      <button id="nextButton">⏭️</button>
+      <button id="repeatButton">🔁</button>
+    </div>
     <div id="volumeContainer">
       <label for="volumeSlider">Volumen:</label>
       <input type="range" id="volumeSlider" min="0" max="100" value="100">
@@ -180,7 +173,7 @@
   <audio id="audioPlayer" style="display: none;"></audio>
   <div id="youtubePlayerContainer" style="display: none;"></div>
 
-<!-- Playlist -->
+  <!-- Playlist -->
   <div id="playlistContainer">
     <ul id="playlist"></ul>
   </div>
@@ -209,7 +202,8 @@
     let currentIndex = 0;
     let shuffleOn = false;
     let recentHistory = [];
-    
+    let db; // Variable global para IndexedDB
+
     // REFERENCIAS AL DOM
     const coverArt = document.getElementById('coverArt');
     const trackTitleElem = document.getElementById('trackTitle');
@@ -232,22 +226,93 @@
     const addYoutubeButton = document.getElementById('addYoutubeButton');
     const playlistUI = document.getElementById('playlist');
     const htmlFileInput = document.getElementById('htmlFileInput');
-    
-    // Elementos para cargar JPG con metadatos
     const addJpgButton = document.getElementById('addJpgButton');
     const jpgFileInput = document.getElementById('jpgFileInput');
+
+    /* --------------------- IndexedDB --------------------- */
+    function initDB(callback) {
+      const request = indexedDB.open("FistrotubeDB", 1);
+      request.onupgradeneeded = function(event) {
+        const dbInstance = event.target.result;
+        if (!dbInstance.objectStoreNames.contains("playlist")) {
+          dbInstance.createObjectStore("playlist", { keyPath: "id", autoIncrement: true });
+        }
+      };
+      request.onsuccess = function(event) {
+        db = event.target.result;
+        if (callback) callback();
+      };
+      request.onerror = function(event) {
+        console.error("IndexedDB error:", event.target.errorCode);
+      };
+    }
     
-    // Función para actualizar la UI del mini reproductor (Portadas y metadatos)
+    function savePlaylistToDB() {
+      if (!db) {
+        console.error("IndexedDB no está inicializado.");
+        return;
+      }
+      const transaction = db.transaction("playlist", "readwrite");
+      const store = transaction.objectStore("playlist");
+      const clearRequest = store.clear();
+      clearRequest.onsuccess = function() {
+        playlist.forEach(item => {
+          store.add(item);
+        });
+      };
+      clearRequest.onerror = function(e) {
+        console.error("Error al limpiar la base de datos:", e);
+      };
+    }
+    
+    function loadPlaylistFromDB(callback) {
+      if (!db) {
+        console.error("IndexedDB no está inicializado.");
+        if (callback) callback();
+        return;
+      }
+      const transaction = db.transaction("playlist", "readonly");
+      const store = transaction.objectStore("playlist");
+      const getAllRequest = store.getAll();
+      getAllRequest.onsuccess = function() {
+        const storedPlaylist = getAllRequest.result;
+        if (storedPlaylist && storedPlaylist.length > 0) {
+          playlist = storedPlaylist.map(item => {
+            if (item.type === 'local' && item.file) {
+              item.url = URL.createObjectURL(item.file);
+            }
+            if (item.type === 'youtube' && item.coverFile) {
+              item.cover = URL.createObjectURL(item.coverFile);
+            }
+            return item;
+          });
+          currentIndex = 0;
+          updatePlaylistUI();
+          loadCurrentTrack();
+        }
+        if (callback) callback();
+      };
+      getAllRequest.onerror = function(e) {
+        console.error("Error al cargar la playlist desde la DB:", e);
+        if (callback) callback();
+      };
+    }
+    /* ------------------------------------------------------- */
+
+    // Inicializamos la DB e intentamos cargar la playlist guardada
+    initDB(function() {
+      loadPlaylistFromDB();
+    });
+
+    /* Función para actualizar la UI del mini reproductor */
     function updateMiniPlayerUI() {
       if (!playlist[currentIndex]) return;
       const item = playlist[currentIndex];
       if (item.cover && item.cover.trim() !== "") {
-        // Portada personalizada: se usa la imagen y se aplica "custom-cover"
         coverArt.src = item.cover.trim();
         coverArt.classList.add("custom-cover");
         coverArt.classList.remove("youtube-cover");
       } else {
-        // Para videos de YouTube sin portada personalizada, se usa la miniatura estándar
         coverArt.src = `https://img.youtube.com/vi/${item.videoId}/hqdefault.jpg`;
         coverArt.classList.add("youtube-cover");
         coverArt.classList.remove("custom-cover");
@@ -328,6 +393,7 @@
       loadCurrentTrack();
       playCurrentTrack();
       updatePlaylistUI();
+      savePlaylistToDB();
     }
     
     function prevTrack() {
@@ -350,6 +416,7 @@
       loadCurrentTrack();
       playCurrentTrack();
       updatePlaylistUI();
+      savePlaylistToDB();
     }
     
     function formatTime(sec) {
@@ -421,8 +488,7 @@
       playlist.forEach((item, i) => {
         const li = document.createElement('li');
         const infoSpan = document.createElement('span');
-        // Se muestra información básica; la duración se muestra como "00:00" por defecto
-        const durationStr = "00:00";
+        const durationStr = "00:00"; // Por defecto
         infoSpan.textContent = (item.artist ? item.artist + " - " : "") + (item.title || item.name) + " (" + durationStr + ")";
         li.appendChild(infoSpan);
         
@@ -469,30 +535,33 @@
         }
       }
       updatePlaylistUI();
+      savePlaylistToDB();
     }
     
     playPauseButton.addEventListener('click', togglePlayPause);
     prevButton.addEventListener('click', prevTrack);
     nextButton.addEventListener('click', nextTrack);
-
-rewindButton.addEventListener("click", () => {
-  const item = playlist[currentIndex];
-  if (item.type === "local") {
-    audioPlayer.currentTime = Math.max(0, audioPlayer.currentTime - 15);
-  } else if (item.type === "youtube" && youtubePlayer) {
-    youtubePlayer.seekTo(Math.max(0, youtubePlayer.getCurrentTime() - 15), true);
-  }
-});
-
-forwardButton.addEventListener("click", () => {
-  const item = playlist[currentIndex];
-  if (item.type === "local") {
-    audioPlayer.currentTime = Math.min(audioPlayer.duration, audioPlayer.currentTime + 15);
-  } else if (item.type === "youtube" && youtubePlayer) {
-    youtubePlayer.seekTo(Math.min(youtubePlayer.getDuration(), youtubePlayer.getCurrentTime() + 15), true);
-  }
-});
-
+    
+    const rewindButton = document.getElementById("rewindButton");
+    const forwardButton = document.getElementById("forwardButton");
+    
+    rewindButton.addEventListener("click", () => {
+      const item = playlist[currentIndex];
+      if (item.type === "local") {
+        audioPlayer.currentTime = Math.max(0, audioPlayer.currentTime - 15);
+      } else if (item.type === "youtube" && youtubePlayer) {
+        youtubePlayer.seekTo(Math.max(0, youtubePlayer.getCurrentTime() - 15), true);
+      }
+    });
+    
+    forwardButton.addEventListener("click", () => {
+      const item = playlist[currentIndex];
+      if (item.type === "local") {
+        audioPlayer.currentTime = Math.min(audioPlayer.duration, audioPlayer.currentTime + 15);
+      } else if (item.type === "youtube" && youtubePlayer) {
+        youtubePlayer.seekTo(Math.min(youtubePlayer.getDuration(), youtubePlayer.getCurrentTime() + 15), true);
+      }
+    });
     
     /* Cargar pistas locales */
     fileInput.addEventListener('change', (e) => {
@@ -500,7 +569,8 @@ forwardButton.addEventListener("click", () => {
       Array.from(files).forEach(file => {
         if (file.type.startsWith("audio")) {
           const url = URL.createObjectURL(file);
-          playlist.push({ type: 'local', name: file.name, url: url });
+          // Se guarda la propiedad "file" para poder reconstruir la URL en recarga
+          playlist.push({ type: 'local', name: file.name, url: url, file: file });
         }
       });
       fileInput.value = "";
@@ -508,6 +578,7 @@ forwardButton.addEventListener("click", () => {
         currentIndex = 0;
         loadCurrentTrack();
         updatePlaylistUI();
+        savePlaylistToDB();
       }
     });
     
@@ -523,6 +594,7 @@ forwardButton.addEventListener("click", () => {
             currentIndex = 0;
             loadCurrentTrack();
             updatePlaylistUI();
+            savePlaylistToDB();
           }
         }
       }
@@ -576,6 +648,7 @@ forwardButton.addEventListener("click", () => {
           }
         });
         updatePlaylistUI();
+        savePlaylistToDB();
       }
       reader.readAsText(file);
     });
@@ -593,12 +666,13 @@ forwardButton.addEventListener("click", () => {
               playlist.push({ type: "youtube", title, videoId, url: `https://www.youtube.com/watch?v=${videoId}` });
             });
             updatePlaylistUI();
+            savePlaylistToDB();
           })
           .catch(err => console.error("Error al importar la playlist:", err));
       }
     });
     
-    /* NUEVA FUNCIONALIDAD: Cargar archivo JPG y extraer sus metadatos */
+    /* Cargar archivo JPG y extraer sus metadatos */
     addJpgButton.addEventListener('click', function() {
       jpgFileInput.click();
     });
@@ -606,12 +680,9 @@ forwardButton.addEventListener("click", () => {
     jpgFileInput.addEventListener('change', function(event) {
       const file = event.target.files[0];
       if (!file) return;
-      // Usar EXIF.js para leer los metadatos del archivo JPG
       EXIF.getData(file, function() {
-        // Extraer algunas etiquetas; se asume que en "UserComment" se encuentra el enlace de YouTube.
         const artist = EXIF.getTag(this, "Artist") || "";
         const title = EXIF.getTag(this, "ImageDescription") || file.name;
-        // Intentamos obtener un posible "Album" (aunque no suele estar presente en una imagen)
         const album = EXIF.getTag(this, "Album") || "";
         const userComment = EXIF.getTag(this, "UserComment") || "";
         const videoId = extractYouTubeID(userComment);
@@ -621,9 +692,8 @@ forwardButton.addEventListener("click", () => {
           return;
         }
         const youtubeUrl = "https://www.youtube.com/watch?v=" + videoId;
-        // Creamos una URL para mostrar la imagen como portada
         const coverUrl = URL.createObjectURL(file);
-        // Agregamos el nuevo item a la playlist
+        // Se guarda además el archivo para regenerar la URL en futuras sesiones.
         const newItem = {
           type: "youtube",
           artist: artist,
@@ -631,7 +701,8 @@ forwardButton.addEventListener("click", () => {
           album: album,
           url: youtubeUrl,
           videoId: videoId,
-          cover: coverUrl
+          cover: coverUrl,
+          coverFile: file
         };
         playlist.push(newItem);
         if (playlist.length === 1) {
@@ -639,6 +710,7 @@ forwardButton.addEventListener("click", () => {
           loadCurrentTrack();
         }
         updatePlaylistUI();
+        savePlaylistToDB();
       });
     });
     
