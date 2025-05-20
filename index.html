@@ -9,30 +9,31 @@
   <!-- EXIF.js para metadatos JPG -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/exif-js/2.3.0/exif.min.js"></script>
   <style>
-    /* Estilos generales */
+    /* ESTILOS GENERALES */
     body {
       font-family: Arial, sans-serif;
       background: #f4f4f4;
       margin: 0;
       padding: 20px;
     }
-    /* MINI REPRODUCTOR */
+    /* MINI REPRODUCTOR – Conserva la estructura y tamaños originales */
     #miniPlayer {
-      background: #fff;
-      border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      width: 350px; /* Fijo */
+      max-width: 350px;
       margin: 0 auto;
       padding: 15px;
       text-align: center;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
-    /* Contenedor de la portada: siempre 350 x 350 (cuadrado) */
+    /* CONTENEDOR DE PORTADA: usa aspect-ratio 1/1 para mantener lo cuadrado,
+       sin fijar un ancho/alto que rompa la estructura */
     #coverContainer {
-      width: 350px;
-      height: 350px;
+      width: 100%;
+      aspect-ratio: 1/1;
       position: relative;
     }
-    /* La imagen de cover o el placeholder ocuparán todo el contenedor */
+    /* La imagen o placeholder ocupa el 100% del contenedor */
     #coverContainer img,
     #coverContainer div.placeholder {
       width: 100%;
@@ -52,15 +53,29 @@
       font-size: 24px;
       font-weight: bold;
     }
-    .custom-cover { object-fit: contain; }
-    .youtube-cover { object-fit: cover; background-color: #000; }
-    #trackInfo { margin-top: 10px; }
-    #trackTitle { font-size: 18px; font-weight: bold; }
-    #trackAlbum { font-size: 16px; color: #666; }
-    #trackArtist { font-size: 14px; color: #666; }
-    #timeDisplay { margin: 10px 0; }
-    #progressBar { width: 100%; }
-    /* Controles del mini reproductor */
+    /* Información de la pista */
+    #trackInfo {
+      margin-top: 10px;
+    }
+    #trackTitle {
+      font-size: 18px;
+      font-weight: bold;
+    }
+    #trackAlbum {
+      font-size: 16px;
+      color: #666;
+    }
+    #trackArtist {
+      font-size: 14px;
+      color: #666;
+    }
+    #timeDisplay {
+      margin: 10px 0;
+    }
+    #progressBar {
+      width: 100%;
+    }
+    /* Controles del mini reproductor – no se modifican sus posiciones */
     #controls {
       margin: 10px 0;
       display: flex;
@@ -76,12 +91,16 @@
       border: none;
       cursor: pointer;
     }
-    /* Efecto visual: subrayado para botones activos */
+    /* Subrayado para botones activos (Repeat y Shuffle) */
     #controls button.active {
       border-bottom: 2px solid blue;
     }
-    #volumeContainer { margin-top: 10px; }
-    #volumeSlider { width: 80%; }
+    #volumeContainer {
+      margin-top: 10px;
+    }
+    #volumeSlider {
+      width: 80%;
+    }
     /* PLAYLIST */
     #playlistSection {
       max-width: 350px;
@@ -119,8 +138,7 @@
       margin-left: 10px;
       font-size: 12px;
     }
-    /* Los colores de selección se asignan en updatePlaylistUI: en modo normal (azul) y en modo edición (rojo) */
-    
+    /* Los colores de selección se asignan en updatePlaylistUI: modo normal (azul) y edición (rojo) */
     /* Controles externos de edición */
     #playlistControls {
       text-align: center;
@@ -150,7 +168,7 @@
   <!-- MINI REPRODUCTOR -->
   <div id="miniPlayer">
     <div id="coverContainer">
-      <!-- Aquí se insertará la imagen de cover o el placeholder -->
+      <!-- Se insertará la imagen o placeholder aquí -->
       <img id="coverArt" src="placeholder-cover.jpg" alt="Portada">
     </div>
     <div id="trackInfo">
@@ -175,7 +193,7 @@
     </div>
   </div>
   
-  <!-- Jugadores ocultos: audio y YouTube -->
+  <!-- Jugadores ocultos -->
   <audio id="audioPlayer" style="display: none;"></audio>
   <div id="youtubePlayerContainer" style="display: none;"></div>
   
@@ -197,15 +215,12 @@
   <!-- SECCIÓN DE CARGA DE PISTAS -->
   <div id="loadSection">
     <h3>Cargar Pistas</h3>
-    <input type="file" id="fileInput" accept="audio/*" multiple>
-    <br>
-    <input type="text" id="youtubeURLInput" placeholder="Pegar URL de YouTube">
-    <br>
+    <input type="file" id="fileInput" accept="audio/*" multiple><br>
+    <input type="text" id="youtubeURLInput" placeholder="Pegar URL de YouTube"><br>
     <button id="addYoutubeButton">Agregar YouTube</button>
     <button id="importHtmlButton">Importar desde HTML</button>
     <button id="importPlaylistButton">Importar desde YouTube</button>
-    <input type="file" id="htmlFileInput" accept=".html" style="display: none;">
-    <br>
+    <input type="file" id="htmlFileInput" accept=".html" style="display: none;"><br>
     <input type="file" id="jpgFileInput" accept="image/jpeg" style="display: none;">
     <button id="addJpgButton">Agregar desde JPG</button>
   </div>
@@ -218,7 +233,7 @@
     let repeatMode = false;
     let editMode = false;  // Modo edición (selección múltiple)
     let shuffleQueue = []; // Para shuffle: índices pendientes
-    let shuffleHistory = []; // Historial de índices en shuffle
+    let shuffleHistory = []; // Historial en shuffle
 
     /* REFERENCIAS */
     const coverArt = document.getElementById('coverArt');
@@ -248,7 +263,7 @@
     const addJpgButton = document.getElementById('addJpgButton');
     const jpgFileInput = document.getElementById('jpgFileInput');
     
-    // ELEMENTOS DEL LISTADO
+    // ELEMENTOS DEL LISTADO (PLAYLIST)
     const playlistUI = document.getElementById('playlist');
     const toggleEditBtn = document.getElementById('toggleEdit');
     const editButtons = document.getElementById('editButtons');
@@ -259,7 +274,7 @@
     /* FUNCIONES DEL MINI REPRODUCTOR */
     function updateMiniPlayerUI() {
       if (!playlist[currentIndex]) {
-        // Si no hay pista, se muestra el placeholder
+        // Si no hay pista, mostrar placeholder en coverContainer y limpiar info
         coverContainer.innerHTML = "";
         let placeholder = document.createElement("div");
         placeholder.className = "placeholder";
@@ -275,20 +290,22 @@
         return;
       }
       const item = playlist[currentIndex];
-      // Actualizar la portada: si se tiene cover definido, se usa; si es YouTube, se usa la miniatura; si no, se muestra el placeholder.
       if (item.cover && item.cover.trim() !== "") {
+        // Usar cover personalizado
         coverContainer.innerHTML = "";
         let img = document.createElement("img");
         img.src = item.cover.trim();
         img.alt = "Cover";
         coverContainer.appendChild(img);
       } else if (item.videoId) {
+        // Usar miniatura de YouTube
         coverContainer.innerHTML = "";
         let img = document.createElement("img");
         img.src = `https://img.youtube.com/vi/${item.videoId}/hqdefault.jpg`;
         img.alt = "Cover";
         coverContainer.appendChild(img);
       } else {
+        // Mostrar placeholder
         coverContainer.innerHTML = "";
         let placeholder = document.createElement("div");
         placeholder.className = "placeholder";
@@ -312,11 +329,11 @@
         audioPlayer.style.display = 'block';
         youtubePlayerContainer.style.display = 'none';
       } else if (item.type === 'youtube') {
-        // Asegurarse de no auto-reproducir: solo cargar la pista sin play.
         audioPlayer.pause();
         audioPlayer.style.display = 'none';
         youtubePlayerContainer.style.display = 'block';
-        if (youtubePlayer) youtubePlayer.loadVideoById(item.videoId);
+        // Usar cueVideoById para cargar la pista sin auto-play
+        if (youtubePlayer) youtubePlayer.cueVideoById(item.videoId);
       }
     }
     
@@ -350,39 +367,35 @@
       }
     }
     
-    /* Función para el botón Atrás:
-       Si la pista actual lleva más de 3 segundos, reinicia esa misma pista.
-       De lo contrario, pasa a la pista anterior.
-    */
+    /* Botón "Atrás": si hay más de 3 segundos transcurridos, reinicia; de lo contrario, pasa a la anterior */
     function prevTrack() {
       if (playlist.length === 0) return;
       let curTime = 0;
       const item = playlist[currentIndex];
-      if(item.type === "local") {
+      if (item.type === "local") {
         curTime = audioPlayer.currentTime;
-      } else if(item.type === "youtube" && youtubePlayer && youtubePlayer.getCurrentTime) {
+      } else if (item.type === "youtube" && youtubePlayer && youtubePlayer.getCurrentTime) {
         curTime = youtubePlayer.getCurrentTime();
       }
       if (curTime > 3) {
-        // Reiniciar la pista actual
-        if(item.type === "local") {
+        // Reinicia la pista actual
+        if (item.type === "local") {
           audioPlayer.currentTime = 0;
         } else if (item.type === "youtube" && youtubePlayer) {
           youtubePlayer.seekTo(0, true);
         }
         return;
       } else {
-        // Retrocede a la pista anterior
-        if(shuffleMode) {
+        if (shuffleMode) {
           if (shuffleHistory.length > 0) {
             shuffleQueue.unshift(currentIndex);
             currentIndex = shuffleHistory.pop();
           }
         } else {
-          if(currentIndex > 0) {
+          if (currentIndex > 0) {
             currentIndex--;
           } else {
-            if(repeatMode) {
+            if (repeatMode) {
               currentIndex = playlist.length - 1;
             } else {
               pauseCurrentTrack();
@@ -399,16 +412,16 @@
     function nextTrack() {
       if (playlist.length === 0) return;
       if (shuffleMode) {
-        if(shuffleQueue.length === 0) {
+        if (shuffleQueue.length === 0) {
           generateShuffleQueue();
         }
         shuffleHistory.push(currentIndex);
         currentIndex = shuffleQueue.shift();
       } else {
-        if(currentIndex < playlist.length - 1) {
+        if (currentIndex < playlist.length - 1) {
           currentIndex++;
         } else {
-          if(repeatMode) {
+          if (repeatMode) {
             currentIndex = 0;
           } else {
             pauseCurrentTrack();
@@ -421,15 +434,14 @@
       updatePlaylistUI();
     }
     
-    /* Genera el queue para shuffle sin repetir */
     function generateShuffleQueue() {
       let indices = [];
-      for(let i = 0; i < playlist.length; i++) {
-        if(i !== currentIndex) {
+      for (let i = 0; i < playlist.length; i++) {
+        if (i !== currentIndex) {
           indices.push(i);
         }
       }
-      for(let i = indices.length - 1; i > 0; i--) {
+      for (let i = indices.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [indices[i], indices[j]] = [indices[j], indices[i]];
       }
@@ -444,13 +456,13 @@
     }
     
     function updateTime() {
-      if(!playlist[currentIndex]) return;
+      if (!playlist[currentIndex]) return;
       const item = playlist[currentIndex];
       let cur = 0, dur = 0;
-      if(item.type === 'local') {
+      if (item.type === 'local') {
         cur = audioPlayer.currentTime;
         dur = audioPlayer.duration || 0;
-      } else if(item.type === 'youtube' && youtubePlayer && youtubePlayer.getCurrentTime) {
+      } else if (item.type === 'youtube' && youtubePlayer && youtubePlayer.getCurrentTime) {
         cur = youtubePlayer.getCurrentTime();
         dur = youtubePlayer.getDuration();
       }
@@ -466,7 +478,7 @@
     
     setInterval(updateTime, 500);
     audioPlayer.addEventListener('loadedmetadata', () => {
-      if(playlist[currentIndex]) {
+      if (playlist[currentIndex]) {
         playlist[currentIndex].duration = audioPlayer.duration;
       }
       updateTime();
@@ -475,9 +487,9 @@
     
     progressBar.addEventListener('input', () => {
       const item = playlist[currentIndex];
-      if(item.type === 'local') {
+      if (item.type === 'local') {
         audioPlayer.currentTime = progressBar.value;
-      } else if(item.type === 'youtube' && youtubePlayer) {
+      } else if (item.type === 'youtube' && youtubePlayer) {
         youtubePlayer.seekTo(progressBar.value, true);
       }
     });
@@ -485,7 +497,7 @@
     volumeSlider.addEventListener('input', () => {
       const vol = volumeSlider.value;
       audioPlayer.volume = vol / 100;
-      if(youtubePlayer && youtubePlayer.setVolume) {
+      if (youtubePlayer && youtubePlayer.setVolume) {
         youtubePlayer.setVolume(vol);
       }
     });
@@ -509,7 +521,7 @@
     }
     
     function onYouTubePlayerStateChange(event) {
-      if(event.data === YT.PlayerState.ENDED) {
+      if (event.data === YT.PlayerState.ENDED) {
         nextTrack();
       }
     }
@@ -528,17 +540,17 @@
         timeSpan.textContent = durationStr;
         li.appendChild(titleSpan);
         li.appendChild(timeSpan);
-        // Colorear según modo: en modo edición (rojo) y en modo normal (azul)
-        if(editMode) {
+        // Asignar color de fondo según modo: modo edición (rojo) y modo normal (azul)
+        if (editMode) {
           li.style.backgroundColor = item.selected ? "#ffd7d7" : "";
         } else {
           li.style.backgroundColor = item.selected ? "#aecaff" : "";
         }
         li.addEventListener("click", () => {
-          if(editMode) {
+          if (editMode) {
             item.selected = !item.selected;
           } else {
-            // Modo normal: al hacer clic se reproduce inmediatamente la pista
+            // En modo normal, se selecciona y se reproduce la pista inmediatamente
             playlist.forEach((track, idx) => { track.selected = (idx === index); });
             currentIndex = index;
             loadCurrentTrack();
@@ -553,7 +565,7 @@
     /* Botón para alternar modo edición */
     toggleEditBtn.addEventListener("click", () => {
       editMode = !editMode;
-      if(!editMode) {
+      if (!editMode) {
         playlist.forEach((track, idx) => { track.selected = (idx === currentIndex); });
       }
       toggleEditBtn.textContent = editMode ? "Finalizar Edición" : "Editar Lista";
@@ -573,14 +585,14 @@
     });
     
     deleteSelectedBtn.addEventListener("click", () => {
-      if(confirm("¿Seguro que deseas eliminar las pistas seleccionadas?")) {
+      if (confirm("¿Seguro que deseas eliminar las pistas seleccionadas?")) {
         const deletingCurrent = playlist[currentIndex] && playlist[currentIndex].selected;
-        playlist.forEach(track => { if(track.selected && track.url) { URL.revokeObjectURL(track.url); } });
+        playlist.forEach(track => { if (track.selected && track.url) { URL.revokeObjectURL(track.url); } });
         playlist = playlist.filter(item => !item.selected);
-        if(deletingCurrent || currentIndex >= playlist.length) {
+        if (deletingCurrent || currentIndex >= playlist.length) {
           pauseCurrentTrack();
           audioPlayer.src = "";
-          if(youtubePlayer && youtubePlayer.stopVideo) youtubePlayer.stopVideo();
+          if (youtubePlayer && youtubePlayer.stopVideo) youtubePlayer.stopVideo();
           updateMiniPlayerUI();
           currentIndex = 0;
         }
@@ -590,7 +602,7 @@
     
     /* Tecla espacio en modo normal para play/pausa */
     document.addEventListener("keydown", (e) => {
-      if(!editMode && e.code === "Space") {
+      if (!editMode && e.code === "Space") {
         e.preventDefault();
         togglePlayPause();
       }
@@ -600,36 +612,36 @@
     // Locales
     fileInput.addEventListener("change", (e) => {
       const files = Array.from(e.target.files);
-      playlist.forEach(track => { if(track.url) URL.revokeObjectURL(track.url); });
+      playlist.forEach(track => { if (track.url) URL.revokeObjectURL(track.url); });
       files.forEach(file => {
-        if(file.type.startsWith("audio")) {
+        if (file.type.startsWith("audio")) {
           const url = URL.createObjectURL(file);
           playlist.push({ type: "local", name: file.name, url: url, duration: "00:00", selected: false });
         }
       });
       fileInput.value = "";
-      if(playlist.length > 0) {
+      if (playlist.length > 0) {
         currentIndex = 0;
         loadCurrentTrack();
-        if(!editMode) {
+        if (!editMode) {
           playlist.forEach((track, idx) => { track.selected = (idx === currentIndex); });
         }
         updatePlaylistUI();
       }
     });
     
-    // YouTube: sin auto-play al agregar
+    // YouTube: al agregar la pista, cargar sin reproducir (sin auto-play)
     addYoutubeButton.addEventListener("click", () => {
       const url = youtubeURLInput.value.trim();
-      if(url) {
+      if (url) {
         const videoId = extractYouTubeID(url);
-        if(videoId) {
+        if (videoId) {
           playlist.push({ type: "youtube", name: "YouTube: " + videoId, url: url, videoId: videoId, duration: "00:00", selected: false });
           youtubeURLInput.value = "";
-          if(playlist.length === 1) {
+          if (playlist.length === 1) {
             currentIndex = 0;
             loadCurrentTrack();
-            if(!editMode) {
+            if (!editMode) {
               playlist.forEach((track, idx) => { track.selected = (idx === currentIndex); });
             }
           }
@@ -642,12 +654,12 @@
       let videoId = null;
       const regExp = /[?&]v=([^&#]+)/;
       const match = url.match(regExp);
-      if(match && match[1]) {
+      if (match && match[1]) {
         videoId = match[1];
       } else {
         const shortRegExp = /youtu\.be\/([^?&#]+)/;
         const shortMatch = url.match(shortRegExp);
-        if(shortMatch && shortMatch[1]) {
+        if (shortMatch && shortMatch[1]) {
           videoId = shortMatch[1];
         }
       }
@@ -660,7 +672,7 @@
     });
     htmlFileInput.addEventListener("change", (e) => {
       const file = e.target.files[0];
-      if(!file) return;
+      if (!file) return;
       const reader = new FileReader();
       reader.onload = function(evt) {
         const data = evt.target.result;
@@ -673,7 +685,7 @@
           const title = row.querySelector("td.title")?.textContent.trim() || "";
           const album = row.querySelector("td.album")?.textContent.trim() || "";
           const url = row.querySelector("td.url")?.textContent.trim() || "";
-          if(url) {
+          if (url) {
             playlist.push({ 
               type: "youtube", 
               artist, 
@@ -695,7 +707,7 @@
     // Importar playlist de YouTube
     document.getElementById("importPlaylistButton").addEventListener("click", () => {
       const playlistId = prompt("Introduce el ID de la playlist de YouTube:");
-      if(playlistId) {
+      if (playlistId) {
         fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}&key=TU_API_KEY`)
           .then(response => response.json())
           .then(data => {
@@ -710,20 +722,20 @@
       }
     });
     
-    // Importar desde JPG
+    // Importar desde JPG – Al agregar, cargar sin reproducir
     addJpgButton.addEventListener("click", () => {
       jpgFileInput.click();
     });
     jpgFileInput.addEventListener("change", (event) => {
       const file = event.target.files[0];
-      if(!file) return;
+      if (!file) return;
       EXIF.getData(file, function() {
         const artist = EXIF.getTag(this, "Artist") || "";
         const title = EXIF.getTag(this, "ImageDescription") || file.name;
         const album = EXIF.getTag(this, "Album") || "";
         const userComment = EXIF.getTag(this, "UserComment") || "";
         const videoId = extractYouTubeID(userComment);
-        if(!videoId) {
+        if (!videoId) {
           alert("No se encontró un enlace de YouTube en los metadatos de la imagen.");
           return;
         }
@@ -741,7 +753,7 @@
           selected: false
         };
         playlist.push(newItem);
-        if(playlist.length === 1) {
+        if (playlist.length === 1) {
           currentIndex = 0;
           loadCurrentTrack();
         }
@@ -754,7 +766,7 @@
     nextButton.addEventListener("click", nextTrack);
     playPauseButton.addEventListener("click", togglePlayPause);
     
-    /* Botones de Repeat y Shuffle: ya se asignaron anteriormente en sus listeners */
+    /* Botones de Repeat y Shuffle ya tienen sus listeners en sus secciones arriba */
     
   </script>
 </body>
