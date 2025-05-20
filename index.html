@@ -205,23 +205,7 @@
   
   <script>
     // VARIABLES GLOBALES
-    const savedTracks = JSON.parse(localStorage.getItem("savedPlaylist")) || [];
-playlist = savedTracks.map(track => {
-  if (track.type === "local" && track.fileName) {
-    const storedFile = [...fileInput.files].find(file => file.name === track.fileName);
-    if (storedFile) {
-      track.url = URL.createObjectURL(storedFile); // Regenerar la URL
-      track.file = storedFile;
-    } else {
-      track.url = null; // Si el archivo no existe, evita errores
-    }
-  }
-  return track;
-});
-currentIndex = 0;
-updatePlaylistUI();
-
-
+    let playlist = [];
     let currentIndex = 0;
     let shuffleOn = false;
     let recentHistory = [];
@@ -431,19 +415,7 @@ updatePlaylistUI();
         nextTrack();
       }
     }
-
-    function savePlaylist() {
-  const storedTracks = playlist.map(track => ({
-    type: track.type,
-    name: track.name,
-    cover: track.cover || "",
-    videoId: track.videoId || "",
-    fileName: track.file ? track.file.name : null // Guarda el nombre del archivo
-  }));
-  localStorage.setItem("savedPlaylist", JSON.stringify(storedTracks));
-}
-
-
+    
     function updatePlaylistUI() {
       playlistUI.innerHTML = '';
       playlist.forEach((item, i) => {
@@ -532,7 +504,6 @@ forwardButton.addEventListener("click", () => {
         }
       });
       fileInput.value = "";
-      savePlaylist(); // Guarda la playlist en localStorage
       if (playlist.length > 0) {
         currentIndex = 0;
         loadCurrentTrack();
