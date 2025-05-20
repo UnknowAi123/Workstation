@@ -463,6 +463,25 @@
     playPauseButton.addEventListener('click', togglePlayPause);
     prevButton.addEventListener('click', prevTrack);
     nextButton.addEventListener('click', nextTrack);
+
+rewindButton.addEventListener("click", () => {
+  const item = playlist[currentIndex];
+  if (item.type === "local") {
+    audioPlayer.currentTime = Math.max(0, audioPlayer.currentTime - 15);
+  } else if (item.type === "youtube" && youtubePlayer) {
+    youtubePlayer.seekTo(Math.max(0, youtubePlayer.getCurrentTime() - 15), true);
+  }
+});
+
+forwardButton.addEventListener("click", () => {
+  const item = playlist[currentIndex];
+  if (item.type === "local") {
+    audioPlayer.currentTime = Math.min(audioPlayer.duration, audioPlayer.currentTime + 15);
+  } else if (item.type === "youtube" && youtubePlayer) {
+    youtubePlayer.seekTo(Math.min(youtubePlayer.getDuration(), youtubePlayer.getCurrentTime() + 15), true);
+  }
+});
+
     
     /* Cargar pistas locales */
     fileInput.addEventListener('change', (e) => {
