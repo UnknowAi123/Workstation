@@ -16,7 +16,7 @@
       margin: 0;
       padding: 20px;
     }
-    /* MINI REPRODUCTOR – Conserva la estructura y tamaños originales */
+    /* MINI REPRODUCTOR: Se conserva la estructura original */
     #miniPlayer {
       max-width: 350px;
       margin: 0 auto;
@@ -26,14 +26,13 @@
       border-radius: 8px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
-    /* CONTENEDOR DE PORTADA: usa aspect-ratio 1/1 para mantener lo cuadrado,
-       sin fijar un ancho/alto que rompa la estructura */
+    /* Contenedor de portada: usa aspect-ratio para mantener lo cuadrado */
     #coverContainer {
       width: 100%;
       aspect-ratio: 1/1;
       position: relative;
     }
-    /* La imagen o placeholder ocupa el 100% del contenedor */
+    /* La imagen o el placeholder ocuparán el 100% del contenedor */
     #coverContainer img,
     #coverContainer div.placeholder {
       width: 100%;
@@ -75,7 +74,7 @@
     #progressBar {
       width: 100%;
     }
-    /* Controles del mini reproductor – no se modifican sus posiciones */
+    /* Controles del mini reproductor */
     #controls {
       margin: 10px 0;
       display: flex;
@@ -91,7 +90,7 @@
       border: none;
       cursor: pointer;
     }
-    /* Subrayado para botones activos (Repeat y Shuffle) */
+    /* Botones activos (Shuffle y Repeat) muestran subrayado */
     #controls button.active {
       border-bottom: 2px solid blue;
     }
@@ -138,7 +137,19 @@
       margin-left: 10px;
       font-size: 12px;
     }
-    /* Los colores de selección se asignan en updatePlaylistUI: modo normal (azul) y edición (rojo) */
+    /* La pista activa se mostrará en negrita */
+    .currentTrack {
+      font-weight: bold;
+      background-color: #aecaff; /* color azul (puedes ajustarlo) */
+    }
+    /* En modo normal, la selección de pistas se muestra en gris (durante unos segundos) */
+    .selectedTrack {
+      background-color: #d3d3d3;
+    }
+    /* En modo edición, la selección se muestra en rojo */
+    .editSelected {
+      background-color: #ffd7d7;
+    }
     /* Controles externos de edición */
     #playlistControls {
       text-align: center;
@@ -233,7 +244,7 @@
     let repeatMode = false;
     let editMode = false;  // Modo edición (selección múltiple)
     let shuffleQueue = []; // Para shuffle: índices pendientes
-    let shuffleHistory = []; // Historial en shuffle
+    let shuffleHistory = []; // Historial para shuffle
 
     /* REFERENCIAS */
     const coverArt = document.getElementById('coverArt');
@@ -274,7 +285,6 @@
     /* FUNCIONES DEL MINI REPRODUCTOR */
     function updateMiniPlayerUI() {
       if (!playlist[currentIndex]) {
-        // Si no hay pista, mostrar placeholder en coverContainer y limpiar info
         coverContainer.innerHTML = "";
         let placeholder = document.createElement("div");
         placeholder.className = "placeholder";
@@ -290,22 +300,26 @@
         return;
       }
       const item = playlist[currentIndex];
+      if (item.type === 'local') {
+        // Asegurarse de que si la URL se perdió, se regenere a partir del objeto file
+        if ((!item.url || item.urlRevoked) && item.file) {
+          item.url = URL.createObjectURL(item.file);
+          item.urlRevoked = false;
+        }
+      }
       if (item.cover && item.cover.trim() !== "") {
-        // Usar cover personalizado
         coverContainer.innerHTML = "";
         let img = document.createElement("img");
         img.src = item.cover.trim();
         img.alt = "Cover";
         coverContainer.appendChild(img);
       } else if (item.videoId) {
-        // Usar miniatura de YouTube
         coverContainer.innerHTML = "";
         let img = document.createElement("img");
         img.src = `https://img.youtube.com/vi/${item.videoId}/hqdefault.jpg`;
         img.alt = "Cover";
         coverContainer.appendChild(img);
       } else {
-        // Mostrar placeholder
         coverContainer.innerHTML = "";
         let placeholder = document.createElement("div");
         placeholder.className = "placeholder";
@@ -332,7 +346,7 @@
         audioPlayer.pause();
         audioPlayer.style.display = 'none';
         youtubePlayerContainer.style.display = 'block';
-        // Usar cueVideoById para cargar la pista sin auto-play
+        // Cargar sin reproducir: cueVideoById
         if (youtubePlayer) youtubePlayer.cueVideoById(item.videoId);
       }
     }
@@ -346,6 +360,15 @@
         youtubePlayer.playVideo();
       }
       playPauseButton.textContent = '⏸️';
+      // Después de reproducir, en modo normal quitar "selected" de los demás tras 3 segundos
+      if (!editMode) {
+        setTimeout(() => {
+          playlist.forEach((track, idx) => {
+            if (idx !== currentIndex) track.selected = false;
+          });
+          updatePlaylistUI();
+        }, 3000);
+      }
     }
     
     function pauseCurrentTrack() {
@@ -367,7 +390,7 @@
       }
     }
     
-    /* Botón "Atrás": si hay más de 3 segundos transcurridos, reinicia; de lo contrario, pasa a la anterior */
+    /* Botón “Atrás”: Si >3s, reinicia; sino, pasa a la anterior */
     function prevTrack() {
       if (playlist.length === 0) return;
       let curTime = 0;
@@ -378,7 +401,6 @@
         curTime = youtubePlayer.getCurrentTime();
       }
       if (curTime > 3) {
-        // Reinicia la pista actual
         if (item.type === "local") {
           audioPlayer.currentTime = 0;
         } else if (item.type === "youtube" && youtubePlayer) {
@@ -437,9 +459,7 @@
     function generateShuffleQueue() {
       let indices = [];
       for (let i = 0; i < playlist.length; i++) {
-        if (i !== currentIndex) {
-          indices.push(i);
-        }
+        if (i !== currentIndex) indices.push(i);
       }
       for (let i = indices.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -540,17 +560,24 @@
         timeSpan.textContent = durationStr;
         li.appendChild(titleSpan);
         li.appendChild(timeSpan);
-        // Asignar color de fondo según modo: modo edición (rojo) y modo normal (azul)
+        // En modo edición, usar color rojo (editSelected); en modo normal, la pista seleccionada (si es la actual) en negrita y fondo gris.
         if (editMode) {
           li.style.backgroundColor = item.selected ? "#ffd7d7" : "";
         } else {
-          li.style.backgroundColor = item.selected ? "#aecaff" : "";
+          if (index === currentIndex) {
+            li.classList.add("currentTrack");
+          } else if (item.selected) {
+            li.classList.add("selectedTrack");
+          } else {
+            li.classList.remove("currentTrack");
+            li.classList.remove("selectedTrack");
+          }
         }
         li.addEventListener("click", () => {
           if (editMode) {
             item.selected = !item.selected;
           } else {
-            // En modo normal, se selecciona y se reproduce la pista inmediatamente
+            // Al hacer clic en modo normal, marca y reproduce la pista
             playlist.forEach((track, idx) => { track.selected = (idx === index); });
             currentIndex = index;
             loadCurrentTrack();
@@ -587,7 +614,9 @@
     deleteSelectedBtn.addEventListener("click", () => {
       if (confirm("¿Seguro que deseas eliminar las pistas seleccionadas?")) {
         const deletingCurrent = playlist[currentIndex] && playlist[currentIndex].selected;
-        playlist.forEach(track => { if (track.selected && track.url) { URL.revokeObjectURL(track.url); } });
+        playlist.forEach(track => {
+          if (track.selected && track.url) { URL.revokeObjectURL(track.url); }
+        });
         playlist = playlist.filter(item => !item.selected);
         if (deletingCurrent || currentIndex >= playlist.length) {
           pauseCurrentTrack();
@@ -609,14 +638,14 @@
     });
     
     /* --- CARGA DE PISTAS --- */
-    // Locales
+    // Locales: guardar también el objeto "file" para regenerar URL si se pierde
     fileInput.addEventListener("change", (e) => {
       const files = Array.from(e.target.files);
-      playlist.forEach(track => { if (track.url) URL.revokeObjectURL(track.url); });
+      // No revocar todas las URLs acá para evitar perder la conexión de pistas ya cargadas
       files.forEach(file => {
         if (file.type.startsWith("audio")) {
           const url = URL.createObjectURL(file);
-          playlist.push({ type: "local", name: file.name, url: url, duration: "00:00", selected: false });
+          playlist.push({ type: "local", name: file.name, url: url, file: file, duration: "00:00", selected: false });
         }
       });
       fileInput.value = "";
@@ -630,7 +659,7 @@
       }
     });
     
-    // YouTube: al agregar la pista, cargar sin reproducir (sin auto-play)
+    // YouTube: Al agregar, cargar sin reproducir (sin auto-play)
     addYoutubeButton.addEventListener("click", () => {
       const url = youtubeURLInput.value.trim();
       if (url) {
@@ -722,7 +751,7 @@
       }
     });
     
-    // Importar desde JPG – Al agregar, cargar sin reproducir
+    // Importar desde JPG
     addJpgButton.addEventListener("click", () => {
       jpgFileInput.click();
     });
@@ -766,7 +795,7 @@
     nextButton.addEventListener("click", nextTrack);
     playPauseButton.addEventListener("click", togglePlayPause);
     
-    /* Botones de Repeat y Shuffle ya tienen sus listeners en sus secciones arriba */
+    /* Fin de código */
     
   </script>
 </body>
