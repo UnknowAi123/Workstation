@@ -4,55 +4,47 @@
   <meta charset="UTF-8">
   <title>FISTROTUBE</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- API de YouTube -->
+  <!-- Incluir la API de YouTube -->
   <script src="https://www.youtube.com/iframe_api"></script>
-  <!-- EXIF.js para metadatos JPG -->
+  <!-- Incluir EXIF.js para leer metadatos de JPEG -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/exif-js/2.3.0/exif.min.js"></script>
   <style>
-    /* ESTILOS GENERALES */
+    /* Estilos generales */
     body {
       font-family: Arial, sans-serif;
       background: #f4f4f4;
       margin: 0;
       padding: 20px;
     }
-    /* MINI REPRODUCTOR: Se conserva la estructura original */
+    /* Contenedor del mini reproductor */
     #miniPlayer {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
       max-width: 350px;
       margin: 0 auto;
       padding: 15px;
       text-align: center;
-      background: #fff;
-      border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
-    /* Contenedor de portada: usa aspect-ratio para mantener lo cuadrado */
+    /* Contenedor para la portada */
     #coverContainer {
       width: 100%;
-      aspect-ratio: 1/1;
-      position: relative;
+      aspect-ratio: 1 / 1;
     }
-    /* La imagen o el placeholder ocuparán el 100% del contenedor */
-    #coverContainer img,
-    #coverContainer div.placeholder {
+    #coverContainer img {
       width: 100%;
       height: 100%;
       border-radius: 5px;
+    }
+    /* Portada personalizada vs. miniatura de YouTube */
+    .custom-cover {
+      object-fit: contain;
+    }
+    .youtube-cover {
       object-fit: cover;
+      background-color: #000;
     }
-    /* Placeholder para "NO COVER" */
-    #coverContainer div.placeholder {
-      background-color: #666;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    #coverContainer div.placeholder span {
-      color: #fff;
-      font-size: 24px;
-      font-weight: bold;
-    }
-    /* Información de la pista */
+    /* Información del track */
     #trackInfo {
       margin-top: 10px;
     }
@@ -68,47 +60,39 @@
       font-size: 14px;
       color: #666;
     }
+    /* Timeline */
     #timeDisplay {
       margin: 10px 0;
     }
     #progressBar {
       width: 100%;
     }
-    /* Controles del mini reproductor */
+    /* Controles */
     #controls {
       margin: 10px 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
     }
-    /* Orden: Shuffle, Atrás, Play/Pausa, Adelante, Repeat */
     #controls button {
       padding: 8px 12px;
-      margin: 0 3px;
-      font-size: 16px;
+      margin: 0 5px;
+      font-size: 14px;
       background: none;
       border: none;
       cursor: pointer;
     }
-    /* Botones activos (Shuffle y Repeat) muestran subrayado */
-    #controls button.active {
-      border-bottom: 2px solid blue;
-    }
+    /* Volumen */
     #volumeContainer {
       margin-top: 10px;
     }
     #volumeSlider {
       width: 80%;
     }
-    /* PLAYLIST */
-    #playlistSection {
-      max-width: 350px;
-      margin: 20px auto;
-    }
+    /* Playlist */
     #playlistContainer {
       background: #fff;
       border-radius: 8px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      max-width: 350px;
+      margin: 20px auto;
       padding: 15px;
       text-align: center;
       overflow-y: auto;
@@ -121,47 +105,22 @@
     }
     #playlist li {
       display: flex;
+      justify-content: space-between;
       align-items: center;
       padding: 5px;
       border-bottom: 1px solid #ddd;
-      cursor: pointer;
-    }
-    .trackTitle {
-      flex: 1;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      text-align: left;
-    }
-    .trackTime {
-      margin-left: 10px;
-      font-size: 12px;
-    }
-    /* La pista activa se mostrará en negrita */
-    .currentTrack {
-      font-weight: bold;
-      background-color: #aecaff; /* color azul (puedes ajustarlo) */
-    }
-    /* En modo normal, la selección de pistas se muestra en gris (durante unos segundos) */
-    .selectedTrack {
-      background-color: #d3d3d3;
-    }
-    /* En modo edición, la selección se muestra en rojo */
-    .editSelected {
-      background-color: #ffd7d7;
-    }
-    /* Controles externos de edición */
-    #playlistControls {
-      text-align: center;
-      margin-top: 10px;
-    }
-    #playlistControls button {
-      margin: 0 5px;
-      padding: 6px 10px;
       font-size: 14px;
       cursor: pointer;
     }
-    /* SECCIÓN DE CARGA */
+    #playlist li.active {
+      background: #d0eaff;
+    }
+    .trashIcon {
+      cursor: pointer;
+      color: red;
+      margin-left: 10px;
+    }
+    /* Sección de carga */
     #loadSection {
       text-align: center;
       margin: 20px auto;
@@ -179,7 +138,6 @@
   <!-- MINI REPRODUCTOR -->
   <div id="miniPlayer">
     <div id="coverContainer">
-      <!-- Se insertará la imagen o placeholder aquí -->
       <img id="coverArt" src="placeholder-cover.jpg" alt="Portada">
     </div>
     <div id="trackInfo">
@@ -192,11 +150,9 @@
     </div>
     <input type="range" id="progressBar" min="0" value="0" step="1">
     <div id="controls">
-      <button id="shuffleButton">🔀</button>
       <button id="prevButton">⏮️</button>
       <button id="playPauseButton">▶️</button>
       <button id="nextButton">⏭️</button>
-      <button id="repeatButton">🔁</button>
     </div>
     <div id="volumeContainer">
       <label for="volumeSlider">Volumen:</label>
@@ -204,51 +160,42 @@
     </div>
   </div>
   
-  <!-- Jugadores ocultos -->
+  <!-- Jugadores (ocultos) -->
   <audio id="audioPlayer" style="display: none;"></audio>
   <div id="youtubePlayerContainer" style="display: none;"></div>
-  
-  <!-- PLAYLIST -->
-  <div id="playlistSection">
-    <div id="playlistContainer">
-      <ul id="playlist"></ul>
-    </div>
-    <div id="playlistControls">
-      <button id="toggleEdit">Editar Lista</button>
-      <span id="editButtons" style="display: none;">
-        <button id="selectAll">Seleccionar todas</button>
-        <button id="deselectAll">Deseleccionar todas</button>
-        <button id="deleteSelected">🗑️</button>
-      </span>
-    </div>
+
+<!-- Playlist -->
+  <div id="playlistContainer">
+    <ul id="playlist"></ul>
   </div>
   
   <!-- SECCIÓN DE CARGA DE PISTAS -->
   <div id="loadSection">
     <h3>Cargar Pistas</h3>
-    <input type="file" id="fileInput" accept="audio/*" multiple><br>
-    <input type="text" id="youtubeURLInput" placeholder="Pegar URL de YouTube"><br>
+    <input type="file" id="fileInput" accept="audio/*" multiple>
+    <br>
+    <input type="text" id="youtubeURLInput" placeholder="Pegar URL de YouTube">
+    <br>
     <button id="addYoutubeButton">Agregar YouTube</button>
     <button id="importHtmlButton">Importar desde HTML</button>
     <button id="importPlaylistButton">Importar desde YouTube</button>
-    <input type="file" id="htmlFileInput" accept=".html" style="display: none;"><br>
+    <!-- Input oculto para HTML -->
+    <input type="file" id="htmlFileInput" accept=".html" style="display: none;">
+    <br>
+    <!-- Nuevo botón para cargar imagen JPG con metadatos -->
     <input type="file" id="jpgFileInput" accept="image/jpeg" style="display: none;">
     <button id="addJpgButton">Agregar desde JPG</button>
   </div>
   
   <script>
-    /* VARIABLES GLOBALES */
+    // VARIABLES GLOBALES
     let playlist = [];
     let currentIndex = 0;
-    let shuffleMode = false;
-    let repeatMode = false;
-    let editMode = false;  // Modo edición (selección múltiple)
-    let shuffleQueue = []; // Para shuffle: índices pendientes
-    let shuffleHistory = []; // Historial para shuffle
-
-    /* REFERENCIAS */
+    let shuffleOn = false;
+    let recentHistory = [];
+    
+    // REFERENCIAS AL DOM
     const coverArt = document.getElementById('coverArt');
-    const coverContainer = document.getElementById('coverContainer');
     const trackTitleElem = document.getElementById('trackTitle');
     const trackAlbumElem = document.getElementById('trackAlbum');
     const trackArtistElem = document.getElementById('trackArtist');
@@ -258,75 +205,36 @@
     const playPauseButton = document.getElementById('playPauseButton');
     const prevButton = document.getElementById('prevButton');
     const nextButton = document.getElementById('nextButton');
-    const repeatButton = document.getElementById('repeatButton');
-    const shuffleButton = document.getElementById('shuffleButton');
     const volumeSlider = document.getElementById('volumeSlider');
     
     const audioPlayer = document.getElementById('audioPlayer');
     const youtubePlayerContainer = document.getElementById('youtubePlayerContainer');
     let youtubePlayer;
     
-    // ELEMENTOS DE CARGA / IMPORTACIÓN
     const fileInput = document.getElementById('fileInput');
     const youtubeURLInput = document.getElementById('youtubeURLInput');
     const addYoutubeButton = document.getElementById('addYoutubeButton');
+    const playlistUI = document.getElementById('playlist');
     const htmlFileInput = document.getElementById('htmlFileInput');
+    
+    // Elementos para cargar JPG con metadatos
     const addJpgButton = document.getElementById('addJpgButton');
     const jpgFileInput = document.getElementById('jpgFileInput');
     
-    // ELEMENTOS DEL LISTADO (PLAYLIST)
-    const playlistUI = document.getElementById('playlist');
-    const toggleEditBtn = document.getElementById('toggleEdit');
-    const editButtons = document.getElementById('editButtons');
-    const selectAllBtn = document.getElementById('selectAll');
-    const deselectAllBtn = document.getElementById('deselectAll');
-    const deleteSelectedBtn = document.getElementById('deleteSelected');
-    
-    /* FUNCIONES DEL MINI REPRODUCTOR */
+    // Función para actualizar la UI del mini reproductor (Portadas y metadatos)
     function updateMiniPlayerUI() {
-      if (!playlist[currentIndex]) {
-        coverContainer.innerHTML = "";
-        let placeholder = document.createElement("div");
-        placeholder.className = "placeholder";
-        let span = document.createElement("span");
-        span.textContent = "NO COVER";
-        placeholder.appendChild(span);
-        coverContainer.appendChild(placeholder);
-        trackTitleElem.textContent = "";
-        trackAlbumElem.textContent = "";
-        trackArtistElem.textContent = "";
-        durationElem.textContent = "00:00";
-        currentTimeElem.textContent = "00:00";
-        return;
-      }
+      if (!playlist[currentIndex]) return;
       const item = playlist[currentIndex];
-      if (item.type === 'local') {
-        // Asegurarse de que si la URL se perdió, se regenere a partir del objeto file
-        if ((!item.url || item.urlRevoked) && item.file) {
-          item.url = URL.createObjectURL(item.file);
-          item.urlRevoked = false;
-        }
-      }
       if (item.cover && item.cover.trim() !== "") {
-        coverContainer.innerHTML = "";
-        let img = document.createElement("img");
-        img.src = item.cover.trim();
-        img.alt = "Cover";
-        coverContainer.appendChild(img);
-      } else if (item.videoId) {
-        coverContainer.innerHTML = "";
-        let img = document.createElement("img");
-        img.src = `https://img.youtube.com/vi/${item.videoId}/hqdefault.jpg`;
-        img.alt = "Cover";
-        coverContainer.appendChild(img);
+        // Portada personalizada: se usa la imagen y se aplica "custom-cover"
+        coverArt.src = item.cover.trim();
+        coverArt.classList.add("custom-cover");
+        coverArt.classList.remove("youtube-cover");
       } else {
-        coverContainer.innerHTML = "";
-        let placeholder = document.createElement("div");
-        placeholder.className = "placeholder";
-        let span = document.createElement("span");
-        span.textContent = "NO COVER";
-        placeholder.appendChild(span);
-        coverContainer.appendChild(placeholder);
+        // Para videos de YouTube sin portada personalizada, se usa la miniatura estándar
+        coverArt.src = `https://img.youtube.com/vi/${item.videoId}/hqdefault.jpg`;
+        coverArt.classList.add("youtube-cover");
+        coverArt.classList.remove("custom-cover");
       }
       trackTitleElem.textContent = item.title || item.name;
       trackAlbumElem.textContent = item.album || "";
@@ -338,7 +246,9 @@
       const item = playlist[currentIndex];
       updateMiniPlayerUI();
       if (item.type === 'local') {
-        if (youtubePlayer && youtubePlayer.stopVideo) youtubePlayer.stopVideo();
+        if (youtubePlayer && youtubePlayer.stopVideo) {
+          youtubePlayer.stopVideo();
+        }
         audioPlayer.src = item.url;
         audioPlayer.style.display = 'block';
         youtubePlayerContainer.style.display = 'none';
@@ -346,8 +256,9 @@
         audioPlayer.pause();
         audioPlayer.style.display = 'none';
         youtubePlayerContainer.style.display = 'block';
-        // Cargar sin reproducir: cueVideoById
-        if (youtubePlayer) youtubePlayer.cueVideoById(item.videoId);
+        if (youtubePlayer) {
+          youtubePlayer.loadVideoById(item.videoId);
+        }
       }
     }
     
@@ -360,15 +271,6 @@
         youtubePlayer.playVideo();
       }
       playPauseButton.textContent = '⏸️';
-      // Después de reproducir, en modo normal quitar "selected" de los demás tras 3 segundos
-      if (!editMode) {
-        setTimeout(() => {
-          playlist.forEach((track, idx) => {
-            if (idx !== currentIndex) track.selected = false;
-          });
-          updatePlaylistUI();
-        }, 3000);
-      }
     }
     
     function pauseCurrentTrack() {
@@ -390,83 +292,48 @@
       }
     }
     
-    /* Botón “Atrás”: Si >3s, reinicia; sino, pasa a la anterior */
-    function prevTrack() {
-      if (playlist.length === 0) return;
-      let curTime = 0;
-      const item = playlist[currentIndex];
-      if (item.type === "local") {
-        curTime = audioPlayer.currentTime;
-      } else if (item.type === "youtube" && youtubePlayer && youtubePlayer.getCurrentTime) {
-        curTime = youtubePlayer.getCurrentTime();
-      }
-      if (curTime > 3) {
-        if (item.type === "local") {
-          audioPlayer.currentTime = 0;
-        } else if (item.type === "youtube" && youtubePlayer) {
-          youtubePlayer.seekTo(0, true);
-        }
-        return;
-      } else {
-        if (shuffleMode) {
-          if (shuffleHistory.length > 0) {
-            shuffleQueue.unshift(currentIndex);
-            currentIndex = shuffleHistory.pop();
-          }
-        } else {
-          if (currentIndex > 0) {
-            currentIndex--;
-          } else {
-            if (repeatMode) {
-              currentIndex = playlist.length - 1;
-            } else {
-              pauseCurrentTrack();
-              return;
-            }
-          }
-        }
-      }
-      loadCurrentTrack();
-      playCurrentTrack();
-      updatePlaylistUI();
-    }
-    
     function nextTrack() {
-      if (playlist.length === 0) return;
-      if (shuffleMode) {
-        if (shuffleQueue.length === 0) {
-          generateShuffleQueue();
+      if (shuffleOn) {
+        let allowed = [];
+        playlist.forEach((_, i) => {
+          if (i !== currentIndex && !recentHistory.includes(i)) allowed.push(i);
+        });
+        if (allowed.length === 0) {
+          recentHistory = [];
+          allowed = playlist.map((_, i) => i).filter(i => i !== currentIndex);
         }
-        shuffleHistory.push(currentIndex);
-        currentIndex = shuffleQueue.shift();
+        const rand = allowed[Math.floor(Math.random() * allowed.length)];
+        currentIndex = rand;
+        recentHistory.push(rand);
+        if (recentHistory.length > 6) recentHistory.shift();
       } else {
-        if (currentIndex < playlist.length - 1) {
-          currentIndex++;
-        } else {
-          if (repeatMode) {
-            currentIndex = 0;
-          } else {
-            pauseCurrentTrack();
-            return;
-          }
-        }
+        currentIndex = (currentIndex + 1) % playlist.length;
       }
       loadCurrentTrack();
       playCurrentTrack();
       updatePlaylistUI();
     }
     
-    function generateShuffleQueue() {
-      let indices = [];
-      for (let i = 0; i < playlist.length; i++) {
-        if (i !== currentIndex) indices.push(i);
+    function prevTrack() {
+      if (shuffleOn) {
+        let allowed = [];
+        playlist.forEach((_, i) => {
+          if (i !== currentIndex && !recentHistory.includes(i)) allowed.push(i);
+        });
+        if (allowed.length === 0) {
+          recentHistory = [];
+          allowed = playlist.map((_, i) => i).filter(i => i !== currentIndex);
+        }
+        const rand = allowed[Math.floor(Math.random() * allowed.length)];
+        currentIndex = rand;
+        recentHistory.push(rand);
+        if (recentHistory.length > 6) recentHistory.shift();
+      } else {
+        currentIndex = (currentIndex - 1 + playlist.length) % playlist.length;
       }
-      for (let i = indices.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [indices[i], indices[j]] = [indices[j], indices[i]];
-      }
-      shuffleQueue = indices.slice();
-      shuffleHistory = [];
+      loadCurrentTrack();
+      playCurrentTrack();
+      updatePlaylistUI();
     }
     
     function formatTime(sec) {
@@ -491,19 +358,8 @@
       progressBar.max = dur;
       progressBar.value = cur;
     }
-    
-    audioPlayer.addEventListener('ended', () => {
-      nextTrack();
-    });
-    
     setInterval(updateTime, 500);
-    audioPlayer.addEventListener('loadedmetadata', () => {
-      if (playlist[currentIndex]) {
-        playlist[currentIndex].duration = audioPlayer.duration;
-      }
-      updateTime();
-      updatePlaylistUI();
-    });
+    audioPlayer.addEventListener('loadedmetadata', updateTime);
     
     progressBar.addEventListener('input', () => {
       const item = playlist[currentIndex];
@@ -535,146 +391,104 @@
         }
       });
     }
-    
     function onYouTubePlayerReady(event) {
       setTimeout(updateTime, 2000);
     }
-    
     function onYouTubePlayerStateChange(event) {
       if (event.data === YT.PlayerState.ENDED) {
         nextTrack();
       }
     }
     
-    /* --- LISTADO (PLAYLIST) --- */
     function updatePlaylistUI() {
-      playlistUI.innerHTML = "";
-      playlist.forEach((item, index) => {
-        const li = document.createElement("li");
-        const titleSpan = document.createElement("span");
-        titleSpan.classList.add("trackTitle");
-        titleSpan.textContent = (item.artist ? item.artist + " - " : "") + (item.title || item.name);
-        const timeSpan = document.createElement("span");
-        timeSpan.classList.add("trackTime");
-        let durationStr = item.duration ? formatTime(item.duration) : "00:00";
-        timeSpan.textContent = durationStr;
-        li.appendChild(titleSpan);
-        li.appendChild(timeSpan);
-        // En modo edición, usar color rojo (editSelected); en modo normal, la pista seleccionada (si es la actual) en negrita y fondo gris.
-        if (editMode) {
-          li.style.backgroundColor = item.selected ? "#ffd7d7" : "";
-        } else {
-          if (index === currentIndex) {
-            li.classList.add("currentTrack");
-          } else if (item.selected) {
-            li.classList.add("selectedTrack");
-          } else {
-            li.classList.remove("currentTrack");
-            li.classList.remove("selectedTrack");
-          }
-        }
-        li.addEventListener("click", () => {
-          if (editMode) {
-            item.selected = !item.selected;
-          } else {
-            // Al hacer clic en modo normal, marca y reproduce la pista
-            playlist.forEach((track, idx) => { track.selected = (idx === index); });
-            currentIndex = index;
-            loadCurrentTrack();
-            playCurrentTrack();
-          }
+      playlistUI.innerHTML = '';
+      playlist.forEach((item, i) => {
+        const li = document.createElement('li');
+        const infoSpan = document.createElement('span');
+        // Se muestra información básica; la duración se muestra como "00:00" por defecto
+        const durationStr = "00:00";
+        infoSpan.textContent = (item.artist ? item.artist + " - " : "") + (item.title || item.name) + " (" + durationStr + ")";
+        li.appendChild(infoSpan);
+        
+        const trash = document.createElement('span');
+        trash.textContent = " 🗑️";
+        trash.classList.add('trashIcon');
+        trash.addEventListener('click', (e) => {
+          e.stopPropagation();
+          removeFromPlaylist(i);
+        });
+        li.appendChild(trash);
+        
+        li.addEventListener('click', () => {
+          currentIndex = i;
+          loadCurrentTrack();
+          playCurrentTrack();
           updatePlaylistUI();
         });
+        if (i === currentIndex) li.classList.add('active');
         playlistUI.appendChild(li);
       });
     }
     
-    /* Botón para alternar modo edición */
-    toggleEditBtn.addEventListener("click", () => {
-      editMode = !editMode;
-      if (!editMode) {
-        playlist.forEach((track, idx) => { track.selected = (idx === currentIndex); });
-      }
-      toggleEditBtn.textContent = editMode ? "Finalizar Edición" : "Editar Lista";
-      editButtons.style.display = editMode ? "inline-block" : "none";
-      updatePlaylistUI();
-    });
-    
-    /* Botones de edición */
-    selectAllBtn.addEventListener("click", () => {
-      playlist.forEach(track => { track.selected = true; });
-      updatePlaylistUI();
-    });
-    
-    deselectAllBtn.addEventListener("click", () => {
-      playlist.forEach(track => { track.selected = false; });
-      updatePlaylistUI();
-    });
-    
-    deleteSelectedBtn.addEventListener("click", () => {
-      if (confirm("¿Seguro que deseas eliminar las pistas seleccionadas?")) {
-        const deletingCurrent = playlist[currentIndex] && playlist[currentIndex].selected;
-        playlist.forEach(track => {
-          if (track.selected && track.url) { URL.revokeObjectURL(track.url); }
-        });
-        playlist = playlist.filter(item => !item.selected);
-        if (deletingCurrent || currentIndex >= playlist.length) {
-          pauseCurrentTrack();
+    function removeFromPlaylist(index) {
+      playlist.splice(index, 1);
+      if (index < currentIndex) {
+        currentIndex--;
+      } else if (index === currentIndex) {
+        pauseCurrentTrack();
+        progressBar.value = 0;
+        currentTimeElem.textContent = "00:00";
+        if (playlist.length > 0) {
+          if (currentIndex >= playlist.length) currentIndex = 0;
+          loadCurrentTrack();
+        } else {
+          audioPlayer.pause();
           audioPlayer.src = "";
-          if (youtubePlayer && youtubePlayer.stopVideo) youtubePlayer.stopVideo();
-          updateMiniPlayerUI();
-          currentIndex = 0;
+          if (youtubePlayer && youtubePlayer.stopVideo) {
+            youtubePlayer.stopVideo();
+          }
+          progressBar.value = 0;
+          durationElem.textContent = "00:00";
+          currentTimeElem.textContent = "00:00";
         }
-        updatePlaylistUI();
       }
-    });
+      updatePlaylistUI();
+    }
     
-    /* Tecla espacio en modo normal para play/pausa */
-    document.addEventListener("keydown", (e) => {
-      if (!editMode && e.code === "Space") {
-        e.preventDefault();
-        togglePlayPause();
-      }
-    });
+    playPauseButton.addEventListener('click', togglePlayPause);
+    prevButton.addEventListener('click', prevTrack);
+    nextButton.addEventListener('click', nextTrack);
     
-    /* --- CARGA DE PISTAS --- */
-    // Locales: guardar también el objeto "file" para regenerar URL si se pierde
-    fileInput.addEventListener("change", (e) => {
-      const files = Array.from(e.target.files);
-      // No revocar todas las URLs acá para evitar perder la conexión de pistas ya cargadas
-      files.forEach(file => {
+    /* Cargar pistas locales */
+    fileInput.addEventListener('change', (e) => {
+      const files = e.target.files;
+      Array.from(files).forEach(file => {
         if (file.type.startsWith("audio")) {
           const url = URL.createObjectURL(file);
-          playlist.push({ type: "local", name: file.name, url: url, file: file, duration: "00:00", selected: false });
+          playlist.push({ type: 'local', name: file.name, url: url });
         }
       });
       fileInput.value = "";
       if (playlist.length > 0) {
         currentIndex = 0;
         loadCurrentTrack();
-        if (!editMode) {
-          playlist.forEach((track, idx) => { track.selected = (idx === currentIndex); });
-        }
         updatePlaylistUI();
       }
     });
     
-    // YouTube: Al agregar, cargar sin reproducir (sin auto-play)
-    addYoutubeButton.addEventListener("click", () => {
+    /* Agregar pista de YouTube por URL */
+    addYoutubeButton.addEventListener('click', () => {
       const url = youtubeURLInput.value.trim();
       if (url) {
         const videoId = extractYouTubeID(url);
         if (videoId) {
-          playlist.push({ type: "youtube", name: "YouTube: " + videoId, url: url, videoId: videoId, duration: "00:00", selected: false });
+          playlist.push({ type: 'youtube', name: "YouTube: " + videoId, url: url, videoId: videoId });
           youtubeURLInput.value = "";
-          if (playlist.length === 1) {
+          if (playlist.length > 0) {
             currentIndex = 0;
             loadCurrentTrack();
-            if (!editMode) {
-              playlist.forEach((track, idx) => { track.selected = (idx === currentIndex); });
-            }
+            updatePlaylistUI();
           }
-          updatePlaylistUI();
         }
       }
     });
@@ -695,7 +509,7 @@
       return videoId;
     }
     
-    // Importar desde HTML
+    /* Importar desde HTML */
     document.getElementById("importHtmlButton").addEventListener("click", () => {
       htmlFileInput.click();
     });
@@ -722,9 +536,7 @@
               album, 
               url, 
               videoId: extractYouTubeID(url),
-              cover: cover,
-              duration: "00:00",
-              selected: false
+              cover: cover 
             });
           }
         });
@@ -733,7 +545,7 @@
       reader.readAsText(file);
     });
     
-    // Importar playlist de YouTube
+    /* Importar playlist de YouTube */
     document.getElementById("importPlaylistButton").addEventListener("click", () => {
       const playlistId = prompt("Introduce el ID de la playlist de YouTube:");
       if (playlistId) {
@@ -743,7 +555,7 @@
             data.items.forEach(item => {
               const videoId = item.snippet.resourceId.videoId;
               const title = item.snippet.title;
-              playlist.push({ type: "youtube", title, videoId, url: `https://www.youtube.com/watch?v=${videoId}`, duration: "00:00", selected: false });
+              playlist.push({ type: "youtube", title, videoId, url: `https://www.youtube.com/watch?v=${videoId}` });
             });
             updatePlaylistUI();
           })
@@ -751,35 +563,40 @@
       }
     });
     
-    // Importar desde JPG
-    addJpgButton.addEventListener("click", () => {
+    /* NUEVA FUNCIONALIDAD: Cargar archivo JPG y extraer sus metadatos */
+    addJpgButton.addEventListener('click', function() {
       jpgFileInput.click();
     });
-    jpgFileInput.addEventListener("change", (event) => {
+    
+    jpgFileInput.addEventListener('change', function(event) {
       const file = event.target.files[0];
       if (!file) return;
+      // Usar EXIF.js para leer los metadatos del archivo JPG
       EXIF.getData(file, function() {
+        // Extraer algunas etiquetas; se asume que en "UserComment" se encuentra el enlace de YouTube.
         const artist = EXIF.getTag(this, "Artist") || "";
         const title = EXIF.getTag(this, "ImageDescription") || file.name;
+        // Intentamos obtener un posible "Album" (aunque no suele estar presente en una imagen)
         const album = EXIF.getTag(this, "Album") || "";
         const userComment = EXIF.getTag(this, "UserComment") || "";
         const videoId = extractYouTubeID(userComment);
+        
         if (!videoId) {
           alert("No se encontró un enlace de YouTube en los metadatos de la imagen.");
           return;
         }
         const youtubeUrl = "https://www.youtube.com/watch?v=" + videoId;
+        // Creamos una URL para mostrar la imagen como portada
         const coverUrl = URL.createObjectURL(file);
+        // Agregamos el nuevo item a la playlist
         const newItem = {
           type: "youtube",
-          artist,
-          title,
-          album,
+          artist: artist,
+          title: title,
+          album: album,
           url: youtubeUrl,
-          videoId,
-          cover: coverUrl,
-          duration: "00:00",
-          selected: false
+          videoId: videoId,
+          cover: coverUrl
         };
         playlist.push(newItem);
         if (playlist.length === 1) {
@@ -789,13 +606,6 @@
         updatePlaylistUI();
       });
     });
-    
-    /* Asignar eventos a los botones del mini reproductor */
-    prevButton.addEventListener("click", prevTrack);
-    nextButton.addEventListener("click", nextTrack);
-    playPauseButton.addEventListener("click", togglePlayPause);
-    
-    /* Fin de código */
     
   </script>
 </body>
