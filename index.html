@@ -4,11 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes">
   <title>Visor PDF - AlphaPDF</title>
-  <!-- Actualizado a PDF.js versión 5.2.133 -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.2.133/pdf.min.js"></script>
+  <script src="https://unpkg.com/pdfjs-dist@5.2.133/build/pdf.min.js"></script>
   <script>
-    // Es MUY importante definir la ruta del worker para que PDF.js funcione correctamente.
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.2.133/pdf.worker.min.js';
+    // Configurar el worker y el decodificador OpenJPEG para PDF.js 5.2.133
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@5.2.133/build/pdf.worker.min.js';
+    pdfjsLib.GlobalWorkerOptions.wasmUrl = 'https://unpkg.com/pdfjs-dist@5.2.133/web/openjpeg.wasm';
   </script>
   <style>
     * {
@@ -34,7 +34,6 @@
         padding: 6px;
       }
     }
-    /* Contenedor del visor PDF */
     #canvasWrapper {
       border: 1px solid #ccc;
       width: 100%;
@@ -42,12 +41,13 @@
       overflow: auto;
       position: relative;
       background: #eee;
-      /* Se permite panning libre */
     }
     canvas {
       display: block;
-      /* Inicia sin transformación */
       transform: none;
+      /* Asegurar visibilidad */
+      position: relative;
+      z-index: 1;
     }
     #controls {
       margin-top: 20px;
@@ -114,13 +114,6 @@
         currentRotation = 0,
         sliderTimeout = null,
         zoomFactor = 1.0,
-        /*
-          pinchZoom: Guarda datos del pellizco inicial:
-           - initialDistance: Distancia entre dedos al iniciar.
-           - initialZoomFactor: El zoomFactor vigente al iniciar.
-           - initialScrollLeft/Top: El scroll del contenedor al iniciar.
-           - pinchCenterX/Y: El punto de pellizco relativo al canvas (en px).
-        */
         pinchZoom = {
           initialDistance: 0,
           initialZoomFactor: 1,
@@ -129,22 +122,24 @@
           pinchCenterX: 0,
           pinchCenterY: 0
         },
-        // lastTempZoom guarda el zoom provisional (feedback visual)
         lastTempZoom = null,
-        // Bandera para saber si se inició un pellizco
         isPinching = false;
     
     const canvasWrapper = document.getElementById('canvasWrapper');
     const canvas = document.getElementById('pdfCanvas');
     
-    // Cargar el PDF mediante file input
-    document.getElementById('fileInput').addEventListener('change', function(event) {
-      const file = event.target.files[0];
-      if (file) {
-        const fileReader = new FileReader();
-        fileReader.onload = function() {
-          const pdfData = new Uint8Array(this.result);
-          pdfjsLib.getDocument({ data: pdfData }).promise.then(pdf => {
+    // Cargar un PDF por defecto para pruebas
+    window.addEventListener('DOMContentLoaded', () => {
+      const defaultPdfUrl = 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf';
+      fetch(defaultPdfUrl)
+        .then(response => response.arrayBuffer())
+        .then(data => {
+          pdfjsLib.getDocument({ 
+            data: data,
+            useSystemFonts: true,
+            cMapUrl: 'https://unpkg.com/pdfjs-dist@5.2.133/cmaps/',
+            cMapPacked: true
+          }).promise.then(pdf => {
             pdfDoc = pdf;
             pageNum = 1;
             pdfLoaded = true;
@@ -153,72 +148,105 @@
             document.getElementById("pageSlider").max = pdf.numPages;
             updateCounter();
             renderPage(pageNum);
-          }).catch(error => console.error("Error al cargar el PDF:", error));
+          }).catch(error => {
+            console.error("Error al cargar el PDF por defecto:", error);
+            alert("No se pudo cargar el PDF por defecto.");
+          });
+        }).catch(error => {
+          console.error("Error al descargar el PDF por defecto:", error);
+        });
+    });
+
+    // Cargar el PDF mediante file input
+    document.getElementById('fileInput').addEventListener('change', function(event) {
+      const file = event.target.files[0];
+      if (file && file.type === 'application/pdf') {
+        const fileReader = new FileReader();
+        fileReader.onload = function() {
+          const pdfData = new Uint8Array(this.result);
+          pdfjsLib.getDocument({ 
+            data: pdfData,
+            useSystemFonts: true,
+            cMapUrl: 'https://unpkg.com/pdfjs-dist@5.2.133/cmaps/',
+            cMapPacked: true
+          }).promise.then(pdf => {
+            pdfDoc = pdf;
+            pageNum = 1;
+            pdfLoaded = true;
+            currentRotation = 0;
+            zoomFactor = 1.0;
+            document.getElementById("pageSlider").max = pdf.numPages;
+            updateCounter();
+            renderPage(pageNum);
+          }).catch(error => {
+            console.error("Error al cargar el PDF:", error);
+            alert("No se pudo cargar el PDF. Asegúrate de que el archivo es válido.");
+          });
+        };
+        fileReader.onerror = () => {
+          console.error("Error al leer el archivo.");
+          alert("Error al leer el archivo PDF.");
         };
         fileReader.readAsArrayBuffer(file);
+      } else {
+        alert("Por favor, selecciona un archivo PDF válido.");
       }
     });
     
-    // renderPage: Re-renderiza la página usando zoomFactor y currentRotation.
+    // renderPage: Re-renderiza la página usando zoomFactor y currentRotation
     function renderPage(num, callback) {
       if (!pdfLoaded || rendering) return;
       rendering = true;
       pdfDoc.getPage(num).then(page => {
         const context = canvas.getContext('2d');
-        const baseViewport = page.getViewport({ scale: 1, rotation: 0 });
-        let scale;
-        const isHorizontal = baseViewport.width > baseViewport.height;
-        if (!isHorizontal) {
-          const verticalScale = (canvasWrapper.clientWidth / baseViewport.width) * zoomFactor;
-          scale = (currentRotation % 180 === 0)
-                  ? verticalScale
-                  : verticalScale * (baseViewport.height / baseViewport.width);
-        } else {
-          scale = (canvasWrapper.clientWidth / baseViewport.width) * zoomFactor;
-        }
+        const baseViewport = page.getViewport({ scale: 1, rotation: currentRotation });
+        // Calcular escala para ajustar al ancho del contenedor
+        const scale = (canvasWrapper.clientWidth / baseViewport.width) * zoomFactor;
+        console.log(`Renderizando página ${num} con escala: ${scale}, zoom: ${zoomFactor}`);
         const viewport = page.getViewport({ scale: scale, rotation: currentRotation });
         const outputScale = window.devicePixelRatio || 1;
-        const canvasWidth = viewport.width;
-        const canvasHeight = viewport.height;
     
-        canvas.width = Math.floor(canvasWidth * outputScale);
-        canvas.height = Math.floor(canvasHeight * outputScale);
-        canvas.style.width = canvasWidth + "px";
-        canvas.style.height = canvasHeight + "px";
+        // Configurar dimensiones del canvas
+        canvas.width = Math.floor(viewport.width * outputScale);
+        canvas.height = Math.floor(viewport.height * outputScale);
+        canvas.style.width = viewport.width + "px";
+        canvas.style.height = viewport.height + "px";
+        console.log(`Canvas dimensiones: width=${canvas.width}, height=${canvas.height}, style.width=${canvas.style.width}, style.height=${canvas.style.height}`);
     
-        // Centrar el canvas dentro del contenedor
-        let marginLeft = (canvasWrapper.clientWidth > canvasWidth)
-          ? (canvasWrapper.clientWidth - canvasWidth) / 2 : 0;
-        let marginTop = (canvasWrapper.clientHeight > canvasHeight)
-          ? (canvasWrapper.clientHeight - canvasHeight) / 2 : 0;
+        // Centrar el canvas
+        let marginLeft = (canvasWrapper.clientWidth - viewport.width) / 2;
+        let marginTop = (canvasWrapper.clientHeight - viewport.height) / 2;
+        canvas.style.marginLeft = marginLeft > 0 ? marginLeft + "px" : "0px";
+        canvas.style.marginTop = marginTop > 0 ? marginTop + "px" : "0px";
+        console.log(`Márgenes: left=${canvas.style.marginLeft}, top=${canvas.style.marginTop}`);
     
-        canvas.style.marginLeft = marginLeft + "px";
-        canvas.style.marginTop = marginTop + "px";
-    
-        // Limpiar el canvas
-        const contextClear = canvas.getContext('2d');
-        contextClear.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Construir renderContext: se incluye la propiedad "transform"
-        // solo cuando outputScale es distinto de 1.
+        // Limpiar canvas antes de renderizar
+        context.clearRect(0, 0, canvas.width, canvas.height);
         const renderContext = {
           canvasContext: context,
-          viewport: viewport
+          viewport: viewport,
+          transform: outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null
         };
-        
     
         page.render(renderContext).promise.then(() => {
+          console.log(`Página ${num} renderizada correctamente`);
           rendering = false;
           updateCounter();
           if (callback) callback();
+        }).catch(error => {
+          console.error("Error al renderizar la página:", error);
+          rendering = false;
         });
     
         pageNum = num;
         updateCounter();
+      }).catch(error => {
+        console.error("Error al obtener la página:", error);
+        rendering = false;
       });
     }
     
-    // updateCounter: Actualiza el contador y el slider de página.
+    // updateCounter: Actualiza el contador y el slider de página
     function updateCounter() {
       if (!pdfDoc) {
         document.getElementById("pageCounter").textContent = "## / ##";
@@ -232,7 +260,7 @@
       document.getElementById("pageSlider").value = pageNum;
     }
     
-    // Botones de navegación y rotación.
+    // Botones de navegación y rotación
     document.getElementById('prevPage').addEventListener('click', () => {
       if (pageNum > 1) renderPage(pageNum - 1);
     });
@@ -244,7 +272,7 @@
       const newPage = parseInt(event.target.value, 10);
       const formattedPageNum = newPage < 10 ? '0' + newPage : newPage;
       document.getElementById("pageCounter").textContent = formattedPageNum + " / " + pdfDoc.numPages;
-      if (sliderTimeout) clearTimeout(sliderTimeout);
+      if (sliderTimeout) clearTenTimeout(sliderTimeout);
       sliderTimeout = setTimeout(() => {
         if (newPage !== pageNum) renderPage(newPage);
       }, 150);
@@ -258,19 +286,14 @@
       renderPage(pageNum);
     });
     
-    // getDistance: Calcula la distancia entre dos toques.
+    // getDistance: Calcula la distancia entre dos toques
     function getDistance(touch1, touch2) {
       const dx = touch1.pageX - touch2.pageX;
       const dy = touch1.pageY - touch2.pageY;
       return Math.sqrt(dx * dx + dy * dy);
     }
     
-    /* IMPLEMENTACIÓN DEL ZOOM EN 2 FASES (SIN AFECTAR LA EXPLORACIÓN):
-         - En touchstart (2 dedos): Se almacenan la distancia inicial, el zoomFactor actual, el scroll actual y se calcula el punto central del pellizco relativo al canvas. Se asigna al canvas el transform-origin correspondiente.
-         - En touchmove (2 dedos): Se calcula un zoom provisional (lastTempZoom) y se aplica un CSS transform (scale) al canvas para dar feedback visual sin re-renderizar.
-         - En touchend: Si se inició un pellizco (isPinching), se elimina el CSS transform, se actualiza zoomFactor con el valor provisional y se re-renderiza el PDF. Se reajusta el scroll para que el punto de pellizco se mantenga constante. Si se explora con 1 dedo, no se ejecuta este reajuste.
-    */
-    
+    // Zoom por pellizco
     canvasWrapper.addEventListener('touchstart', function(e) {
       if (e.touches.length === 2) {
          e.preventDefault();
@@ -280,10 +303,8 @@
          pinchZoom.initialScrollLeft = canvasWrapper.scrollLeft;
          pinchZoom.initialScrollTop = canvasWrapper.scrollTop;
          const rect = canvas.getBoundingClientRect();
-         // Calcular el punto central del pellizco relativo al canvas.
          pinchZoom.pinchCenterX = ((e.touches[0].clientX + e.touches[1].clientX) / 2) - rect.left;
          pinchZoom.pinchCenterY = ((e.touches[0].clientY + e.touches[1].clientY) / 2) - rect.top;
-         // Asignar transform-origin basado en ese punto.
          canvas.style.transformOrigin =
            ((pinchZoom.pinchCenterX / canvas.clientWidth) * 100) + "% " +
            ((pinchZoom.pinchCenterY / canvas.clientHeight) * 100) + "%";
@@ -297,19 +318,16 @@
          let tempZoom = pinchZoom.initialZoomFactor * (currentDistance / pinchZoom.initialDistance);
          tempZoom = Math.max(1, Math.min(tempZoom, 5));
          lastTempZoom = tempZoom;
-         // Aplicar solo un CSS transform de escala para feedback.
          canvas.style.transform = "scale(" + (tempZoom / pinchZoom.initialZoomFactor) + ")";
       }
     }, { passive: false });
     
     canvasWrapper.addEventListener('touchend', function(e) {
       if (isPinching && e.touches.length < 2) {
-         // Se elimina el transform del feedback visual.
          canvas.style.transform = "";
          if (lastTempZoom) {
             zoomFactor = lastTempZoom;
          }
-         // Re-renderizar la página y reajustar el scroll para mantener el punto de pellizco.
          renderPage(pageNum, function() {
            const zoomRatio = zoomFactor / pinchZoom.initialZoomFactor;
            const newScrollLeft = pinchZoom.initialScrollLeft + pinchZoom.pinchCenterX * (zoomRatio - 1);
@@ -327,7 +345,6 @@
          isPinching = false;
       }
     }, { passive: false });
-    
   </script>
 </body>
 </html>
