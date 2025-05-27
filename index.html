@@ -4,10 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes">
   <title>Visor PDF - AlphaPDF</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.10.111/pdf.min.js"></script>
+  <!-- Actualizado a PDF.js versión 5.2.133 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.2.133/pdf.min.js"></script>
   <script>
-    // Es muy importante definir la ruta del worker para que PDF.js funcione correctamente.
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.10.111/pdf.worker.min.js';
+    // Es MUY importante definir la ruta del worker para que PDF.js funcione correctamente.
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.2.133/pdf.worker.min.js';
   </script>
   <style>
     * {
@@ -194,13 +195,19 @@
         canvas.style.marginLeft = marginLeft + "px";
         canvas.style.marginTop = marginTop + "px";
     
+        // Limpiar el canvas
         const contextClear = canvas.getContext('2d');
         contextClear.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Construir renderContext: se incluye la propiedad "transform"
+        // solo cuando outputScale es distinto de 1.
         const renderContext = {
           canvasContext: context,
-          viewport: viewport,
-          transform: (outputScale !== 1) ? [outputScale, 0, 0, outputScale, 0, 0] : null
+          viewport: viewport
         };
+        if (outputScale !== 1) {
+          renderContext.transform = [outputScale, 0, 0, outputScale, 0, 0];
+        }
     
         page.render(renderContext).promise.then(() => {
           rendering = false;
@@ -322,6 +329,7 @@
          isPinching = false;
       }
     }, { passive: false });
+    
   </script>
 </body>
 </html>
