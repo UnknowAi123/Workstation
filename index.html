@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes">
+  <meta name="viewport" content="device-width, initial-scale=1, user-scalable=yes">
   <title>Visor PDF - AlphaPDF</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.10.111/pdf.min.js"></script>
   <script>
@@ -33,7 +33,6 @@
         padding: 6px;
       }
     }
-    /* Contenedor del visor PDF */
     #canvasWrapper {
       border: 1px solid #ccc;
       width: 100%;
@@ -41,7 +40,7 @@
       overflow: auto;
       position: relative;
       background: #eee;
-      min-width: 100px; /* Evitar colapso en móviles */
+      min-width: 100px;
       min-height: 100px;
     }
     canvas {
@@ -96,8 +95,12 @@
         <input type="range" id="pageSlider" min="1" step="1" value="1">
       </div>
       <div id="actionButtons">
+        <button id="zoomOut">➖</button>
         <button id="rotateLeft">↪️</button>
+        <button id="resetZoom">🔄</button>
         <button id="rotateRight">↩️</button>
+        <button id="zoomIn">➕</button>
+        <button id="toggleFullscreen">⛶</button>
       </div>
       <div id="fileContainer">
         <input type="file" id="fileInput" accept="application/pdf">
@@ -126,6 +129,45 @@
     
     const canvasWrapper = document.getElementById('canvasWrapper');
     const canvas = document.getElementById('pdfCanvas');
+    const pdfContainer = document.getElementById('pdfContainer');
+    
+    // Función para entrar/salir de pantalla completa
+    function toggleFullscreen() {
+      if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+        const requestFullscreen = pdfContainer.requestFullscreen || pdfContainer.webkitRequestFullscreen;
+        if (requestFullscreen) {
+          requestFullscreen.call(pdfContainer).catch(err => {
+            alert('No se pudo activar pantalla completa: ' + err.message);
+          });
+        }
+      } else {
+        const exitFullscreen = document.exitFullscreen || document.webkitExitFullscreen;
+        if (exitFullscreen) {
+          exitFullscreen.call(document).catch(err => {
+            alert('No se pudo salir de pantalla completa: ' + err.message);
+          });
+        }
+      }
+    }
+
+    // Intentar pantalla completa al cargar
+    window.addEventListener('DOMContentLoaded', () => {
+      const requestFullscreen = pdfContainer.requestFullscreen || pdfContainer.webkitRequestFullscreen;
+      if (requestFullscreen) {
+        requestFullscreen.call(pdfContainer).catch(err => {
+          alert('Pantalla completa automática no soportada. Usa el botón ⛶.');
+        });
+      }
+    });
+
+    // Actualizar el texto del botón según el estado
+    document.addEventListener('fullscreenchange', updateFullscreenButton);
+    document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
+
+    function updateFullscreenButton() {
+      const toggleButton = document.getElementById('toggleFullscreen');
+      toggleButton.textContent = document.fullscreenElement || document.webkitFullscreenElement ? '⎍' : '⛶';
+    }
     
     // Cargar el PDF mediante file input
     document.getElementById('fileInput').addEventListener('change', function(event) {
@@ -136,9 +178,9 @@
           const pdfData = new Uint8Array(this.result);
           pdfjsLib.getDocument({ 
             data: pdfData,
-            enableScripting: false, // Deshabilitar scripts incrustados
-            renderInteractiveForms: false, // Deshabilitar formularios interactivos
-            disableAutoFetch: true // Evitar descargas automáticas
+            enableScripting: false,
+            renderInteractiveForms: false,
+            disableAutoFetch: true
           }).promise.then(pdf => {
             pdfDoc = pdf;
             pageNum = 1;
@@ -203,8 +245,8 @@
           canvasContext: context,
           viewport: viewport,
           transform: (outputScale !== 1) ? [outputScale, 0, 0, outputScale, 0, 0] : null,
-          renderTextLayer: false, // Deshabilitar capa de texto
-          renderAnnotations: false // Deshabilitar capa de anotaciones
+          renderTextLayer: false,
+          renderAnnotations: false
         };
     
         page.render(renderContext).promise.then(() => {
@@ -238,7 +280,7 @@
       document.getElementById("pageSlider").value = pageNum;
     }
     
-    // Botones de navegación y rotación
+    // Botones de navegación
     document.getElementById('prevPage').addEventListener('click', () => {
       if (pageNum > 1) renderPage(pageNum - 1);
     });
@@ -255,6 +297,8 @@
         if (newPage !== pageNum) renderPage(newPage);
       }, 150);
     });
+
+    // Botones de rotación
     document.getElementById('rotateLeft').addEventListener('click', () => {
       currentRotation = (currentRotation - 90 + 360) % 360;
       renderPage(pageNum);
@@ -263,6 +307,27 @@
       currentRotation = (currentRotation + 90) % 360;
       renderPage(pageNum);
     });
+
+    // Botón de reset de zoom
+    document.getElementById('resetZoom').addEventListener('click', () => {
+      zoomFactor = 1.0;
+      renderPage(pageNum);
+    });
+
+    // Botón de zoom out
+    document.getElementById('zoomOut').addEventListener('click', () => {
+      zoomFactor = Math.max(0.2, zoomFactor - 0.1);
+      renderPage(pageNum);
+    });
+
+    // Botón de zoom in
+    document.getElementById('zoomIn').addEventListener('click', () => {
+      zoomFactor = Math.min(5, zoomFactor + 0.1);
+      renderPage(pageNum);
+    });
+
+    // Botón de pantalla completa
+    document.getElementById('toggleFullscreen').addEventListener('click', toggleFullscreen);
     
     // getDistance: Calcula la distancia entre dos toques
     function getDistance(touch1, touch2) {
