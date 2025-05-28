@@ -143,7 +143,9 @@
           pinchCenterY: 0
         },
         lastTempZoom = null,
-        isPinching = false;
+        isPinching = false,
+        pageImages = {}, // Almacena imágenes de páginas
+        currentImage = null; // Imagen actual mostrada
     
     const canvasWrapper = document.getElementById('canvasWrapper');
     const canvas = document.getElementById('pdfCanvas');
@@ -176,6 +178,28 @@
       toggleButton.className = document.fullscreenElement || document.webkitFullscreenElement ? 'active' : '';
     }
     
+    // Generar imagen de alta calidad para una página
+    async function generatePageImage(pageNum) {
+      if (pageImages[pageNum]) return pageImages[pageNum]; // Usar imagen si ya existe
+      const page = await pdfDoc.getPage(pageNum);
+      const baseViewport = page.getViewport({ scale: 1, rotation: 0 });
+      const imageScale = 3; // Resolución alta (3x pantalla típica)
+      const viewport = page.getViewport({ scale: imageScale, rotation: currentRotation });
+      const tempCanvas = document.createElement('canvas');
+      const context = tempCanvas.getContext('2d');
+      tempCanvas.width = Math.floor(viewport.width);
+      tempCanvas.height = Math.floor(viewport.height);
+      await page.render({
+        canvasContext: context,
+        viewport: viewport,
+        renderTextLayer: false,
+        renderAnnotations: false
+      }).promise;
+      const image = tempCanvas.toDataURL('image/jpeg', 0.9); // JPEG con buena calidad
+      pageImages[pageNum] = image;
+      return image;
+    }
+    
     // Cargar el PDF mediante file input
     document.getElementById('fileInput').addEventListener('change', function(event) {
       const file = event.target.files[0];
@@ -194,6 +218,7 @@
             pdfLoaded = true;
             currentRotation = 0;
             zoomFactor = 1.0;
+            pageImages = {}; // Limpiar imágenes al cargar nuevo PDF
             document.getElementById("pageSlider").max = pdf.numPages;
             updateCounter();
             renderPage(pageNum);
@@ -210,75 +235,68 @@
       }
     });
     
-    // renderPage: Re-renderiza la página usando zoomFactor y currentRotation
-    function renderPage(num, callback) {
+    // renderPage: Renderiza usando imagen si está disponible
+    async function renderPage(num, callback) {
       if (!pdfLoaded || rendering) return;
       rendering = true;
-      pdfDoc.getPage(num).then(page => {
-        const context = canvas.getContext('2d');
-        const baseViewport = page.getViewport({ scale: 1, rotation: 0 });
-        let scale;
-        const isHorizontal = baseViewport.width > baseViewport.height;
-        if (!isHorizontal) {
-          const verticalScale = (canvasWrapper.clientWidth / baseViewport.width) * zoomFactor;
-          scale = (currentRotation % 180 === 0)
-                  ? verticalScale
-                  : verticalScale * (baseViewport.height / baseViewport.width);
-        } else {
-          scale = (canvasWrapper.clientWidth / baseViewport.width) * zoomFactor;
-        }
-        const viewport = page.getViewport({ scale: scale, rotation: currentRotation });
-        const outputScale = window.devicePixelRatio || 1;
-        const canvasWidth = viewport.width;
-        const canvasHeight = viewport.height;
+      try {
+        const image = await generatePageImage(num); // Obtener imagen de la página
+        currentImage = new Image();
+        currentImage.src = image;
+        currentImage.onload = () => {
+          const context = canvas.getContext('2d');
+          const baseViewport = { width: currentImage.width / 3, height: currentImage.height / 3 }; // Escala base
+          let scale;
+          const isHorizontal = baseViewport.width > baseViewport.height;
+          if (!isHorizontal) {
+            const verticalScale = (canvasWrapper.clientWidth / baseViewport.width) * zoomFactor;
+            scale = (currentRotation % 180 === 0)
+                    ? verticalScale
+                    : verticalScale * (baseViewport.height / baseViewport.width);
+          } else {
+            scale = (canvasWrapper.clientWidth / baseViewport.width) * zoomFactor;
+          }
+          const canvasWidth = baseViewport.width * scale;
+          const canvasHeight = baseViewport.height * scale;
+          const outputScale = window.devicePixelRatio || 1;
     
-        canvas.width = Math.floor(canvasWidth * outputScale);
-        canvas.height = Math.floor(canvasHeight * outputScale);
-        canvas.style.width = canvasWidth + "px";
-        canvas.style.height = canvasHeight + "px";
+          canvas.width = Math.floor(canvasWidth * outputScale);
+          canvas.height = Math.floor(canvasHeight * outputScale);
+          canvas.style.width = canvasWidth + "px";
+          canvas.style.height = canvasHeight + "px";
     
-        // Actualizar resolución
-        document.getElementById('canvasSize').textContent = `[Resolución: ${canvas.width/outputScale} x ${canvas.height/outputScale}]`;
-        
-        // Calcular y actualizar porcentaje de zoom
-        const baseScale = isHorizontal ? (canvasWrapper.clientWidth / baseViewport.width) : (canvasWrapper.clientWidth / baseViewport.width);
-        const zoomPercentage = Math.round((scale / baseScale) * 100);
-        document.getElementById('zoomPercentage').textContent = `[Zoom: ${zoomPercentage}%]`;
+          // Actualizar resolución
+          document.getElementById('canvasSize').textContent = `[Resolución: ${canvas.width/outputScale} x ${canvas.height/outputScale}]`;
+          
+          // Actualizar porcentaje de zoom
+          const baseScale = isHorizontal ? (canvasWrapper.clientWidth / baseViewport.width) : (canvasWrapper.clientWidth / baseViewport.width);
+          const zoomPercentage = Math.round((scale / baseScale) * 100);
+          document.getElementById('zoomPercentage').textContent = `[Zoom: ${zoomPercentage}%]`;
     
-        // Centrar el canvas dentro del contenedor
-        let marginLeft = (canvasWrapper.clientWidth > canvasWidth)
-          ? (canvasWrapper.clientWidth - canvasWidth) / 2 : 0;
-        let marginTop = (canvasWrapper.clientHeight > canvasHeight)
-          ? (canvasWrapper.clientHeight - canvasHeight) / 2 : 0;
+          // Centrar el canvas
+          let marginLeft = (canvasWrapper.clientWidth > canvasWidth) ? (canvasWrapper.clientWidth - canvasWidth) / 2 : 0;
+          let marginTop = (canvasWrapper.clientHeight > canvasHeight) ? (canvasWrapper.clientHeight - canvasHeight) / 2 : 0;
+          canvas.style.marginLeft = marginLeft + "px";
+          canvas.style.marginTop = marginTop + "px";
     
-        canvas.style.marginLeft = marginLeft + "px";
-        canvas.style.marginTop = marginTop + "px";
+          // Dibujar imagen
+          context.clearRect(0, 0, canvas.width, canvas.height);
+          context.drawImage(currentImage, 0, 0, canvas.width, canvas.height);
     
-        const contextClear = canvas.getContext('2d');
-        contextClear.clearRect(0, 0, canvas.width, canvas.height);
-        const renderContext = {
-          canvasContext: context,
-          viewport: viewport,
-          transform: (outputScale !== 1) ? [outputScale, 0, 0, outputScale, 0, 0] : null,
-          renderTextLayer: false,
-          renderAnnotations: false
-        };
-    
-        page.render(renderContext).promise.then(() => {
           rendering = false;
           updateCounter();
           if (callback) callback();
-        }).catch(error => {
+        };
+        currentImage.onerror = () => {
           rendering = false;
-          alert("Error al renderizar la página: " + error.message);
-        });
-    
-        pageNum = num;
-        updateCounter();
-      }).catch(error => {
+          alert("Error al cargar la imagen de la página.");
+        };
+      } catch (error) {
         rendering = false;
-        alert("Error al obtener la página: " + error.message);
-      });
+        alert("Error al renderizar la página: " + error.message);
+      }
+      pageNum = num;
+      updateCounter();
     }
     
     // updateCounter: Actualiza el contador y el slider de página
@@ -318,10 +336,12 @@
     // Botones de rotación
     document.getElementById('rotateLeft').addEventListener('click', () => {
       currentRotation = (currentRotation - 90 + 360) % 360;
+      delete pageImages[pageNum]; // Invalidar imagen para rotación
       renderPage(pageNum);
     });
     document.getElementById('rotateRight').addEventListener('click', () => {
       currentRotation = (currentRotation + 90) % 360;
+      delete pageImages[pageNum]; // Invalidar imagen para rotación
       renderPage(pageNum);
     });
 
@@ -379,9 +399,6 @@
          const rect = canvas.getBoundingClientRect();
          pinchZoom.pinchCenterX = ((e.touches[0].clientX + e.touches[1].clientX) / 2) - rect.left;
          pinchZoom.pinchCenterY = ((e.touches[0].clientY + e.touches[1].clientY) / 2) - rect.top;
-         canvas.style.transformOrigin =
-           ((pinchZoom.pinchCenterX / canvas.clientWidth) * 100) + "% " +
-           ((pinchZoom.pinchCenterY / canvas.clientHeight) * 100) + "%";
       }
     }, { passive: false });
     
@@ -390,15 +407,19 @@
          e.preventDefault();
          const currentDistance = getDistance(e.touches[0], e.touches[1]);
          let tempZoom = pinchZoom.initialZoomFactor * (currentDistance / pinchZoom.initialDistance);
-         tempZoom = Math.max(1, Math.min(tempZoom, 5));
+         tempZoom = Math.max(0.2, Math.min(tempZoom, 5));
          lastTempZoom = tempZoom;
-         canvas.style.transform = "scale(" + (tempZoom / pinchZoom.initialZoomFactor) + ")";
+         const context = canvas.getContext('2d');
+         context.clearRect(0, 0, canvas.width, canvas.height);
+         const scaleFactor = tempZoom / pinchZoom.initialZoomFactor;
+         const newWidth = canvas.width * scaleFactor;
+         const newHeight = canvas.height * scaleFactor;
+         context.drawImage(currentImage, 0, 0, newWidth, newHeight);
       }
     }, { passive: false });
     
     canvasWrapper.addEventListener('touchend', function(e) {
       if (isPinching && e.touches.length < 2) {
-         canvas.style.transform = "";
          if (lastTempZoom) {
             zoomFactor = lastTempZoom;
          }
@@ -415,7 +436,6 @@
     
     canvasWrapper.addEventListener('touchcancel', function(e) {
       if (isPinching && e.touches.length < 2) {
-         canvas.style.transform = "";
          isPinching = false;
       }
     }, { passive: false });
