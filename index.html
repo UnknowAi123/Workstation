@@ -34,7 +34,7 @@
       }
     }
     #canvasWrapper {
-      border: 1px solid #ccc;
+      border: 2px solid red; /* Borde temporal para verificar tamaño */
       width: 100%;
       height: 555px;
       overflow: auto;
@@ -55,6 +55,7 @@
     #buttonContainer {
       display: flex;
       justify-content: center;
+      align-items: center;
       gap: 20px;
       margin-top: 20px;
       margin-bottom: 30px;
@@ -78,6 +79,12 @@
       justify-content: center;
       margin-bottom: 20px;
     }
+    #toggleFullscreen.active {
+      color: #007bff; /* Azul cuando está en fullscreen */
+    }
+    #toggleFullscreen {
+      color: #808080; /* Gris cuando no está en fullscreen */
+    }
   </style>
 </head>
 <body>
@@ -89,6 +96,7 @@
       <div id="buttonContainer">
         <button id="prevPage">⬅️</button>
         <span id="pageCounter">## / ##</span>
+        <span id="canvasSize">[Tamaño: - x -]</span>
         <button id="nextPage">➡️</button>
       </div>
       <div id="sliderContainer">
@@ -129,14 +137,13 @@
     
     const canvasWrapper = document.getElementById('canvasWrapper');
     const canvas = document.getElementById('pdfCanvas');
-    const pdfContainer = document.getElementById('pdfContainer');
     
     // Función para entrar/salir de pantalla completa
     function toggleFullscreen() {
       if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-        const requestFullscreen = pdfContainer.requestFullscreen || pdfContainer.webkitRequestFullscreen;
+        const requestFullscreen = document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen;
         if (requestFullscreen) {
-          requestFullscreen.call(pdfContainer).catch(err => {
+          requestFullscreen.call(document.documentElement).catch(err => {
             alert('No se pudo activar pantalla completa: ' + err.message);
           });
         }
@@ -150,23 +157,13 @@
       }
     }
 
-    // Intentar pantalla completa al cargar
-    window.addEventListener('DOMContentLoaded', () => {
-      const requestFullscreen = pdfContainer.requestFullscreen || pdfContainer.webkitRequestFullscreen;
-      if (requestFullscreen) {
-        requestFullscreen.call(pdfContainer).catch(err => {
-          alert('Pantalla completa automática no soportada. Usa el botón ⛶.');
-        });
-      }
-    });
-
-    // Actualizar el texto del botón según el estado
+    // Actualizar el estilo del botón según el estado
     document.addEventListener('fullscreenchange', updateFullscreenButton);
     document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
 
     function updateFullscreenButton() {
       const toggleButton = document.getElementById('toggleFullscreen');
-      toggleButton.textContent = document.fullscreenElement || document.webkitFullscreenElement ? '⎍' : '⛶';
+      toggleButton.className = document.fullscreenElement || document.webkitFullscreenElement ? 'active' : '';
     }
     
     // Cargar el PDF mediante file input
@@ -230,6 +227,9 @@
         canvas.style.width = canvasWidth + "px";
         canvas.style.height = canvasHeight + "px";
     
+        // Actualizar el tamaño del canvas
+        document.getElementById('canvasSize').textContent = `[Tamaño: ${canvas.width/outputScale} x ${canvas.height/outputScale}]`;
+    
         // Centrar el canvas dentro del contenedor
         let marginLeft = (canvasWrapper.clientWidth > canvasWidth)
           ? (canvasWrapper.clientWidth - canvasWidth) / 2 : 0;
@@ -271,6 +271,7 @@
       if (!pdfDoc) {
         document.getElementById("pageCounter").textContent = "## / ##";
         document.getElementById("pageSlider").value = 0;
+        document.getElementById("canvasSize").textContent = "[Tamaño: - x -]";
         return;
       }
       const totalPages = pdfDoc.numPages;
