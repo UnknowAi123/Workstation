@@ -4,11 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes">
   <title>Visor PDF - AlphaPDF</title>
-  <script src="https://unpkg.com/pdfjs-dist@5.2.133/build/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.10.111/pdf.min.js"></script>
   <script>
-    // Configurar el worker y el decodificador OpenJPEG para PDF.js 5.2.133
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@5.2.133/build/pdf.worker.min.js';
-    pdfjsLib.GlobalWorkerOptions.wasmUrl = 'https://unpkg.com/pdfjs-dist@5.2.133/web/openjpeg.wasm';
+    // Configurar el worker para PDF.js 3.10.111
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.10.111/pdf.worker.min.js';
   </script>
   <style>
     * {
@@ -34,6 +33,7 @@
         padding: 6px;
       }
     }
+    /* Contenedor del visor PDF */
     #canvasWrapper {
       border: 1px solid #ccc;
       width: 100%;
@@ -41,15 +41,12 @@
       overflow: auto;
       position: relative;
       background: #eee;
-      min-width: 100px; /* Asegurar tamaño mínimo */
+      min-width: 100px; /* Evitar colapso en móviles */
       min-height: 100px;
     }
     canvas {
       display: block;
       transform: none;
-      /* Asegurar visibilidad */
-      position: relative;
-      z-index: 1;
     }
     #controls {
       margin-top: 20px;
@@ -130,35 +127,6 @@
     const canvasWrapper = document.getElementById('canvasWrapper');
     const canvas = document.getElementById('pdfCanvas');
     
-    // Cargar un PDF por defecto para pruebas
-    window.addEventListener('DOMContentLoaded', () => {
-      const defaultPdfUrl = 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf';
-      fetch(defaultPdfUrl)
-        .then(response => response.arrayBuffer())
-        .then(data => {
-          pdfjsLib.getDocument({ 
-            data: data,
-            useSystemFonts: true,
-            cMapUrl: 'https://unpkg.com/pdfjs-dist@5.2.133/cmaps/',
-            cMapPacked: true
-          }).promise.then(pdf => {
-            pdfDoc = pdf;
-            pageNum = 1;
-            pdfLoaded = true;
-            currentRotation = 0;
-            zoomFactor = 1.0;
-            document.getElementById("pageSlider").max = pdf.numPages;
-            updateCounter();
-            renderPage(pageNum);
-          }).catch(error => {
-            console.error("Error al cargar el PDF por defecto:", error);
-            alert("No se pudo cargar el PDF por defecto.");
-          });
-        }).catch(error => {
-          console.error("Error al descargar el PDF por defecto:", error);
-        });
-    });
-
     // Cargar el PDF mediante file input
     document.getElementById('fileInput').addEventListener('change', function(event) {
       const file = event.target.files[0];
@@ -168,9 +136,9 @@
           const pdfData = new Uint8Array(this.result);
           pdfjsLib.getDocument({ 
             data: pdfData,
-            useSystemFonts: true,
-            cMapUrl: 'https://unpkg.com/pdfjs-dist@5.2.133/cmaps/',
-            cMapPacked: true
+            enableScripting: false, // Deshabilitar scripts incrustados
+            renderInteractiveForms: false, // Deshabilitar formularios interactivos
+            disableAutoFetch: true // Evitar descargas automáticas
           }).promise.then(pdf => {
             pdfDoc = pdf;
             pageNum = 1;
@@ -181,12 +149,10 @@
             updateCounter();
             renderPage(pageNum);
           }).catch(error => {
-            console.error("Error al cargar el PDF:", error);
-            alert("No se pudo cargar el PDF. Asegúrate de que el archivo es válido.");
+            alert("Error al cargar el PDF: " + error.message);
           });
         };
         fileReader.onerror = () => {
-          console.error("Error al leer el archivo.");
           alert("Error al leer el archivo PDF.");
         };
         fileReader.readAsArrayBuffer(file);
@@ -201,50 +167,60 @@
       rendering = true;
       pdfDoc.getPage(num).then(page => {
         const context = canvas.getContext('2d');
-        const baseViewport = page.getViewport({ scale: 1, rotation: currentRotation });
-        // Calcular escala para ajustar al ancho del contenedor
-        const scale = (canvasWrapper.clientWidth / baseViewport.width) * zoomFactor;
-        console.log(`Renderizando página ${num} con escala: ${scale}, zoom: ${zoomFactor}`);
+        const baseViewport = page.getViewport({ scale: 1, rotation: 0 });
+        let scale;
+        const isHorizontal = baseViewport.width > baseViewport.height;
+        if (!isHorizontal) {
+          const verticalScale = (canvasWrapper.clientWidth / baseViewport.width) * zoomFactor;
+          scale = (currentRotation % 180 === 0)
+                  ? verticalScale
+                  : verticalScale * (baseViewport.height / baseViewport.width);
+        } else {
+          scale = (canvasWrapper.clientWidth / baseViewport.width) * zoomFactor;
+        }
         const viewport = page.getViewport({ scale: scale, rotation: currentRotation });
         const outputScale = window.devicePixelRatio || 1;
+        const canvasWidth = viewport.width;
+        const canvasHeight = viewport.height;
     
-        // Configurar dimensiones del canvas
-        canvas.width = Math.floor(viewport.width * outputScale);
-        canvas.height = Math.floor(viewport.height * outputScale);
-        canvas.style.width = viewport.width + "px";
-        canvas.style.height = viewport.height + "px";
-        console.log(`Canvas dimensiones: width=${canvas.width}, height=${canvas.height}, style.width=${canvas.style.width}, style.height=${canvas.style.height}`);
+        canvas.width = Math.floor(canvasWidth * outputScale);
+        canvas.height = Math.floor(canvasHeight * outputScale);
+        canvas.style.width = canvasWidth + "px";
+        canvas.style.height = canvasHeight + "px";
     
-        // Centrar el canvas
-        let marginLeft = (canvasWrapper.clientWidth - viewport.width) / 2;
-        let marginTop = (canvasWrapper.clientHeight - viewport.height) / 2;
-        canvas.style.marginLeft = marginLeft > 0 ? marginLeft + "px" : "0px";
-        canvas.style.marginTop = marginTop > 0 ? marginTop + "px" : "0px";
-        console.log(`Márgenes: left=${canvas.style.marginLeft}, top=${canvas.style.marginTop}`);
+        // Centrar el canvas dentro del contenedor
+        let marginLeft = (canvasWrapper.clientWidth > canvasWidth)
+          ? (canvasWrapper.clientWidth - canvasWidth) / 2 : 0;
+        let marginTop = (canvasWrapper.clientHeight > canvasHeight)
+          ? (canvasWrapper.clientHeight - canvasHeight) / 2 : 0;
     
-        // Limpiar canvas antes de renderizar
-        context.clearRect(0, 0, canvas.width, canvas.height);
+        canvas.style.marginLeft = marginLeft + "px";
+        canvas.style.marginTop = marginTop + "px";
+    
+        const contextClear = canvas.getContext('2d');
+        contextClear.clearRect(0, 0, canvas.width, canvas.height);
         const renderContext = {
           canvasContext: context,
           viewport: viewport,
-          transform: outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null
+          transform: (outputScale !== 1) ? [outputScale, 0, 0, outputScale, 0, 0] : null,
+          renderTextLayer: false, // Deshabilitar capa de texto
+          renderAnnotations: false // Deshabilitar capa de anotaciones
         };
     
         page.render(renderContext).promise.then(() => {
-          console.log(`Página ${num} renderizada correctamente`);
           rendering = false;
           updateCounter();
           if (callback) callback();
         }).catch(error => {
-          console.error("Error al renderizar la página:", error);
           rendering = false;
+          alert("Error al renderizar la página: " + error.message);
         });
     
         pageNum = num;
         updateCounter();
       }).catch(error => {
-        console.error("Error al obtener la página:", error);
         rendering = false;
+        alert("Error al obtener la página: " + error.message);
       });
     }
     
@@ -274,7 +250,7 @@
       const newPage = parseInt(event.target.value, 10);
       const formattedPageNum = newPage < 10 ? '0' + newPage : newPage;
       document.getElementById("pageCounter").textContent = formattedPageNum + " / " + pdfDoc.numPages;
-      if (sliderTimeout) clearTenTimeout(sliderTimeout);
+      if (sliderTimeout) clearTimeout(sliderTimeout);
       sliderTimeout = setTimeout(() => {
         if (newPage !== pageNum) renderPage(newPage);
       }, 150);
