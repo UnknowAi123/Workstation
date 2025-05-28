@@ -34,7 +34,6 @@
       }
     }
     #canvasWrapper {
-      border: 2px solid red; /* Borde temporal para verificar tamaño */
       width: 100%;
       height: 555px;
       overflow: auto;
@@ -74,6 +73,13 @@
       gap: 20px;
       margin-bottom: 30px;
     }
+    #sizeAndFullscreenContainer {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 30px;
+    }
     #fileContainer {
       display: flex;
       justify-content: center;
@@ -96,7 +102,6 @@
       <div id="buttonContainer">
         <button id="prevPage">⬅️</button>
         <span id="pageCounter">## / ##</span>
-        <span id="canvasSize">[Tamaño: - x -]</span>
         <button id="nextPage">➡️</button>
       </div>
       <div id="sliderContainer">
@@ -108,6 +113,9 @@
         <button id="resetZoom">🔄</button>
         <button id="rotateRight">↩️</button>
         <button id="zoomIn">➕</button>
+      </div>
+      <div id="sizeAndFullscreenContainer">
+        <span id="canvasSize">[Tamaño: - x -]</span>
         <button id="toggleFullscreen">⛶</button>
       </div>
       <div id="fileContainer">
@@ -169,6 +177,7 @@
     // Cargar el PDF mediante file input
     document.getElementById('fileInput').addEventListener('change', function(event) {
       const file = event.target.files[0];
+      const wasFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
       if (file && file.type === 'application/pdf') {
         const fileReader = new FileReader();
         fileReader.onload = function() {
@@ -186,7 +195,17 @@
             zoomFactor = 1.0;
             document.getElementById("pageSlider").max = pdf.numPages;
             updateCounter();
-            renderPage(pageNum);
+            renderPage(pageNum, () => {
+              // Restaurar fullscreen si estaba activo
+              if (wasFullscreen && !(document.fullscreenElement || document.webkitFullscreenElement)) {
+                const requestFullscreen = document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen;
+                if (requestFullscreen) {
+                  requestFullscreen.call(document.documentElement).catch(err => {
+                    alert('No se pudo restaurar pantalla completa: ' + err.message);
+                  });
+                }
+              }
+            });
           }).catch(error => {
             alert("Error al cargar el PDF: " + error.message);
           });
@@ -281,6 +300,17 @@
       document.getElementById("pageSlider").value = pageNum;
     }
     
+    // Prevenir desplazamiento de la página al llegar a los límites
+    canvasWrapper.addEventListener('touchmove', function(e) {
+      const scrollTop = canvasWrapper.scrollTop;
+      const scrollHeight = canvasWrapper.scrollHeight;
+      const clientHeight = canvasWrapper.clientHeight;
+      const deltaY = e.touches[0].clientY - (e.touches[0].clientY || 0); // Aproximación de movimiento
+      if ((scrollTop === 0 && deltaY > 0) || (scrollTop + clientHeight >= scrollHeight && deltaY < 0)) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+    
     // Botones de navegación
     document.getElementById('prevPage').addEventListener('click', () => {
       if (pageNum > 1) renderPage(pageNum - 1);
@@ -317,14 +347,28 @@
 
     // Botón de zoom out
     document.getElementById('zoomOut').addEventListener('click', () => {
+      const oldZoomFactor = zoomFactor;
       zoomFactor = Math.max(0.2, zoomFactor - 0.1);
-      renderPage(pageNum);
+      const zoomRatio = zoomFactor / oldZoomFactor;
+      const centerX = canvasWrapper.scrollLeft + canvasWrapper.clientWidth / 2;
+      const centerY = canvasWrapper.scrollTop + canvasWrapper.clientHeight / 2;
+      renderPage(pageNum, () => {
+        canvasWrapper.scrollLeft = centerX * zoomRatio - canvasWrapper.clientWidth / 2;
+        canvasWrapper.scrollTop = centerY * zoomRatio - canvasWrapper.clientHeight / 2;
+      });
     });
 
     // Botón de zoom in
     document.getElementById('zoomIn').addEventListener('click', () => {
+      const oldZoomFactor = zoomFactor;
       zoomFactor = Math.min(5, zoomFactor + 0.1);
-      renderPage(pageNum);
+      const zoomRatio = zoomFactor / oldZoomFactor;
+      const centerX = canvasWrapper.scrollLeft + canvasWrapper.clientWidth / 2;
+      const centerY = canvasWrapper.scrollTop + canvasWrapper.clientHeight / 2;
+      renderPage(pageNum, () => {
+        canvasWrapper.scrollLeft = centerX * zoomRatio - canvasWrapper.clientWidth / 2;
+        canvasWrapper.scrollTop = centerY * zoomRatio - canvasWrapper.clientHeight / 2;
+      });
     });
 
     // Botón de pantalla completa
