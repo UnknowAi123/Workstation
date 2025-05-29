@@ -6,7 +6,6 @@
   <title>Visor PDF - AlphaPDF</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.10.111/pdf.min.js"></script>
   <script>
-    // Configurar el worker para PDF.js 3.10.111
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.10.111/pdf.worker.min.js';
   </script>
   <style>
@@ -87,10 +86,10 @@
       margin-bottom: 20px;
     }
     #toggleFullscreen.active {
-      color: #007bff; /* Azul cuando está en fullscreen */
+      color: #007bff;
     }
     #toggleFullscreen {
-      color: #808080; /* Gris cuando no está en fullscreen */
+      color: #808080;
     }
   </style>
 </head>
@@ -143,14 +142,11 @@
           pinchCenterY: 0
         },
         lastTempZoom = null,
-        isPinching = false,
-        pageImages = {}, // Almacena imágenes de páginas
-        currentImage = null; // Imagen actual mostrada
+        isPinching = false;
     
     const canvasWrapper = document.getElementById('canvasWrapper');
     const canvas = document.getElementById('pdfCanvas');
     
-    // Función para entrar/salir de pantalla completa
     function toggleFullscreen() {
       if (!document.fullscreenElement && !document.webkitFullscreenElement) {
         const requestFullscreen = document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen;
@@ -169,7 +165,6 @@
       }
     }
 
-    // Actualizar el estilo del botón según el estado
     document.addEventListener('fullscreenchange', updateFullscreenButton);
     document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
 
@@ -178,29 +173,83 @@
       toggleButton.className = document.fullscreenElement || document.webkitFullscreenElement ? 'active' : '';
     }
     
-    // Generar imagen de alta calidad para una página
-    async function generatePageImage(pageNum) {
-      if (pageImages[pageNum]) return pageImages[pageNum]; // Usar imagen si ya existe
-      const page = await pdfDoc.getPage(pageNum);
-      const baseViewport = page.getViewport({ scale: 1, rotation: 0 });
-      const imageScale = 2.5; // Resolución alta optimizada (2.5x pantalla)
-      const viewport = page.getViewport({ scale: imageScale, rotation: currentRotation });
-      const tempCanvas = document.createElement('canvas');
-      const context = tempCanvas.getContext('2d');
-      tempCanvas.width = Math.floor(viewport.width);
-      tempCanvas.height = Math.floor(viewport.height);
-      await page.render({
-        canvasContext: context,
-        viewport: viewport,
-        renderTextLayer: false,
-        renderAnnotations: false
-      }).promise;
-      const image = tempCanvas.toDataURL('image/jpeg', 0.85); // JPEG optimizado
-      pageImages[pageNum] = image;
-      return image;
+    function renderPage(num, callback) {
+      if (!pdfLoaded || rendering) return;
+      rendering = true;
+      pdfDoc.getPage(num).then(page => {
+        const context = canvas.getContext('2d');
+        const baseViewport = page.getViewport({ scale: 1, rotation: 0 });
+        let scale;
+        const isHorizontal = baseViewport.width > baseViewport.height;
+        if (!isHorizontal) {
+          const verticalScale = (canvasWrapper.clientWidth / baseViewport.width) * zoomFactor;
+          scale = (currentRotation % 180 === 0)
+                  ? verticalScale
+                  : verticalScale * (baseViewport.height / baseViewport.width);
+        } else {
+          scale = (canvasWrapper.clientWidth / baseViewport.width) * zoomFactor;
+        }
+        const viewport = page.getViewport({ scale: scale, rotation: currentRotation });
+        const outputScale = window.devicePixelRatio || 1;
+        const canvasWidth = viewport.width;
+        const canvasHeight = viewport.height;
+    
+        canvas.width = Math.floor(canvasWidth * outputScale);
+        canvas.height = Math.floor(canvasHeight * outputScale);
+        canvas.style.width = canvasWidth + "px";
+        canvas.style.height = canvasHeight + "px";
+    
+        document.getElementById('canvasSize').textContent = `[Resolución: ${canvas.width/outputScale} x ${canvas.height/outputScale}]`;
+        const baseScale = isHorizontal ? (canvasWrapper.clientWidth / baseViewport.width) : (canvasWrapper.clientWidth / baseViewport.width);
+        const zoomPercentage = Math.round((scale / baseScale) * 100);
+        document.getElementById('zoomPercentage').textContent = `[Zoom: ${zoomPercentage}%]`;
+    
+        let marginLeft = (canvasWrapper.clientWidth > canvasWidth) ? (canvasWrapper.clientWidth - canvasWidth) / 2 : 0;
+        let marginTop = (canvasWrapper.clientHeight > canvasHeight) ? (canvasWrapper.clientHeight - canvasHeight) / 2 : 0;
+        canvas.style.marginLeft = marginLeft + "px";
+        canvas.style.marginTop = marginTop + "px";
+    
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        const renderContext = {
+          canvasContext: context,
+          viewport: viewport,
+          transform: (outputScale !== 1) ? [outputScale, 0, 0, outputScale, 0, 0] : null,
+          renderTextLayer: false,
+          renderAnnotations: false
+        };
+    
+        page.render(renderContext).promise.then(() => {
+          rendering = false;
+          updateCounter();
+          if (callback) callback();
+        }).catch(error => {
+          rendering = false;
+          alert("Error al renderizar la página: " + error.message);
+        });
+    
+        pageNum = num;
+        updateCounter();
+      }).catch(error => {
+        rendering = false;
+        alert("Error al obtener la página: " + error.message);
+      });
     }
     
-    // Cargar el PDF mediante file input
+    function updateCounter() {
+      if (!pdfDoc) {
+        document.getElementById("pageCounter").textContent = "## / ##";
+        document.getElementById("pageSlider").value = 0;
+        document.getElementById("canvasSize").textContent = "[Resolución: - x -]";
+        document.getElementById("zoomPercentage").textContent = "[Zoom: -%]";
+        return;
+      }
+      const totalPages = pdfDoc.numPages;
+      const formattedPageNum = pageNum < 10 ? '0' + pageNum : pageNum;
+      const formattedTotalPages = totalPages < 10 ? '0' + totalPages : totalPages;
+      document.getElementById("pageCounter").textContent = formattedPageNum + " / " + formattedTotalPages;
+      document.getElementById("pageSlider").value = pageNum;
+    }
+    
     document.getElementById('fileInput').addEventListener('change', function(event) {
       const file = event.target.files[0];
       if (file && file.type === 'application/pdf') {
@@ -218,7 +267,6 @@
             pdfLoaded = true;
             currentRotation = 0;
             zoomFactor = 1.0;
-            pageImages = {}; // Limpiar imágenes al cargar nuevo PDF
             document.getElementById("pageSlider").max = pdf.numPages;
             updateCounter();
             renderPage(pageNum);
@@ -235,87 +283,6 @@
       }
     });
     
-    // renderPage: Renderiza usando imagen
-    async function renderPage(num, callback) {
-      if (!pdfLoaded || rendering) return;
-      rendering = true;
-      try {
-        const image = await generatePageImage(num); // Obtener imagen
-        currentImage = new Image();
-        currentImage.src = image;
-        currentImage.onload = () => {
-          const context = canvas.getContext('2d');
-          const baseViewport = { width: currentImage.width / 2.5, height: currentImage.height / 2.5 }; // Escala base
-          let scale;
-          const isHorizontal = baseViewport.width > baseViewport.height;
-          if (!isHorizontal) {
-            const verticalScale = (canvasWrapper.clientWidth / baseViewport.width) * zoomFactor;
-            scale = (currentRotation % 180 === 0)
-                    ? verticalScale
-                    : verticalScale * (baseViewport.height / baseViewport.width);
-          } else {
-            scale = (canvasWrapper.clientWidth / baseViewport.width) * zoomFactor;
-          }
-          const canvasWidth = baseViewport.width * scale;
-          const canvasHeight = baseViewport.height * scale;
-          const outputScale = window.devicePixelRatio || 1;
-    
-          canvas.width = Math.floor(canvasWidth * outputScale);
-          canvas.height = Math.floor(canvasHeight * outputScale);
-          canvas.style.width = canvasWidth + "px";
-          canvas.style.height = canvasHeight + "px";
-    
-          // Actualizar resolución
-          document.getElementById('canvasSize').textContent = `[Resolución: ${canvas.width/outputScale} x ${canvas.height/outputScale}]`;
-          
-          // Actualizar porcentaje de zoom
-          const baseScale = isHorizontal ? (canvasWrapper.clientWidth / baseViewport.width) : (canvasWrapper.clientWidth / baseViewport.width);
-          const zoomPercentage = Math.round((scale / baseScale) * 100);
-          document.getElementById('zoomPercentage').textContent = `[Zoom: ${zoomPercentage}%]`;
-    
-          // Centrar el canvas
-          let marginLeft = (canvasWrapper.clientWidth > canvasWidth) ? (canvasWrapper.clientWidth - canvasWidth) / 2 : 0;
-          let marginTop = (canvasWrapper.clientHeight > canvasHeight) ? (canvasWrapper.clientHeight - canvasHeight) / 2 : 0;
-          canvas.style.marginLeft = marginLeft + "px";
-          canvas.style.marginTop = marginTop + "px";
-    
-          // Dibujar imagen
-          context.clearRect(0, 0, canvas.width, canvas.height);
-          context.drawImage(currentImage, 0, 0, canvas.width, canvas.height);
-    
-          rendering = false;
-          updateCounter();
-          if (callback) callback();
-        };
-        currentImage.onerror = () => {
-          rendering = false;
-          alert("Error al cargar la imagen de la página.");
-        };
-      } catch (error) {
-        rendering = false;
-        alert("Error al renderizar la página: " + error.message);
-      }
-      pageNum = num;
-      updateCounter();
-    }
-    
-    // updateCounter: Actualiza el contador y el slider
-    function updateCounter() {
-      if (!pdfDoc) {
-        document.getElementById("pageCounter").textContent = "## / ##";
-        document.getElementById("pageSlider").value = 0;
-        document.getElementById("canvasSize").textContent = "[Resolución: - x -]";
-        document.getElementById("zoomPercentage").textContent = "[Zoom: -%]";
-        return;
-      }
-      const totalPages = pdfDoc.numPages;
-      const formattedPageNum = pageNum < 10 ? '0' + pageNum : pageNum;
-      const formattedTotalPages = totalPages < 10 ? '0' + totalPages : totalPages;
-      document.getElementById("pageCounter").textContent = formattedPageNum + " / " + formattedTotalPages;
-      document.getElementById("pageSlider").value = pageNum;
-    }
-    
-    // Botones de navegación
     document.getElementById('prevPage').addEventListener('click', () => {
       if (pageNum > 1) renderPage(pageNum - 1);
     });
@@ -333,61 +300,50 @@
       }, 150);
     });
 
-    // Botones de rotación
     document.getElementById('rotateLeft').addEventListener('click', () => {
       currentRotation = (currentRotation - 90 + 360) % 360;
-      delete pageImages[pageNum]; // Invalidar imagen para rotación
       renderPage(pageNum);
     });
     document.getElementById('rotateRight').addEventListener('click', () => {
       currentRotation = (currentRotation + 90) % 360;
-      delete pageImages[pageNum]; // Invalidar imagen para rotación
       renderPage(pageNum);
     });
 
-    // Botón de reset de zoom
     document.getElementById('resetZoom').addEventListener('click', () => {
       zoomFactor = 1.0;
       renderPage(pageNum);
     });
 
-    // Botón de zoom out
     document.getElementById('zoomOut').addEventListener('click', () => {
       const oldZoomFactor = zoomFactor;
       zoomFactor = Math.max(0.2, zoomFactor - 0.1);
       const zoomRatio = zoomFactor / oldZoomFactor;
       const centerX = canvasWrapper.scrollLeft + canvasWrapper.clientWidth / 2;
       const centerY = canvasWrapper.scrollTop + canvasWrapper.clientHeight / 2;
-      renderPage(pageNum, () => {
-        canvasWrapper.scrollLeft = centerX * zoomRatio - canvasWrapper.clientWidth / 2;
-        canvasWrapper.scrollTop = centerY * zoomRatio - canvasWrapper.clientHeight / 2;
-      });
+      canvasWrapper.scrollLeft = centerX * zoomRatio - canvasWrapper.clientWidth / 2;
+      canvasWrapper.scrollTop = centerY * zoomRatio - canvasWrapper.clientHeight / 2;
+      renderPage(pageNum);
     });
 
-    // Botón de zoom in
     document.getElementById('zoomIn').addEventListener('click', () => {
       const oldZoomFactor = zoomFactor;
       zoomFactor = Math.min(5, zoomFactor + 0.1);
       const zoomRatio = zoomFactor / oldZoomFactor;
       const centerX = canvasWrapper.scrollLeft + canvasWrapper.clientWidth / 2;
       const centerY = canvasWrapper.scrollTop + canvasWrapper.clientHeight / 2;
-      renderPage(pageNum, () => {
-        canvasWrapper.scrollLeft = centerX * zoomRatio - canvasWrapper.clientWidth / 2;
-        canvasWrapper.scrollTop = centerY * zoomRatio - canvasWrapper.clientHeight / 2;
-      });
+      canvasWrapper.scrollLeft = centerX * zoomRatio - canvasWrapper.clientWidth / 2;
+      canvasWrapper.scrollTop = centerY * zoomRatio - canvasWrapper.clientHeight / 2;
+      renderPage(pageNum);
     });
 
-    // Botón de pantalla completa
     document.getElementById('toggleFullscreen').addEventListener('click', toggleFullscreen);
     
-    // getDistance: Calcula la distancia entre dos toques
     function getDistance(touch1, touch2) {
       const dx = touch1.pageX - touch2.pageX;
       const dy = touch1.pageY - touch2.pageY;
       return Math.sqrt(dx * dx + dy * dy);
     }
     
-    // Zoom por pellizco
     canvasWrapper.addEventListener('touchstart', function(e) {
       if (e.touches.length === 2) {
          e.preventDefault();
@@ -399,6 +355,9 @@
          const rect = canvas.getBoundingClientRect();
          pinchZoom.pinchCenterX = ((e.touches[0].clientX + e.touches[1].clientX) / 2) - rect.left;
          pinchZoom.pinchCenterY = ((e.touches[0].clientY + e.touches[1].clientY) / 2) - rect.top;
+         canvas.style.transformOrigin =
+           ((pinchZoom.pinchCenterX / canvas.clientWidth) * 100) + "% " +
+           ((pinchZoom.pinchCenterY / canvas.clientHeight) * 100) + "%";
       }
     }, { passive: false });
     
@@ -409,33 +368,29 @@
          let tempZoom = pinchZoom.initialZoomFactor * (currentDistance / pinchZoom.initialDistance);
          tempZoom = Math.max(0.2, Math.min(tempZoom, 5));
          lastTempZoom = tempZoom;
-         const context = canvas.getContext('2d');
-         context.clearRect(0, 0, canvas.width, canvas.height);
-         const scaleFactor = tempZoom / pinchZoom.initialZoomFactor;
-         const newWidth = canvas.width * scaleFactor;
-         const newHeight = canvas.height * scaleFactor;
-         context.drawImage(currentImage, 0, 0, newWidth, newHeight);
+         canvas.style.transform = "scale(" + (tempZoom / pinchZoom.initialZoomFactor) + ")";
       }
     }, { passive: false });
     
     canvasWrapper.addEventListener('touchend', function(e) {
       if (isPinching && e.touches.length < 2) {
+         canvas.style.transform = "";
          if (lastTempZoom) {
             zoomFactor = lastTempZoom;
          }
          const zoomRatio = zoomFactor / pinchZoom.initialZoomFactor;
          const centerX = pinchZoom.initialScrollLeft + pinchZoom.pinchCenterX;
          const centerY = pinchZoom.initialScrollTop + pinchZoom.pinchCenterY;
-         renderPage(pageNum, function() {
-           canvasWrapper.scrollLeft = centerX * zoomRatio - canvasWrapper.clientWidth / 2;
-           canvasWrapper.scrollTop = centerY * zoomRatio - canvasWrapper.clientHeight / 2;
-         });
+         canvasWrapper.scrollLeft = centerX * zoomRatio - canvasWrapper.clientWidth / 2;
+         canvasWrapper.scrollTop = centerY * zoomRatio - canvasWrapper.clientHeight / 2;
+         renderPage(pageNum);
          isPinching = false;
       }
     }, { passive: false });
     
     canvasWrapper.addEventListener('touchcancel', function(e) {
       if (isPinching && e.touches.length < 2) {
+         canvas.style.transform = "";
          isPinching = false;
       }
     }, { passive: false });
