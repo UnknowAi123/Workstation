@@ -183,7 +183,7 @@
       if (pageImages[pageNum]) return pageImages[pageNum]; // Usar imagen si ya existe
       const page = await pdfDoc.getPage(pageNum);
       const baseViewport = page.getViewport({ scale: 1, rotation: 0 });
-      const imageScale = 3; // Resolución alta (3x pantalla típica)
+      const imageScale = 2.5; // Resolución alta optimizada (2.5x pantalla)
       const viewport = page.getViewport({ scale: imageScale, rotation: currentRotation });
       const tempCanvas = document.createElement('canvas');
       const context = tempCanvas.getContext('2d');
@@ -195,7 +195,7 @@
         renderTextLayer: false,
         renderAnnotations: false
       }).promise;
-      const image = tempCanvas.toDataURL('image/jpeg', 0.9); // JPEG con buena calidad
+      const image = tempCanvas.toDataURL('image/jpeg', 0.85); // JPEG optimizado
       pageImages[pageNum] = image;
       return image;
     }
@@ -235,17 +235,17 @@
       }
     });
     
-    // renderPage: Renderiza usando imagen si está disponible
+    // renderPage: Renderiza usando imagen
     async function renderPage(num, callback) {
       if (!pdfLoaded || rendering) return;
       rendering = true;
       try {
-        const image = await generatePageImage(num); // Obtener imagen de la página
+        const image = await generatePageImage(num); // Obtener imagen
         currentImage = new Image();
         currentImage.src = image;
         currentImage.onload = () => {
           const context = canvas.getContext('2d');
-          const baseViewport = { width: currentImage.width / 3, height: currentImage.height / 3 }; // Escala base
+          const baseViewport = { width: currentImage.width / 2.5, height: currentImage.height / 2.5 }; // Escala base
           let scale;
           const isHorizontal = baseViewport.width > baseViewport.height;
           if (!isHorizontal) {
@@ -299,7 +299,7 @@
       updateCounter();
     }
     
-    // updateCounter: Actualiza el contador y el slider de página
+    // updateCounter: Actualiza el contador y el slider
     function updateCounter() {
       if (!pdfDoc) {
         document.getElementById("pageCounter").textContent = "## / ##";
@@ -423,12 +423,12 @@
          if (lastTempZoom) {
             zoomFactor = lastTempZoom;
          }
+         const zoomRatio = zoomFactor / pinchZoom.initialZoomFactor;
+         const centerX = pinchZoom.initialScrollLeft + pinchZoom.pinchCenterX;
+         const centerY = pinchZoom.initialScrollTop + pinchZoom.pinchCenterY;
          renderPage(pageNum, function() {
-           const zoomRatio = zoomFactor / pinchZoom.initialZoomFactor;
-           const newScrollLeft = pinchZoom.initialScrollLeft + pinchZoom.pinchCenterX * (zoomRatio - 1);
-           const newScrollTop = pinchZoom.initialScrollTop + pinchZoom.pinchCenterY * (zoomRatio - 1);
-           canvasWrapper.scrollLeft = newScrollLeft;
-           canvasWrapper.scrollTop = newScrollTop;
+           canvasWrapper.scrollLeft = centerX * zoomRatio - canvasWrapper.clientWidth / 2;
+           canvasWrapper.scrollTop = centerY * zoomRatio - canvasWrapper.clientHeight / 2;
          });
          isPinching = false;
       }
