@@ -20,6 +20,10 @@
         display: block;
         margin-top: 20px;
     }
+    button {
+        padding: 8px 16px;
+        cursor: pointer;
+    }
 </style>
 </head>
 <body>
@@ -42,11 +46,15 @@
 <h3>Resultado:</h3>
 <div id="result"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+<!-- gif.js desde jsDelivr (incluye worker en la misma ruta) -->
+<script src="https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.js"></script>
+
 <script>
 const imagesInput = document.getElementById("images");
 const preview = document.getElementById("preview");
+const generateBtn = document.getElementById("generate");
 
+// Vista previa de miniaturas
 imagesInput.addEventListener("change", () => {
     preview.innerHTML = "";
     [...imagesInput.files].forEach(file => {
@@ -56,63 +64,95 @@ imagesInput.addEventListener("change", () => {
     });
 });
 
-document.getElementById("generate").onclick = async () => {
-    const files = imagesInput.files;
-    const duration = parseInt(document.getElementById("duration").value);
-    const fade = parseInt(document.getElementById("fade").value);
-
-    if (!files.length) return alert("Sube imágenes primero");
-
-    const images = await Promise.all([...files].map(file => loadImage(file)));
-
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-
-    canvas.width = images[0].width;
-    canvas.height = images[0].height;
-
-    const gif = new GIF({
-        workers: 4,
-        quality: 10,
-        width: canvas.width,
-        height: canvas.height
-    });
-
-    for (let i = 0; i < images.length; i++) {
-        // Frame principal
-        ctx.globalAlpha = 1;
-        ctx.drawImage(images[i], 0, 0);
-        gif.addFrame(canvas, { delay: duration });
-
-        // Fade hacia la siguiente imagen
-        if (i < images.length - 1) {
-            for (let a = 0; a <= 1; a += 0.05) {
-                ctx.globalAlpha = 1;
-                ctx.drawImage(images[i], 0, 0);
-
-                ctx.globalAlpha = a;
-                ctx.drawImage(images[i + 1], 0, 0);
-
-                gif.addFrame(canvas, { delay: fade / 20 });
-            }
-        }
-    }
-
-    gif.on("finished", blob => {
-        const url = URL.createObjectURL(blob);
-        document.getElementById("result").innerHTML = `<img src="${url}">`;
-    });
-
-    gif.render();
-};
-
+// Cargar un File como Image
 function loadImage(file) {
-    return new Promise(resolve => {
+    return new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve(img);
+        img.onerror = reject;
         img.src = URL.createObjectURL(file);
     });
 }
+
+generateBtn.onclick = async () => {
+    try {
+        const files = imagesInput.files;
+        const duration = parseInt(document.getElementById("duration").value, 10);
+        const fade = parseInt(document.getElementById("fade").value, 10);
+
+        if (!files.length) {
+            alert("Sube imágenes primero");
+            return;
+        }
+
+        // Cargar imágenes
+        const images = await Promise.all([...files].map(loadImage));
+
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+
+        canvas.width = images[0].width;
+        canvas.height = images[0].height;
+
+        // IMPORTANTE: indicar dónde está el worker
+        const gif = new GIF({
+            workers: 2,
+            quality: 10,
+            width: canvas.width,
+            height: canvas.height,
+            workerScript: "https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.worker.js"
+        });
+
+        // Frames
+        for (let i = 0; i < images.length; i++) {
+            // Frame principal
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.globalAlpha = 1;
+            ctx.drawImage(images[i], 0, 0, canvas.width, canvas.height);
+            gif.addFrame(canvas, { delay: duration });
+
+            // Fade hacia la siguiente imagen
+            if (i < images.length - 1) {
+                const steps = 20;
+                for (let s = 0; s <= steps; s++) {
+                    const a = s / steps;
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                    // imagen actual
+                    ctx.globalAlpha = 1;
+                    ctx.drawImage(images[i], 0, 0, canvas.width, canvas.height);
+
+                    // siguiente con alpha progresivo
+                    ctx.globalAlpha = a;
+                    ctx.drawImage(images[i + 1], 0, 0, canvas.width, canvas.height);
+
+                    gif.addFrame(canvas, { delay: fade / steps });
+                }
+            }
+        }
+
+        gif.on("finished", blob => {
+            const url = URL.createObjectURL(blob);
+            document.getElementById("result").innerHTML = `<img src="${url}">`;
+        });
+
+        gif.on("progress", p => {
+            generateBtn.textContent = `Creando GIF... ${Math.round(p * 100)}%`;
+        });
+
+        gif.on("abort", () => {
+            console.error("GIF abortado");
+            alert("Se abortó la generación del GIF");
+            generateBtn.textContent = "Crear GIF";
+        });
+
+        gif.render();
+    } catch (err) {
+        console.error("Error generando GIF:", err);
+        alert("Error al crear el GIF. Mira la consola para más detalles.");
+        generateBtn.textContent = "Crear GIF";
+    }
+};
 </script>
 
 </body>
