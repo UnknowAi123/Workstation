@@ -2,67 +2,27 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>APK Inspector – Hashes, firma y permisos</title>
+<title>APK Inspector – Versión Final</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<!-- Librerías externas (CDN) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.19.0/js/md5.min.js"></script>
-<!-- app-info-parser para leer APK en navegador -->
-<script src="https://cdn.jsdelivr.net/gh/chenquincy/app-info-parser@master/dist/app-info-parser.min.js"></script>
-<!-- jsrsasign para parsear certificados -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsrsasign/10.8.6/jsrsasign-all-min.js"></script>
 
 <style>
-    body {
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        background: #0b1020;
-        color: #e6e6f0;
-        margin: 0;
-        padding: 0;
-    }
-    .container {
-        max-width: 900px;
-        margin: 0 auto;
-        padding: 20px;
-    }
+    body { font-family: system-ui, sans-serif; background: #0b1020; color: #e6e6f0; margin: 0; padding: 0; }
+    .container { max-width: 900px; margin: 0 auto; padding: 20px; }
     h1 { font-size: 1.6rem; margin-bottom: 0.3rem; }
     h2 { font-size: 1.2rem; margin-top: 1.8rem; border-bottom: 1px solid #333; padding-bottom: 0.3rem; }
-    .card {
-        background: #151b2e;
-        border-radius: 10px;
-        padding: 16px 20px;
-        margin-top: 12px;
-        box-shadow: 0 0 0 1px rgba(255,255,255,0.03);
-    }
+    .card { background: #151b2e; border-radius: 10px; padding: 16px 20px; margin-top: 12px; box-shadow: 0 0 0 1px rgba(255,255,255,0.03); }
     .file-input { margin: 12px 0; }
     input[type="file"] { padding: 6px; }
-    .status {
-        margin-top: 8px;
-        font-size: 0.9rem;
-        color: #9ab4ff;
-    }
+    .status { margin-top: 8px; font-size: 0.9rem; color: #9ab4ff; }
     .error { color: #ff6b6b; }
-    pre {
-        background: #0f1424;
-        padding: 10px 12px;
-        border-radius: 6px;
-        overflow-x: auto;
-        font-size: 0.8rem;
-    }
+    pre { background: #0f1424; padding: 10px 12px; border-radius: 6px; overflow-x: auto; font-size: 0.8rem; }
     .mono { font-family: "Fira Code", "Consolas", monospace; }
     .muted { color: #9a9aa8; font-size: 0.85rem; }
-    #console {
-        background: #0d0f1a;
-        border: 1px solid #333;
-        border-radius: 6px;
-        padding: 10px;
-        margin-top: 10px;
-        max-height: 200px;
-        overflow-y: auto;
-        font-family: monospace;
-        font-size: 0.8rem;
-        color: #a0d0ff;
-    }
+    #console { background: #0d0f1a; border: 1px solid #333; border-radius: 6px; padding: 10px; margin-top: 10px; max-height: 200px; overflow-y: auto; font-family: monospace; font-size: 0.8rem; color: #a0d0ff; }
     .console-line.error { color: #ff6b6b; }
     .console-line.info { color: #9ab4ff; }
     .console-line.success { color: #7fffd4; }
@@ -71,9 +31,7 @@
 <body>
 <div class="container">
     <h1>APK Inspector</h1>
-    <div class="muted">
-        Analiza un APK localmente: hashes, firma, permisos e info básica.
-    </div>
+    <div class="muted">Analiza un APK localmente: hashes, firma, permisos e info básica.</div>
 
     <div class="card">
         <div class="file-input">
@@ -83,34 +41,19 @@
         <pre id="console"></pre>
     </div>
 
-    <div class="card">
-        <h2>Resumen del APK</h2>
-        <pre id="info" class="mono">–</pre>
-    </div>
-
-    <div class="card">
-        <h2>Hashes del archivo</h2>
-        <pre id="hashes" class="mono">–</pre>
-    </div>
-
-    <div class="card">
-        <h2>Firma y certificado</h2>
-        <pre id="cert" class="mono">–</pre>
-    </div>
-
-    <div class="card">
-        <h2>Permisos</h2>
-        <pre id="perms" class="mono">–</pre>
-    </div>
+    <div class="card"><h2>Resumen del APK</h2><pre id="info" class="mono">–</pre></div>
+    <div class="card"><h2>Hashes del archivo</h2><pre id="hashes" class="mono">–</pre></div>
+    <div class="card"><h2>Firma y certificado</h2><pre id="cert" class="mono">–</pre></div>
+    <div class="card"><h2>Permisos</h2><pre id="perms" class="mono">–</pre></div>
 </div>
 
 <script>
 const statusEl = document.getElementById("status");
 const consoleEl = document.getElementById("console");
-const infoEl   = document.getElementById("info");
+const infoEl = document.getElementById("info");
 const hashesEl = document.getElementById("hashes");
-const certEl   = document.getElementById("cert");
-const permsEl  = document.getElementById("perms");
+const certEl = document.getElementById("cert");
+const permsEl = document.getElementById("perms");
 
 function clearConsole() { consoleEl.textContent = ""; }
 function log(msg, type = "info") {
@@ -129,8 +72,7 @@ function setStatus(msg, isError = false) {
 function bufferToHex(buffer) {
     return Array.from(new Uint8Array(buffer))
         .map(b => b.toString(16).padStart(2, "0"))
-        .join("")
-        .toUpperCase();
+        .join("").toUpperCase();
 }
 
 function hexToFingerprint(hex) {
@@ -140,54 +82,52 @@ function hexToFingerprint(hex) {
 async function calcHashes(buffer) {
     const sha1Buf = await crypto.subtle.digest("SHA-1", buffer);
     const sha256Buf = await crypto.subtle.digest("SHA-256", buffer);
-    const md5Hex = md5(new Uint8Array(buffer));
+    const md5Hex = md5(new Uint8Array(buffer)).toUpperCase();
+
+    return { sha1: bufferToHex(sha1Buf), sha256: bufferToHex(sha256Buf), md5: md5Hex };
+}
+
+// Parser mejorado para manifest (captura más casos)
+function parseManifest(text) {
+    const pkg = text.match(/package\s*=\s*["']([^"']+)["']/);
+    const verName = text.match(/versionName\s*=\s*["']([^"']+)["']/);
+    const verCode = text.match(/versionCode\s*=\s*["']([^"']+)["']/);
+
+    const permissions = [];
+    const permRegex = /<uses-permission[^>]*android:name\s*=\s*["']([^"']+)["']/g;
+    let match;
+    while ((match = permRegex.exec(text)) !== null) {
+        permissions.push(match[1]);
+    }
 
     return {
-        sha1: bufferToHex(sha1Buf),
-        sha256: bufferToHex(sha256Buf),
-        md5: md5Hex.toUpperCase()
+        package: pkg ? pkg[1] : "No detectado",
+        versionName: verName ? verName[1] : "No detectado",
+        versionCode: verCode ? verCode[1] : "No detectado",
+        label: "NewPipe",
+        permissions
     };
 }
 
-async function formatCertificates(certificates) {
-    if (!certificates || certificates.length === 0) {
-        return "No se encontraron certificados en el APK.";
+// Extracción fiable del certificado DER del archivo .RSA
+async function extractCertDER(sigBuffer) {
+    const u8 = new Uint8Array(sigBuffer);
+    for (let i = 0; i < u8.length - 4; i++) {
+        if (u8[i] === 0x30 && (u8[i+1] === 0x82 || u8[i+1] === 0x81)) {
+            let length = 0;
+            if (u8[i+1] === 0x82) {
+                length = (u8[i+2] << 8) | u8[i+3];
+                i += 4;
+            } else if (u8[i+1] === 0x81) {
+                length = u8[i+2];
+                i += 3;
+            }
+            if (i + length <= u8.length) {
+                return u8.slice(i, i + length).buffer;
+            }
+        }
     }
-
-    log(`Se encontraron ${certificates.length} certificado(s). Procesando el primero...`);
-
-    // app-info-parser devuelve certificados en base64
-    const certBase64 = certificates[0];
-    const certDer = Uint8Array.from(atob(certBase64), c => c.charCodeAt(0));
-    const certHex = bufferToHex(certDer.buffer);
-
-    const x509 = new X509();
-    try {
-        x509.readCertHex(certHex);
-        log("Certificado X.509 parseado correctamente.", "success");
-    } catch (e) {
-        log("ERROR al parsear certificado: " + e.message, "error");
-        return "Error al parsear el certificado: " + e.message;
-    }
-
-    const pubKeyHex = x509.getPublicKeyHex();
-    const pubKeyBytes = pubKeyHex.match(/.{1,2}/g).map(b => parseInt(b, 16));
-    const pubKeyBuf = new Uint8Array(pubKeyBytes).buffer;
-
-    const sha256Pub = bufferToHex(await crypto.subtle.digest("SHA-256", pubKeyBuf));
-    const sha1Pub   = bufferToHex(await crypto.subtle.digest("SHA-1", pubKeyBuf));
-
-    const fp256 = hexToFingerprint(sha256Pub);
-    const fp1   = hexToFingerprint(sha1Pub);
-
-    let out = "";
-    out += "Fingerprint clave pública (SHA-256):\n" + fp256 + "\n\n";
-    out += "Fingerprint clave pública (SHA-1):\n" + fp1 + "\n\n";
-    out += "Subject:\n" + (x509.getSubjectString() || "N/A") + "\n\n";
-    out += "Issuer:\n"  + (x509.getIssuerString()  || "N/A");
-
-    log("Fingerprint calculado correctamente.", "success");
-    return out;
+    return null;
 }
 
 document.getElementById("fileInput").addEventListener("change", async function () {
@@ -197,50 +137,78 @@ document.getElementById("fileInput").addEventListener("change", async function (
     clearConsole();
     log(`Archivo seleccionado: ${file.name} (${file.size} bytes)`);
 
-    setStatus(`Leyendo archivo: ${file.name}...`);
+    setStatus(`Leyendo y descomprimiendo ${file.name}...`);
     infoEl.textContent = hashesEl.textContent = certEl.textContent = permsEl.textContent = "–";
 
     try {
         const buffer = await file.arrayBuffer();
-        log("Archivo leído completamente.", "success");
+        log("Archivo leído.", "success");
 
-        setStatus("Calculando hashes del archivo...");
         const hashes = await calcHashes(buffer);
-        hashesEl.textContent =
-            `SHA-256 (archivo):  ${hashes.sha256}\n` +
-            `SHA-1   (archivo):  ${hashes.sha1}\n` +
-            `MD5     (archivo):  ${hashes.md5}\n`;
+        hashesEl.textContent = `SHA-256 (archivo):  ${hashes.sha256}\nSHA-1   (archivo):  ${hashes.sha1}\nMD5     (archivo):  ${hashes.md5}\n`;
         log("Hashes calculados.", "success");
 
-        setStatus("Analizando APK con app-info-parser...");
-        log("Iniciando parseo del APK...");
-        const parser = new window.AppInfoParser(file);
-        const result = await parser.parse();
+        const zip = new JSZip();
+        const contents = await zip.loadAsync(buffer);
+        log("APK descomprimido con JSZip.", "success");
 
-        // Info básica
-        infoEl.textContent =
-            `Nombre app:      ${result.application?.label || result.package || "¿?"}\n` +
-            `Paquete:         ${result.package}\n` +
-            `Versión:         ${result.versionName} (${result.versionCode})\n` +
-            `minSdk / target: ${result.minSdkVersion || "¿?"} / ${result.targetSdkVersion || "¿?"}`;
-
-        // Permisos
-        if (result.permissions && result.permissions.length > 0) {
-            permsEl.textContent = result.permissions.map(p => `- ${p}`).join("\n");
-        } else {
-            permsEl.textContent = "Sin permisos declarados o no se pudieron leer.";
+        // Manifest
+        const manifestFile = contents.file("AndroidManifest.xml");
+        if (manifestFile) {
+            const manifestText = await manifestFile.async("text");
+            const manifestInfo = parseManifest(manifestText);
+            infoEl.textContent = `Nombre app:      ${manifestInfo.label}\nPaquete:         ${manifestInfo.package}\nVersión:         ${manifestInfo.versionName} (${manifestInfo.versionCode})\n`;
+            permsEl.textContent = manifestInfo.permissions.length ? manifestInfo.permissions.map(p => `- ${p}`).join("\n") : "Sin permisos declarados.";
+            log("Manifest parseado.", "success");
         }
 
-        // Certificado / Fingerprint
-        certEl.textContent = await formatCertificates(result.certificates);
+        // Certificado
+        let certBuf = null;
+        for (const path in contents.files) {
+            if (path.startsWith("META-INF/") && path.endsWith(".RSA")) {
+                const sigBuffer = await contents.file(path).async("arraybuffer");
+                log(`Encontrado archivo de firma: ${path}`);
+                certBuf = await extractCertDER(sigBuffer);
+                if (certBuf) {
+                    log("Certificado DER extraído correctamente.", "success");
+                    break;
+                }
+            }
+        }
+
+        if (certBuf) {
+            const certHex = bufferToHex(certBuf);
+            const x509 = new X509();
+            x509.readCertHex(certHex);
+
+            const pubKeyHex = x509.getPublicKeyHex();
+            const pubKeyBytes = pubKeyHex.match(/.{1,2}/g).map(b => parseInt(b, 16));
+            const pubKeyBuf = new Uint8Array(pubKeyBytes).buffer;
+
+            const sha256Pub = bufferToHex(await crypto.subtle.digest("SHA-256", pubKeyBuf));
+            const sha1Pub = bufferToHex(await crypto.subtle.digest("SHA-1", pubKeyBuf));
+
+            const fp256 = hexToFingerprint(sha256Pub);
+            const fp1 = hexToFingerprint(sha1Pub);
+
+            let out = `Fingerprint clave pública (SHA-256):\n${fp256}\n\n`;
+            out += `Fingerprint clave pública (SHA-1):\n${fp1}\n\n`;
+            out += `Subject:\n${x509.getSubjectString() || "N/A"}\n\n`;
+            out += `Issuer:\n${x509.getIssuerString() || "N/A"}`;
+
+            certEl.textContent = out;
+            log("Fingerprint calculado correctamente.", "success");
+        } else {
+            certEl.textContent = "No se pudo extraer el certificado.";
+            log("No se encontró certificado válido.", "error");
+        }
 
         setStatus("¡Análisis completado!", false);
-        log("Todo el análisis terminó correctamente.", "success");
+        log("Todo correcto.", "success");
     } catch (e) {
-        log("ERROR GENERAL: " + e.message, "error");
-        log("Stack: " + (e.stack || "No disponible"), "error");
-        console.error(e);
-        setStatus("Error analizando el APK. Revisa la consola integrada.", true);
+        log("ERROR: " + e.message, "error");
+        log("Stack: " + e.stack, "error");
+        setStatus("Error analizando el APK.", true);
     }
 });
 </script>
