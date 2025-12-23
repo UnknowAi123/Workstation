@@ -2,158 +2,307 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Generador de GIF con Fade</title>
+<title>APK Inspector – Hashes, firma y permisos</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Librerías externas (CDN) -->
+<!-- js-md5 para MD5 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.19.0/js/md5.min.js"></script>
+<!-- apk-parser-js para leer el APK (manifest, certificados, etc.) -->
+<script src="https://cdn.jsdelivr.net/npm/apk-parser-js@0.4.3/dist/apk-parser.min.js"></script>
+<!-- jsrsasign para parsear X.509 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsrsasign/10.8.6/jsrsasign-all-min.js"></script>
+
 <style>
     body {
-        font-family: Arial, sans-serif;
-        max-width: 700px;
-        margin: 40px auto;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #0b1020;
+        color: #e6e6f0;
+        margin: 0;
+        padding: 0;
+    }
+    .container {
+        max-width: 900px;
+        margin: 0 auto;
         padding: 20px;
-        background: #f4f4f4;
     }
-    #preview img {
-        max-width: 150px;
-        margin: 5px;
+    h1 {
+        font-size: 1.6rem;
+        margin-bottom: 0.3rem;
     }
-    #result img {
-        max-width: 400px;
-        display: block;
-        margin-top: 20px;
+    h2 {
+        font-size: 1.2rem;
+        margin-top: 1.8rem;
+        border-bottom: 1px solid #333;
+        padding-bottom: 0.3rem;
     }
-    button {
-        padding: 8px 16px;
-        cursor: pointer;
+    .card {
+        background: #151b2e;
+        border-radius: 10px;
+        padding: 16px 20px;
+        margin-top: 12px;
+        box-shadow: 0 0 0 1px rgba(255,255,255,0.03);
+    }
+    .file-input {
+        margin: 12px 0;
+    }
+    input[type="file"] {
+        padding: 6px;
+    }
+    .status {
+        margin-top: 8px;
+        font-size: 0.9rem;
+        color: #9ab4ff;
+    }
+    .error {
+        color: #ff6b6b;
+    }
+    pre {
+        background: #0f1424;
+        padding: 10px 12px;
+        border-radius: 6px;
+        overflow-x: auto;
+        font-size: 0.8rem;
+    }
+    .mono {
+        font-family: "Fira Code", "Consolas", monospace;
+    }
+    .tag {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background: #222840;
+        font-size: 0.75rem;
+        margin-right: 4px;
+        margin-bottom: 4px;
+    }
+    .tag-permission {
+        background: #24344a;
+    }
+    .muted {
+        color: #9a9aa8;
+        font-size: 0.85rem;
     }
 </style>
 </head>
 <body>
+<div class="container">
+    <h1>APK Inspector</h1>
+    <div class="muted">
+        Analiza un APK localmente: hashes del archivo, firma (Signing key SHA‑256), permisos e info básica.
+    </div>
 
-<h2>Generador de GIF con transición Fade</h2>
+    <div class="card">
+        <div class="file-input">
+            <input type="file" id="fileInput" accept=".apk">
+        </div>
+        <div id="status" class="status">Selecciona un archivo APK para empezar.</div>
+    </div>
 
-<input type="file" id="images" multiple accept="image/*"><br><br>
+    <div class="card">
+        <h2>Resumen del APK</h2>
+        <pre id="info" class="mono">–</pre>
+    </div>
 
-<label>Duración por imagen (ms):</label>
-<input type="number" id="duration" value="1000"><br><br>
+    <div class="card">
+        <h2>Hashes del archivo</h2>
+        <pre id="hashes" class="mono">–</pre>
+    </div>
 
-<label>Duración del fade (ms):</label>
-<input type="number" id="fade" value="500"><br><br>
+    <div class="card">
+        <h2>Firma y certificado</h2>
+        <pre id="cert" class="mono">–</pre>
+    </div>
 
-<button id="generate">Crear GIF</button>
-
-<h3>Vista previa:</h3>
-<div id="preview"></div>
-
-<h3>Resultado:</h3>
-<div id="result"></div>
-
-<!-- gif.js desde jsDelivr (incluye worker en la misma ruta) -->
-<script src="https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.js"></script>
+    <div class="card">
+        <h2>Permisos</h2>
+        <pre id="perms" class="mono">–</pre>
+    </div>
+</div>
 
 <script>
-const imagesInput = document.getElementById("images");
-const preview = document.getElementById("preview");
-const generateBtn = document.getElementById("generate");
+const statusEl = document.getElementById("status");
+const infoEl   = document.getElementById("info");
+const hashesEl = document.getElementById("hashes");
+const certEl   = document.getElementById("cert");
+const permsEl  = document.getElementById("perms");
 
-// Vista previa de miniaturas
-imagesInput.addEventListener("change", () => {
-    preview.innerHTML = "";
-    [...imagesInput.files].forEach(file => {
-        const img = document.createElement("img");
-        img.src = URL.createObjectURL(file);
-        preview.appendChild(img);
-    });
-});
-
-// Cargar un File como Image
-function loadImage(file) {
-    return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.onerror = reject;
-        img.src = URL.createObjectURL(file);
-    });
+function setStatus(msg, isError = false) {
+    statusEl.textContent = msg;
+    statusEl.classList.toggle("error", isError);
 }
 
-generateBtn.onclick = async () => {
-    try {
-        const files = imagesInput.files;
-        const duration = parseInt(document.getElementById("duration").value, 10);
-        const fade = parseInt(document.getElementById("fade").value, 10);
+/**
+ * Convierte ArrayBuffer a hex mayúsculas
+ */
+function bufferToHex(buffer) {
+    return Array.from(new Uint8Array(buffer))
+        .map(b => b.toString(16).padStart(2, "0"))
+        .join("")
+        .toUpperCase();
+}
 
-        if (!files.length) {
-            alert("Sube imágenes primero");
-            return;
-        }
+/**
+ * Formatea un hex tipo fingerprint: XX:XX:XX...
+ */
+function hexToFingerprint(hex) {
+    return hex.match(/.{1,2}/g).join(":");
+}
 
-        // Cargar imágenes
-        const images = await Promise.all([...files].map(loadImage));
+/**
+ * Calcula SHA-1 y SHA-256 de un ArrayBuffer (archivo completo)
+ */
+async function calcHashes(buffer) {
+    const sha1Buf = await crypto.subtle.digest("SHA-1", buffer);
+    const sha256Buf = await crypto.subtle.digest("SHA-256", buffer);
+    const md5Hex = md5(new Uint8Array(buffer)); // js-md5 (hex minúsculas)
 
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
+    return {
+        sha1: bufferToHex(sha1Buf),
+        sha256: bufferToHex(sha256Buf),
+        md5: md5Hex.toUpperCase()
+    };
+}
 
-        canvas.width = images[0].width;
-        canvas.height = images[0].height;
+/**
+ * Carga y analiza un APK usando apk-parser-js
+ */
+async function analyzeApk(buffer) {
+    // apk-parser-js espera un Buffer/Uint8Array
+    const u8 = new Uint8Array(buffer);
+    const parser = new window.ApkParser(u8);
 
-        // IMPORTANTE: indicar dónde está el worker
-        const gif = new GIF({
-            workers: 2,
-            quality: 10,
-            width: canvas.width,
-            height: canvas.height,
-            workerScript: "https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.worker.js"
-        });
+    // Manifest (info básica)
+    const manifest = await parser.parseManifest();
+    // Certificados (firma v1/v2/v3)
+    const certs = await parser.getCertificates();
 
-        // Frames
-        for (let i = 0; i < images.length; i++) {
-            // Frame principal
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.globalAlpha = 1;
-            ctx.drawImage(images[i], 0, 0, canvas.width, canvas.height);
-            gif.addFrame(canvas, { delay: duration });
+    return { manifest, certs };
+}
 
-            // Fade hacia la siguiente imagen
-            if (i < images.length - 1) {
-                const steps = 20;
-                for (let s = 0; s <= steps; s++) {
-                    const a = s / steps;
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+/**
+ * Extrae info legible del manifest
+ */
+function formatManifest(manifest) {
+    if (!manifest) return "No se pudo leer el manifest.";
 
-                    // imagen actual
-                    ctx.globalAlpha = 1;
-                    ctx.drawImage(images[i], 0, 0, canvas.width, canvas.height);
+    const pkg = manifest.package || "¿?";
+    const label = manifest.application && manifest.application.label || "¿?";
+    const versionName = manifest.versionName || "¿?";
+    const versionCode = manifest.versionCode || "¿?";
+    const sdk = manifest.usesSdk || {};
+    const minSdk = sdk.minSdkVersion || "¿?";
+    const targetSdk = sdk.targetSdkVersion || "¿?";
 
-                    // siguiente con alpha progresivo
-                    ctx.globalAlpha = a;
-                    ctx.drawImage(images[i + 1], 0, 0, canvas.width, canvas.height);
+    let out = "";
+    out += `Nombre app:      ${label}\n`;
+    out += `Paquete:         ${pkg}\n`;
+    out += `Versión:         ${versionName} (${versionCode})\n`;
+    out += `minSdk / target: ${minSdk} / ${targetSdk}\n`;
+    return out;
+}
 
-                    gif.addFrame(canvas, { delay: fade / steps });
-                }
-            }
-        }
-
-        gif.on("finished", blob => {
-            const url = URL.createObjectURL(blob);
-            document.getElementById("result").innerHTML = `<img src="${url}">`;
-        });
-
-        gif.on("progress", p => {
-            generateBtn.textContent = `Creando GIF... ${Math.round(p * 100)}%`;
-        });
-
-        gif.on("abort", () => {
-            console.error("GIF abortado");
-            alert("Se abortó la generación del GIF");
-            generateBtn.textContent = "Crear GIF";
-        });
-
-        gif.render();
-    } catch (err) {
-        console.error("Error generando GIF:", err);
-        alert("Error al crear el GIF. Mira la consola para más detalles.");
-        generateBtn.textContent = "Crear GIF";
+/**
+ * Extrae permisos del manifest
+ */
+function formatPermissions(manifest) {
+    if (!manifest || !manifest.usesPermission || !manifest.usesPermission.length) {
+        return "Sin permisos declarados o no se pudieron leer.";
     }
-};
-</script>
+    const list = manifest.usesPermission.map(p => p.name || "¿?");
 
+    return list.map(p => `- ${p}`).join("\n");
+}
+
+/**
+ * Procesa certificados y devuelve fingerprint de la clave pública
+ */
+async function formatCertificates(certs) {
+    if (!certs || !certs.length) {
+        return "No se encontraron certificados en el APK.";
+    }
+
+    // apk-parser-js suele dar los certificados en DER (ArrayBuffer/Uint8Array)
+    // Tomamos el primero
+    const first = certs[0];
+
+    // Normalizar a ArrayBuffer
+    let certBuf;
+    if (first instanceof ArrayBuffer) {
+        certBuf = first;
+    } else if (first.buffer instanceof ArrayBuffer) {
+        certBuf = first.buffer;
+    } else if (first.raw && (first.raw instanceof ArrayBuffer || first.raw.buffer instanceof ArrayBuffer)) {
+        certBuf = first.raw instanceof ArrayBuffer ? first.raw : first.raw.buffer;
+    } else {
+        return "Formato de certificado no reconocido.";
+    }
+
+    const certHex = bufferToHex(certBuf);
+    // jsrsasign espera hex
+    const x509 = new KJUR.asn1.x509.Certificate();
+    x509.readCertHex(certHex);
+
+    // Clave pública en hex
+    const pubKeyHex = x509.getPublicKeyHex();
+    const pubKeyBytes = pubKeyHex.match(/.{1,2}/g).map(b => parseInt(b, 16));
+    const pubKeyBuf = new Uint8Array(pubKeyBytes).buffer;
+
+    const sha256Pub = bufferToHex(await crypto.subtle.digest("SHA-256", pubKeyBuf));
+    const sha1Pub   = bufferToHex(await crypto.subtle.digest("SHA-1", pubKeyBuf));
+
+    const fp256 = hexToFingerprint(sha256Pub);
+    const fp1   = hexToFingerprint(sha1Pub);
+
+    let out = "";
+    out += "Fingerprint clave pública (SHA-256):\n";
+    out += fp256 + "\n\n";
+    out += "Fingerprint clave pública (SHA-1):\n";
+    out += fp1 + "\n\n";
+
+    // Datos adicionales del certificado (emisor/sujeto, etc.)
+    const subject = x509.getSubjectString() || "";
+    const issuer  = x509.getIssuerString() || "";
+
+    out += "Subject:\n" + subject + "\n\n";
+    out += "Issuer:\n" + issuer + "\n";
+
+    return out;
+}
+
+document.getElementById("fileInput").addEventListener("change", async function () {
+    const file = this.files[0];
+    if (!file) return;
+
+    setStatus(`Leyendo archivo: ${file.name}...`);
+    infoEl.textContent   = "–";
+    hashesEl.textContent = "–";
+    certEl.textContent   = "–";
+    permsEl.textContent  = "–";
+
+    try {
+        const buffer = await file.arrayBuffer();
+
+        setStatus("Calculando hashes del archivo...");
+        const hashes = await calcHashes(buffer);
+        hashesEl.textContent =
+            `SHA-256 (archivo):  ${hashes.sha256}\n` +
+            `SHA-1   (archivo):  ${hashes.sha1}\n` +
+            `MD5     (archivo):  ${hashes.md5}\n`;
+
+        setStatus("Analizando APK (manifest, firma, permisos)...");
+        const { manifest, certs } = await analyzeApk(buffer);
+
+        infoEl.textContent  = formatManifest(manifest);
+        permsEl.textContent = formatPermissions(manifest);
+        certEl.textContent  = await formatCertificates(certs);
+
+        setStatus("Análisis completado.");
+    } catch (e) {
+        console.error(e);
+        setStatus("Error analizando el APK. Mira la consola para más detalles.", true);
+    }
+});
+</script>
 </body>
 </html>
